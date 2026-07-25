@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [
-    { name = "Yifei Zheng" },
+    { name = "Yifei Zheng", email = "zyf0717@gmail.com" },
 ]
 keywords = ["ble", "bluez", "bluetooth", "polar", "pmd", "pftp", "recording"]
 classifiers = [
