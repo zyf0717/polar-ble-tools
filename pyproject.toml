@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polar-ble-tools"
+version = "0.1.0"
+description = "Unofficial local BLE tooling for supported Polar devices."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Yifei Zheng" },
+]
+keywords = ["ble", "bluez", "bluetooth", "polar", "pmd", "pftp", "recording"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Hardware",
+]
+dependencies = [
+    "bleak>=1.0,<4.0",
+    "cryptography>=49,<50",
+    "platformdirs>=4,<5",
+    "protobuf>=6.33.5,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "twine",
+]
+sdk = [
+    "grpcio-tools>=1.81,<1.82",
+]
+
+[project.scripts]
+polar-ble = "polar_ble_tools.commands.main:main"
+polar-connect = "polar_ble_tools.ble.bluetoothctl_pairing:connect_main"
+polar-pair = "polar_ble_tools.ble.bluetoothctl_pairing:pair_main"
+
+[project.urls]
+Documentation = "https://github.com/zyf0717/polar-ble-tools#readme"
+Issues = "https://github.com/zyf0717/polar-ble-tools/issues"
+Source = "https://github.com/zyf0717/polar-ble-tools"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["polar_ble_tools*"]

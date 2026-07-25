@@ -1,0 +1,42 @@
+name: sdk-contract
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*rc*"]
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    runs-on: ubuntu-latest
+    env:
+      PYTHONNOUSERSITE: "1"
+      XDG_CACHE_HOME: /tmp/polar-ble-sdk-cache
+      XDG_DATA_HOME: /tmp/polar-ble-sdk-data
+      EXPECTED_SDK_COMMIT: ccff6812c40fff1753c72385387d1877ca9b27b4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install SDK contract dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,sdk]"
+      - name: Install the immutable licensed SDK input
+        run: polar-ble sdk install --accept-license
+      - name: Verify the resolved supported commit
+        run: |
+          test "$(polar-ble sdk status | sed -n 's/^active: //p')" = "$EXPECTED_SDK_COMMIT"
+      - name: Run SDK and schema-dependent contracts
+        run: python -m pytest -q tests/sdk_contract tests/contracts
+      - name: Remove SDK and generated cache material
+        if: always()
+        run: |
+          polar-ble sdk remove --all
+          test ! -e "$XDG_DATA_HOME/polar-ble-tools/sdk/polar"
+          test ! -e "$XDG_DATA_HOME/polar-ble-tools/generated/polar"
+          test ! -e "$XDG_DATA_HOME/polar-ble-tools/active-sdk.json"

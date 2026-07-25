@@ -1,0 +1,18 @@
+{
+  "gender": "MALE",
+  "birth_date": "1990-01-02",
+  "height_cm": 180.5,
+  "weight_kg": 72.25,
+  "max_heart_rate_bpm": 190,
+  "resting_heart_rate_bpm": 55,
+  "vo2_max": 47,
+  "training_background": 30,
+  "typical_day": "MOSTLY_MOVING",
+  "sleep_goal_minutes": 480,
+  "user_device_settings": {
+    "device_location": "UPPER_ARM_LEFT",
+    "automatic_training_detection_mode": true,
+    "automatic_training_detection_sensitivity": 50,
+    "minimum_training_duration_seconds": 600
+  }
+}

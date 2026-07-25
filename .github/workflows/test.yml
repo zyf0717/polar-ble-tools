@@ -1,0 +1,46 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      PYTHONNOUSERSITE: "1"
+      XDG_CACHE_HOME: /tmp/polar-ble-cache
+      XDG_DATA_HOME: /tmp/polar-ble-data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install clean test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,sdk]"
+      - name: Verify schema-free package and primary CLI boundary
+        run: |
+          python -c "import polar_ble_tools"
+          polar-ble --version
+          polar-ble --help
+          test ! -e "$XDG_DATA_HOME/polar-ble-tools"
+          test ! -e "$XDG_CACHE_HOME/polar-ble-tools"
+      - name: Lint and check formatting
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Run SDK-free unit and contract tests
+        run: python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py
+      - name: Verify opt-in live tests skip outside protected hardware
+        run: python -m pytest -q tests/live

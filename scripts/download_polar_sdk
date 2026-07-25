@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import sys
+
+from polar_ble_tools.sdk_tools.cli import main
+
+raise SystemExit(main(["download", *sys.argv[1:]]))
