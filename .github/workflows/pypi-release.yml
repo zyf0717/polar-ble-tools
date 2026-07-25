@@ -2,7 +2,7 @@ name: pypi-release
 
 on:
   push:
-    tags: ["v0.1.1"]
+    tags: ["v*"]
 
 permissions:
   contents: read
