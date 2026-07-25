@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## 0.1.0 — 2026-07-25
+## 0.1.1 — 2026-07-25
 
 - Added the `polar-ble` CLI for Linux/BlueZ discovery, authorized pairing,
   connection, PMD/PFTP operations, raw `.REC` collection, passive `.BPB`
@@ -13,7 +13,7 @@ All notable changes to this project are documented here.
   verification, activation, and removal.
 - Added BPB decoding through verified local schemas.
 - Added SDK-free tests, SDK contract tests, package-content auditing, and
-  protected live-device tests.
+  opt-in live-device tests.
 
 Known limitations: structured `.REC` decoding, forced radio-loss recovery, and
 multi-device hardware validation are not supported release capabilities.

@@ -1,6 +1,6 @@
-# polar-ble-tools 0.1.0
+# polar-ble-tools 0.1.1
 
-`0.1.0` provides Linux/BlueZ tooling for BLE discovery and pairing, PMD and
+`0.1.1` provides Linux/BlueZ tooling for BLE discovery and pairing, PMD and
 PFTP operations, offline recording control, raw `.REC` retrieval, passive
 `.BPB` retrieval, FTU setup, guarded cleanup, and BPB decoding with optional
 locally generated schemas.

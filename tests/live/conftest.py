@@ -30,6 +30,6 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[object]):
     ):
         report.outcome = "failed"
         report.longrepr = (
-            "Required 0.1.0 live release-gate test skipped. Configure the protected "
+            "Required 0.1.1 live release-gate test skipped. Configure the protected "
             "primary MAC, authorized inventory, FTU profile, schema cache, and passive data."
         )

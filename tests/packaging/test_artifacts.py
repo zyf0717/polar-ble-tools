@@ -203,7 +203,7 @@ def test_wheel_metadata_uses_pep_639_and_declares_public_contract(
     metadata = wheel_metadata(wheel)
 
     assert metadata["Name"] == "polar-ble-tools"
-    assert metadata["Version"] == "0.1.0"
+    assert metadata["Version"] == "0.1.1"
     assert metadata["Requires-Python"] == ">=3.11"
     assert metadata["License-Expression"] == "Apache-2.0"
     assert {"LICENSE", "NOTICE"}.issubset(metadata.get_all("License-File", []))
