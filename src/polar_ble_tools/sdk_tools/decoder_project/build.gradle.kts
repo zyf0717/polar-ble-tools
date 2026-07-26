@@ -23,6 +23,7 @@ kotlin {
             kotlin.setIncludes(
                 listOf(
                     "DecoderMain.kt",
+                    "BuildInfo.kt",
                     "com/polar/androidcommunications/api/ble/BleLogger.kt",
                     "com/polar/androidcommunications/api/ble/exceptions/*.kt",
                     "com/polar/androidcommunications/api/ble/model/gatt/BleGattBase.kt",

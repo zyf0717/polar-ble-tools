@@ -12,12 +12,10 @@ import java.util.Base64
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 
-private const val PROTOCOL_VERSION = 1
-private const val DECODER_VERSION = "0.1.1"
-private const val SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 private const val POLAR_EPOCH_UNIX_NS = 946_684_800_000_000_000L
 
 private class UsageError(message: String) : RuntimeException(message)
+private class ProtocolCompatibilityError(message: String) : RuntimeException(message)
 private class UnsupportedRecordingError(message: String) : RuntimeException(message)
 private data class DecodeArguments(val input: Path, val output: Path, val protocol: Int)
 private data class DecodeOutput(val recordCount: Int, val warnings: List<String>)
@@ -27,20 +25,21 @@ fun main(arguments: Array<String>) {
         when (arguments.firstOrNull()) {
             "version" -> {
                 requireArguments(arguments, 1)
-                printStatus("ok", mapOf("decoder_version" to DECODER_VERSION, "protocol_version" to PROTOCOL_VERSION))
+                printStatus("ok", mapOf("decoder_version" to BuildInfo.DECODER_VERSION, "protocol_version" to BuildInfo.PROTOCOL_VERSION, "sdk_commit" to BuildInfo.SDK_COMMIT))
                 0
             }
             "self-test" -> {
                 requireArguments(arguments, 1)
-                check(PROTOCOL_VERSION == 1)
-                printStatus("ok", mapOf("decoder_version" to DECODER_VERSION, "protocol_version" to PROTOCOL_VERSION))
+                check(BuildInfo.PROTOCOL_VERSION == 1)
+                printStatus("ok", mapOf("decoder_version" to BuildInfo.DECODER_VERSION, "protocol_version" to BuildInfo.PROTOCOL_VERSION, "sdk_commit" to BuildInfo.SDK_COMMIT))
                 0
             }
             "decode" -> {
                 val output = decode(parseDecodeArguments(arguments.drop(1)))
                 printStatus("ok", mapOf(
-                    "decoder_version" to DECODER_VERSION,
-                    "protocol_version" to PROTOCOL_VERSION,
+                    "decoder_version" to BuildInfo.DECODER_VERSION,
+                    "protocol_version" to BuildInfo.PROTOCOL_VERSION,
+                    "sdk_commit" to BuildInfo.SDK_COMMIT,
                     "record_count" to output.recordCount,
                     "warnings" to output.warnings,
                 ))
@@ -50,12 +49,19 @@ fun main(arguments: Array<String>) {
         }
     } catch (error: UsageError) {
         System.err.println(error.message)
+        printError("usage")
         2
+    } catch (error: ProtocolCompatibilityError) {
+        System.err.println(error.message)
+        printError("protocol_incompatible")
+        5
     } catch (error: UnsupportedRecordingError) {
         System.err.println(error.message)
+        printError("unsupported_recording")
         3
     } catch (error: Exception) {
         System.err.println("decode failed: ${error.message ?: error::class.simpleName}")
+        printError("decode_failed")
         4
     }
     if (exitCode != 0) kotlin.system.exitProcess(exitCode)
@@ -85,7 +91,7 @@ private fun parseDecodeArguments(arguments: List<String>): DecodeArguments {
 }
 
 private fun decode(arguments: DecodeArguments): DecodeOutput {
-    if (arguments.protocol != PROTOCOL_VERSION) throw UnsupportedRecordingError("unsupported protocol ${arguments.protocol}")
+    if (arguments.protocol != BuildInfo.PROTOCOL_VERSION) throw ProtocolCompatibilityError("unsupported protocol ${arguments.protocol}")
     if (!Files.isRegularFile(arguments.input) || !Files.isReadable(arguments.input)) throw UsageError("input must be a readable regular file")
     if (Files.exists(arguments.output)) throw UsageError("output already exists: ${arguments.output}")
     val measurementType = try {
@@ -110,8 +116,8 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
     try {
         Files.newBufferedWriter(temporary, StandardCharsets.UTF_8).use { writer ->
             writer.write(jsonObject(mapOf(
-                "type" to "header", "protocol_version" to PROTOCOL_VERSION, "sdk_commit" to SDK_COMMIT,
-                "decoder_version" to DECODER_VERSION, "source_sha256" to sha256(source),
+                "type" to "header", "protocol_version" to BuildInfo.PROTOCOL_VERSION, "sdk_commit" to BuildInfo.SDK_COMMIT,
+                "decoder_version" to BuildInfo.DECODER_VERSION, "source_sha256" to sha256(source),
             ), warnings))
             writer.newLine()
             for ((stream, sample) in samples(data)) {
@@ -141,14 +147,20 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
     }
 }
 
-private fun samples(data: Any): List<Pair<String, Any>> {
-    val result = mutableListOf<Pair<String, Any>>()
+private fun samples(data: Any): Sequence<Pair<String, Any>> = sequence {
+    var found = false
     for (property in data::class.memberProperties.sortedBy { it.name }) {
         val value = readProperty(property, data)
-        if (value is Iterable<*>) value.filterNotNull().forEach { result += jsonKey(property.name) to it }
+        if (value is Iterable<*>) {
+            for (sample in value) {
+                if (sample != null) {
+                    found = true
+                    yield(jsonKey(property.name) to sample)
+                }
+            }
+        }
     }
-    if (result.isEmpty()) result += "data" to data
-    return result
+    if (!found) throw UnsupportedRecordingError("SDK result has no supported sample stream")
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -156,15 +168,13 @@ private fun readProperty(property: KProperty1<out Any, *>, target: Any): Any? = 
 
 private fun recordType(type: PmdMeasurementType): String = when (type) {
     PmdMeasurementType.ACC -> "acc"
-    PmdMeasurementType.ECG -> "ecg"
     PmdMeasurementType.GYRO -> "gyro"
-    PmdMeasurementType.MAGNETOMETER -> "mag"
+    PmdMeasurementType.MAGNETOMETER -> "magnetometer"
     PmdMeasurementType.OFFLINE_HR -> "hr"
     PmdMeasurementType.PPG -> "ppg"
     PmdMeasurementType.PPI -> "ppi"
-    PmdMeasurementType.SKIN_TEMP -> "skin_temperature"
-    PmdMeasurementType.TEMPERATURE -> "temperature"
-    else -> "unknown"
+    PmdMeasurementType.SKIN_TEMP -> "skin_temp"
+    else -> throw UnsupportedRecordingError("unsupported measurement type: $type")
 }
 
 private fun timestampNs(sample: Any, warnings: MutableSet<String>): Long? {
@@ -248,4 +258,8 @@ private fun sha256(value: ByteArray): String = MessageDigest.getInstance("SHA-25
 
 private fun printStatus(status: String, values: Map<String, Any>) {
     println(jsonObject(mapOf("status" to status) + values, linkedSetOf()))
+}
+
+private fun printError(errorCode: String) {
+    printStatus("error", mapOf("error_code" to errorCode, "protocol_version" to BuildInfo.PROTOCOL_VERSION, "sdk_commit" to BuildInfo.SDK_COMMIT, "decoder_version" to BuildInfo.DECODER_VERSION))
 }

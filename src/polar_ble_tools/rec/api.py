@@ -6,11 +6,13 @@ import hashlib
 import json
 import os
 import platform
+import re
+import signal
 import subprocess
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import Any
 
@@ -21,7 +23,11 @@ from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_wit
 _PROTOCOL_VERSION = 1
 _MAX_DIAGNOSTIC = 8_192
 _MAX_STATUS_BYTES = 8_192
+_MAX_JSONL_LINE_BYTES = 1_048_576
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_COMMIT_RE = re.compile(r"[0-9a-f]{40}")
+_DIGEST_RE = re.compile(r"[0-9a-f]{64}")
+_RECORD_TYPE_RE = re.compile(r"[a-z][a-z0-9_]*")
 
 
 class RecDecodeError(RuntimeError):
@@ -331,23 +337,40 @@ def _run_sidecar(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=environment,
+        start_new_session=os.name == "posix",
     )
     assert process.stdout is not None and process.stderr is not None
     stdout: list[bytes | bool] = []
     stderr: list[bytes | bool] = []
-    stdout_thread = Thread(target=_drain_stream, args=(process.stdout, _MAX_STATUS_BYTES, stdout))
-    stderr_thread = Thread(target=_drain_stream, args=(process.stderr, _MAX_DIAGNOSTIC, stderr))
+    stdout_thread = Thread(
+        target=_drain_stream, args=(process.stdout, _MAX_STATUS_BYTES, stdout), daemon=True
+    )
+    stderr_thread = Thread(
+        target=_drain_stream, args=(process.stderr, _MAX_DIAGNOSTIC, stderr), daemon=True
+    )
     stdout_thread.start()
     stderr_thread.start()
     try:
         returncode = process.wait(timeout=timeout_seconds)
     except subprocess.TimeoutExpired as exc:
-        process.kill()
-        process.wait()
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+            process.wait(timeout=2)
         raise DecoderTimeoutError("REC decoder timed out; retry with a larger timeout.") from exc
     finally:
-        stdout_thread.join()
-        stderr_thread.join()
+        stdout_thread.join(timeout=2)
+        stderr_thread.join(timeout=2)
+    if stdout_thread.is_alive() or stderr_thread.is_alive():
+        raise DecoderProtocolError("REC decoder did not close its diagnostic streams.")
     stdout_payload, stdout_exceeded = stdout
     stderr_payload, _ = stderr
     if stdout_exceeded:
@@ -355,31 +378,69 @@ def _run_sidecar(
     return returncode, stdout_payload, stderr_payload
 
 
-def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _reject_non_finite_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON constant: {value}")
+
+
+def _json_row(line: bytes, line_number: int) -> dict[str, Any]:
     try:
-        rows = [
-            json.loads(line)
-            for line in path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise DecoderProtocolError("Decoder output is not valid UTF-8 JSON Lines.") from exc
-    if len(rows) < 2 or not isinstance(rows[0], dict) or not isinstance(rows[-1], dict):
-        raise DecoderProtocolError("Decoder output is missing protocol header or summary.")
-    header, summary = rows[0], rows[-1]
-    if header.get("type") != "header" or summary.get("type") != "summary":
-        raise DecoderProtocolError("Decoder output has invalid header or summary ordering.")
-    if (
-        header.get("protocol_version") != _PROTOCOL_VERSION
-        or header.get("source_sha256") != source_digest
-    ):
+        value = json.loads(line, parse_constant=_reject_non_finite_constant)
+    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
         raise DecoderProtocolError(
-            "Decoder output does not match protocol v1 or the requested source."
-        )
-    records = rows[1:-1]
+            f"Decoder output has invalid JSON on line {line_number}."
+        ) from exc
+    if not isinstance(value, dict):
+        raise DecoderProtocolError(f"Decoder output row {line_number} is not a JSON object.")
+    return value
+
+
+def _iter_json_rows(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
+    if not path.is_file() or path.is_symlink():
+        raise DecoderProtocolError("Decoder output is missing or unsafe.")
+    try:
+        with path.open("rb") as output:
+            for line_number, line in enumerate(output, start=1):
+                if len(line) > _MAX_JSONL_LINE_BYTES:
+                    raise DecoderProtocolError("Decoder output contains an oversized JSONL row.")
+                if line.strip():
+                    yield line_number, _json_row(line, line_number)
+    except OSError as exc:
+        raise DecoderProtocolError("Decoder output could not be read.") from exc
+
+
+def _validate_header(header: dict[str, Any], source_digest: str) -> None:
+    if (
+        header.get("type") != "header"
+        or header.get("protocol_version") != _PROTOCOL_VERSION
+        or header.get("source_sha256") != source_digest
+        or not isinstance(header.get("decoder_version"), str)
+        or not header["decoder_version"]
+        or not isinstance(header.get("sdk_commit"), str)
+        or not _COMMIT_RE.fullmatch(header["sdk_commit"])
+        or not isinstance(header.get("source_sha256"), str)
+        or not _DIGEST_RE.fullmatch(header["source_sha256"])
+    ):
+        raise DecoderProtocolError("Decoder output has an invalid protocol header.")
+
+
+def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    header: dict[str, Any] | None = None
+    summary: dict[str, Any] | None = None
     counts: dict[str, int] = {}
-    for record in records:
-        if not isinstance(record, dict) or record.get("type") != "record":
+    record_count = 0
+    for line_number, record in _iter_json_rows(path):
+        if header is None:
+            _validate_header(record, source_digest)
+            header = record
+            continue
+        if summary is not None:
+            raise DecoderProtocolError(
+                f"Decoder output has a row after its summary (line {line_number})."
+            )
+        if record.get("type") == "summary":
+            summary = record
+            continue
+        if record.get("type") != "record":
             raise DecoderProtocolError("Decoder output contains an invalid record.")
         record_type, timestamp, payload = (
             record.get("record_type"),
@@ -388,7 +449,7 @@ def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dic
         )
         if (
             not isinstance(record_type, str)
-            or record_type != record_type.lower()
+            or not _RECORD_TYPE_RE.fullmatch(record_type)
             or not isinstance(payload, dict)
         ):
             raise DecoderProtocolError("Decoder record has an invalid envelope.")
@@ -397,9 +458,14 @@ def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dic
         ):
             raise DecoderProtocolError("Decoder record timestamp is invalid.")
         counts[record_type] = counts.get(record_type, 0) + 1
-    if summary.get("record_count") != len(records) or summary.get("record_types") != counts:
+        record_count += 1
+    if header is None or summary is None:
+        raise DecoderProtocolError("Decoder output is missing protocol header or summary.")
+    if summary.get("record_count") != record_count or summary.get("record_types") != counts:
         raise DecoderProtocolError("Decoder summary does not match its record stream.")
-    if not isinstance(summary.get("warnings"), list):
+    if not isinstance(summary.get("warnings"), list) or not all(
+        isinstance(warning, str) for warning in summary["warnings"]
+    ):
         raise DecoderProtocolError("Decoder summary warnings are invalid.")
     return header, summary
 
@@ -427,17 +493,12 @@ def decode_recording(
     if timeout_seconds is not None and timeout_seconds <= 0:
         raise RecordingDecodeError("timeout_seconds must be positive.")
     cache = SdkCache.default()
-    decoder = _load_decoder(cache)
+    decoder = _verified_decoder(cache, self_test=False)
     source_digest = _digest(source_path)
-    with NamedTemporaryFile(
-        prefix=f".{destination_path.name}.",
-        suffix=".jsonl",
-        dir=destination_path.parent,
-        delete=False,
-    ) as output:
-        temporary = Path(output.name)
-    temporary.unlink()
-    try:
+    with TemporaryDirectory(
+        prefix=f".{destination_path.name}.", dir=destination_path.parent
+    ) as directory:
+        temporary = Path(directory) / "decoded.jsonl"
         try:
             returncode, stdout, stderr = _run_sidecar(
                 [
@@ -455,12 +516,16 @@ def decode_recording(
             )
         except OSError as exc:
             raise RecordingDecodeError(f"REC decoder could not start: {exc}") from exc
-        if returncode:
-            raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(stderr)}")
         try:
             status = json.loads(stdout)
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise DecoderProtocolError("REC decoder returned malformed status JSON.") from exc
+        if not isinstance(status, dict) or not isinstance(status.get("status"), str):
+            raise DecoderProtocolError("REC decoder returned an invalid status object.")
+        if returncode:
+            if status.get("status") != "error":
+                raise DecoderProtocolError("REC decoder failed without an error status object.")
+            raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(stderr)}")
         header, summary = _validated_rows(temporary, source_digest)
         if status.get("status") != "ok" or status.get("record_count") != summary["record_count"]:
             raise DecoderProtocolError("REC decoder status disagrees with the decoded stream.")
@@ -468,10 +533,16 @@ def decode_recording(
             raise DecoderProtocolError(
                 "REC decoder SDK provenance differs from its verified manifest."
             )
-        temporary.replace(destination_path)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
+        if overwrite:
+            os.replace(temporary, destination_path)
+        else:
+            try:
+                os.link(temporary, destination_path)
+            except FileExistsError as exc:
+                raise RecordingDecodeError(
+                    f"Output already exists: {destination_path}; pass overwrite=True to replace it."
+                ) from exc
+            temporary.unlink()
     return DecodeReport(
         source_path=source_path,
         destination_path=destination_path.resolve(),
@@ -487,16 +558,17 @@ def decode_recording(
 
 def iter_decoded_records(decoded_jsonl: os.PathLike[str] | str) -> Iterator[RecRecord]:
     path = Path(decoded_jsonl)
-    source_digest = ""
     try:
-        header = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
-        source_digest = str(header["source_sha256"])
-    except (OSError, IndexError, KeyError, json.JSONDecodeError) as exc:
+        _, header = next(_iter_json_rows(path))
+        source_digest = header["source_sha256"]
+    except (StopIteration, KeyError, DecoderProtocolError) as exc:
         raise DecoderProtocolError("Decoded JSONL is missing a valid header.") from exc
+    if not isinstance(source_digest, str):
+        raise DecoderProtocolError("Decoded JSONL has an invalid source digest.")
     _validated_rows(path, source_digest)
-    for line in path.read_text(encoding="utf-8").splitlines()[1:-1]:
-        row = json.loads(line)
-        yield RecRecord(row["record_type"], row["timestamp_ns"], dict(row["payload"]))
+    for _, row in _iter_json_rows(path):
+        if row.get("type") == "record":
+            yield RecRecord(row["record_type"], row["timestamp_ns"], dict(row["payload"]))
 
 
 __all__ = [

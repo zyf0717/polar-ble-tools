@@ -162,3 +162,63 @@ def test_decode_rejects_oversized_status(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
     with pytest.raises(DecoderProtocolError, match="maximum size"):
         decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        '{"type":"record","record_type":"PPI","timestamp_ns":null,"payload":{}}',
+        '{"type":"record","record_type":"ppi","timestamp_ns":true,"payload":{}}',
+        '{"type":"record","record_type":"ppi","timestamp_ns":NaN,"payload":{}}',
+    ],
+)
+def test_iter_rejects_invalid_streaming_record(tmp_path: Path, record: str) -> None:
+    source_digest = "0" * 64
+    decoded = tmp_path / "decoded.jsonl"
+    decoded.write_text(
+        "\n".join(
+            (
+                json.dumps(
+                    {
+                        "type": "header",
+                        "protocol_version": 1,
+                        "sdk_commit": COMMIT,
+                        "decoder_version": "test",
+                        "source_sha256": source_digest,
+                    }
+                ),
+                record,
+                '{"type":"summary","record_count":1,"record_types":{"ppi":1},"warnings":[]}',
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DecoderProtocolError):
+        list(iter_decoded_records(decoded))
+
+
+def test_iter_rejects_row_after_summary(tmp_path: Path) -> None:
+    source_digest = "0" * 64
+    decoded = tmp_path / "decoded.jsonl"
+    decoded.write_text(
+        "\n".join(
+            (
+                json.dumps(
+                    {
+                        "type": "header",
+                        "protocol_version": 1,
+                        "sdk_commit": COMMIT,
+                        "decoder_version": "test",
+                        "source_sha256": source_digest,
+                    }
+                ),
+                '{"type":"summary","record_count":0,"record_types":{},"warnings":[]}',
+                '{"type":"record","record_type":"ppi","timestamp_ns":null,"payload":{}}',
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DecoderProtocolError, match="after its summary"):
+        list(iter_decoded_records(decoded))

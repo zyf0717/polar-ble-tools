@@ -274,7 +274,7 @@ def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) ->
             (Path(temporary) / f"gradle-{GRADLE_VERSION}").replace(gradle.parent.parent)
 
 
-def _write_workspace(workspace: Path) -> None:
+def _write_workspace(workspace: Path, *, commit: str) -> None:
     if workspace.exists():
         shutil.rmtree(workspace)
     source = workspace / "src" / "main" / "kotlin"
@@ -289,6 +289,14 @@ def _write_workspace(workspace: Path) -> None:
         template_path = template.joinpath(name)
         if template_path.is_file():
             destination.write_bytes(template_path.read_bytes())
+    (source / "BuildInfo.kt").write_text(
+        "object BuildInfo {\n"
+        f'    const val DECODER_VERSION = "{__version__}"\n'
+        f'    const val SDK_COMMIT = "{commit}"\n'
+        "    const val PROTOCOL_VERSION = 1\n"
+        "}\n",
+        encoding="utf-8",
+    )
 
 
 def _verify_distribution(executable: Path, cache: SdkCache, *, commit: str) -> None:
@@ -344,7 +352,7 @@ def build_decoder(
     build_root = cache.decoder_build_path(commit)
     _provision_toolchain(cache, build_root, offline=offline)
     workspace = build_root / "workspace"
-    _write_workspace(workspace)
+    _write_workspace(workspace, commit=commit)
     gradle = build_root / "tools" / f"gradle-{GRADLE_VERSION}" / "bin" / "gradle"
     command = [
         str(gradle),
