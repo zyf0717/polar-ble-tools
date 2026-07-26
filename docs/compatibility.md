@@ -23,9 +23,19 @@ No other device is currently confirmed. Devices exposing compatible PMD and
 PFTP services are expected to support some operations, but should be treated as
 untested until their capability matrix passes on protected hardware.
 
+## Structured REC decoding
+
+REC compatibility is experimental and requires private fixture-contract
+evidence for the exact SDK commit, source digest, output digest, count, and
+timestamp policy. The current claimed adapter categories are ACC, HR, PPG, PPI,
+skin temperature, magnetometer, and gyroscope; claims remain unsupported until
+the local contract manifest verifies each category. Encrypted recordings are
+unsupported. The Verity Sense PPI timestamp is intentionally suppressed from
+the envelope pending validated SDK semantics.
+
 ## Unsupported or incomplete behavior
 
-- Structured `.REC` decoding is not included.
+- Structured `.REC` decoding is local-only and limited as above.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.
 - Forced Bluetooth/radio-loss recovery is not validated.

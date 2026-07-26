@@ -21,6 +21,9 @@ tested without hardware or downloaded schemas.
   messages and normalizes decoded output.
 - `schemas/` and `sdk_tools/` manage explicit, user-initiated SDK discovery,
   schema generation, verification, and cache activation.
+- `rec/` is the public, SDK-free facade for verified local REC sidecars.
+- `sdk_tools/decoder/` builds, verifies, activates, and removes those sidecars
+  without depending on raw collection.
 
 ## BLE lifecycle
 
@@ -45,6 +48,13 @@ device listing. A file is eligible for deletion only when its recording is
 inactive and its local copy matches the recorded size and digest. Dry runs and
 deterministic deletion logs are preserved.
 
+Structured REC decoding is a separate Python-to-JVM process boundary. Python
+validates the active decoder manifest, runtime-file digests, pinned JDK digest,
+host platform, and sidecar handshake before invoking it. The sidecar receives a
+source path and private output path, then returns a versioned JSONL stream.
+Raw collection neither requires nor invokes this component. Decoder activation
+and schema activation are independent, explicit state transitions.
+
 ## Optional SDK data
 
 SDK installation is an explicit command. Source discovery, descriptor
@@ -52,3 +62,7 @@ inspection, dependency closure, generation, import normalization, verification,
 and cache activation occur outside the repository and installed distribution.
 Activation changes only after verification succeeds. Importing the package or
 accessing a property never downloads or generates schemas.
+
+The decoder cache separates per-commit workspaces and installed runtimes from a
+shared pinned JDK. Installed manifests use relative cache paths and digests, so
+they are portable within a user cache but reject altered runtimes.

@@ -2,20 +2,18 @@
 
 All notable changes to this project are documented here.
 
-## 0.2.0 — 2026-07-26
+## Unreleased
 
 - Added the optional local REC decoder sidecar and `polar-ble rec` commands.
 - Added verified local decoder build, activation, status, verification, removal,
   and `doctor` readiness reporting.
-- Added validated JSONL decoding for the exercised unencrypted Loop Gen 2 and
-  Verity Sense ACC, HR, PPG, PPI, skin-temperature, magnetometer, and gyroscope
-  recordings.
+- Added experimental local REC decoding infrastructure and protocol validation.
 - Added runtime-file allowlisting/digest verification, bounded sidecar output,
   timeout cleanup, Gradle dependency locking, and opt-in local corpus contracts.
 
-Known limitations: encrypted recordings and unexercised SDK record categories
-remain unsupported; Verity Sense PPI timestamp interpretation remains flagged
-as an experimental compatibility issue.
+Known limitations: encrypted recordings and categories without local contract
+evidence remain unsupported; Verity Sense PPI timestamp interpretation remains
+an experimental compatibility issue.
 
 ## 0.1.1 — 2026-07-25
 

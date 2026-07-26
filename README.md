@@ -15,7 +15,7 @@ Bluetooth Low Energy.
 - retrieve passive `.BPB` files and decode supported data with local schemas;
 - validate and apply first-time-use (FTU) data;
 - generate and verify optional local schemas from a separately obtained SDK;
-- optionally decode supported `.REC` files to validated JSONL using a locally built SDK sidecar.
+- locally decode supported `.REC` files to validated JSONL with an optional SDK sidecar.
 
 ## Installation
 
@@ -78,8 +78,8 @@ SDK download, inspection, generation, verification, activation, and removal are
 explicit `polar-ble sdk` commands. Package installation and import never perform
 those operations. See [SDK integration](docs/sdk-integration.md).
 
-REC decoding is separate and experimental. It requires a separately installed,
-supported SDK revision plus a user-built local decoder:
+REC decoding is optional and local-only. It requires a separately installed SDK
+and a user-built decoder; no SDK source or decoder binary is distributed:
 
 ```bash
 polar-ble sdk decoder build
@@ -87,26 +87,9 @@ polar-ble rec status
 polar-ble rec decode PPI0.REC --output PPI0.jsonl
 ```
 
-The first build is Linux x86_64 only. It downloads checksum-verified Temurin
-JDK 21.0.12+8 and Gradle 9.4.1 plus normal Gradle dependencies; it never
-downloads or changes the Polar SDK. Subsequent builds may use
-`polar-ble sdk decoder build --offline` after those dependencies are cached.
-The installed SDK and decoder are stored only in the user-data cache.
-
-The project distributes neither the SDK nor a decoder binary. The currently
-exercised unencrypted compatibility matrix is:
-
-| Device | Record categories |
-| --- | --- |
-| Polar Loop Gen 2 | ACC, HR, PPG, PPI, skin temperature |
-| Polar Verity Sense | magnetometer, gyroscope, PPG, PPI |
-
-Output is UTF-8 JSONL with stable record types, snake_case payload keys, and
-Unix-nanosecond timestamps converted from Polar's 2000-01-01 epoch when the
-SDK supplies a sample timestamp. HR has no per-sample timestamp. The tested
-Verity Sense PPI fixture has an anomalous timestamp near that epoch; retain its
-payload timestamp for diagnosis and do not treat it as collection-time proof.
-Encrypted recordings and categories outside this matrix are unsupported.
+See [REC decoding](docs/rec-decoding.md) for prerequisites, protocol, cache,
+security boundary, and limitations; see [compatibility](docs/compatibility.md)
+for the evidence-backed matrix.
 
 ## Documentation and development
 

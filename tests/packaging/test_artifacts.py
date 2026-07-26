@@ -28,6 +28,8 @@ PROHIBITED_FILENAMES = frozenset(
     {"devices.yaml", "generation-plan.json", "generated-manifest.json"}
 )
 PROHIBITED_SUFFIXES = (
+    ".rec",
+    ".bpb",
     ".desc",
     ".proto",
     ".pb",
@@ -181,7 +183,9 @@ def test_prohibited_member_scanner() -> None:
         == "prohibited schema or compiled artifact"
     )
     assert prohibited_member_reason("tests/fixtures/private/device.json") == "private fixture path"
-    assert prohibited_member_reason("polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt") is None
+    assert (
+        prohibited_member_reason("polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt") is None
+    )
     assert (
         prohibited_member_reason("polar_ble_tools/sdk_tools/decoder_project/untrusted.kt")
         == "prohibited schema or compiled artifact"

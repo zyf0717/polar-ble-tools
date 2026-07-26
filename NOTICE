@@ -8,3 +8,8 @@ used solely to identify compatible devices.
 
 The Polar BLE SDK is not distributed with this project. Users who enable
 SDK-assisted functionality must obtain and license the SDK separately.
+
+The project distributes only project-authored decoder and build templates. It
+does not distribute Polar SDK source, locally compiled decoder outputs, or
+downloaded JDK/Gradle dependencies; those remain governed by their respective
+licences.

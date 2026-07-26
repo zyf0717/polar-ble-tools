@@ -27,10 +27,18 @@ def rec_main(argv: list[str] | None = None) -> int:
     except RecDecodeError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    print(json.dumps({
-        "source": str(report.source_path), "output": str(report.destination_path),
-        "record_count": report.record_count, "record_types": report.record_types,
-        "sdk_commit": report.sdk_commit, "decoder_version": report.decoder_version,
-        "warnings": report.warnings,
-    }, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "source": str(report.source_path),
+                "output": str(report.destination_path),
+                "record_count": report.record_count,
+                "record_types": report.record_types,
+                "sdk_commit": report.sdk_commit,
+                "decoder_version": report.decoder_version,
+                "warnings": report.warnings,
+            },
+            sort_keys=True,
+        )
+    )
     return 0

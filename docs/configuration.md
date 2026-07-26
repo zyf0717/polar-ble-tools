@@ -39,6 +39,7 @@ in logs, fixtures, or support requests.
 | `polar-ble bpb` | Decode local BPB files through the verified schema cache. |
 | `polar-ble ftu` | Validate or apply FTU data and inspect setup state. |
 | `polar-ble sdk` | Explicitly manage local SDK source and generated schemas. |
+| `polar-ble rec` | Check or invoke the local structured REC decoder. |
 | `polar-ble doctor` | Report core and optional-schema readiness without mutation. |
 
 Use `polar-ble COMMAND --help` for command-specific arguments. Raw data defaults
@@ -64,3 +65,12 @@ release_device_connection(mac_address=target)
 ```
 
 The package does not read an inventory unless the caller supplies its path.
+
+## REC decoder commands
+
+`polar-ble sdk decoder build [--offline] [--no-activate]` builds the optional
+sidecar. `verify`, `status`, `activate --commit SHA`, and `remove --commit SHA`
+operate on a full lowercase commit SHA. `polar-ble rec status` is non-mutating;
+`polar-ble rec decode INPUT --output OUTPUT` defaults to a 120-second deadline.
+SDK, decoder, workspaces, and the shared JDK are stored under the platform user
+data cache. Local corpus tests use `POLAR_BLE_REC_FIXTURE_MANIFEST`.

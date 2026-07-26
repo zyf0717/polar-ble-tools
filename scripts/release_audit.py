@@ -9,6 +9,8 @@ import subprocess
 from pathlib import PurePosixPath
 
 PROHIBITED_SUFFIXES = (
+    ".rec",
+    ".bpb",
     ".proto",
     ".desc",
     ".pb",

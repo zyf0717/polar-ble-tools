@@ -13,14 +13,19 @@
    ```
 
 4. List and inspect every wheel and source-distribution member. Confirm that no
-   SDK source, schema source, generated module, descriptor, capture, inventory,
-   profile, credential, or hardware log is present.
+   SDK source, schema source, generated module, descriptor, `.REC`, `.BPB`,
+   capture, inventory, profile, credential, decoder runtime, or hardware log is
+   present. Confirm the exact decoder-template allowlist is present.
 5. Install the wheel in a clean environment and run:
 
    ```bash
    python -c "import polar_ble_tools"
    polar-ble --version
    polar-ble --help
+   polar-ble rec --help
+   polar-ble rec status
+   polar-ble sdk decoder --help
+   polar-ble doctor
    ```
 
 6. On a private Linux/BlueZ host, run the live single-device matrix. Confirm
@@ -37,6 +42,7 @@
 10. Create the GitHub release using product-focused release notes and artifact
    SHA-256 values.
 
-Never upload SDK source or generated SDK data as a CI artifact or public cache.
+Never upload SDK source, recordings, compiled decoder output, or generated SDK
+data as a CI artifact or public cache.
 Production publication uses short-lived trusted-publishing credentials rather
 than repository API tokens.
