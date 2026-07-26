@@ -5,7 +5,7 @@
 1. Locate the official decode path in the pinned SDK.
 2. Build the smallest external adapter manually in a temporary local workspace.
 3. Decode one locally owned sample.
-4. determine JVM versus Android/JVM requirements.
+4. validate the preferred pure-JVM adapter; use Android/JVM only if that spike exposes an Android dependency.
 5. write `decisions/rec-sidecar-feasibility.md`.
 6. stop if any feasibility-gate condition fails.
 
