@@ -30,8 +30,9 @@ evidence for the exact SDK commit, source digest, output digest, count, and
 timestamp policy. The current claimed adapter categories are ACC, HR, PPG, PPI,
 skin temperature, magnetometer, and gyroscope; claims remain unsupported until
 the local contract manifest verifies each category. Encrypted recordings are
-unsupported. The Verity Sense PPI timestamp is intentionally suppressed from
-the envelope pending validated SDK semantics.
+unsupported. PPI envelope timestamps are intentionally suppressed for every
+device pending validated SDK semantics; the raw SDK `time_stamp` remains in the
+payload.
 
 ## Unsupported or incomplete behavior
 

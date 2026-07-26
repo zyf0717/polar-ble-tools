@@ -9,7 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from polar_ble_tools.rec import decode_recording, decoder_status
+from polar_ble_tools.rec import decode_recording, decoder_status, iter_decoded_records
+
+_PPI_TIMESTAMP_WARNING = "PPI timestamps are intentionally omitted pending validated SDK semantics"
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("POLAR_BLE_SDK_DECODER_CONTRACT") != "1",
@@ -53,3 +55,9 @@ def test_local_rec_corpus_is_deterministic(tmp_path: Path) -> None:
         assert second_report.destination_sha256 == first_report.destination_sha256
         assert first_report.destination_sha256 == output_digest
         assert second.read_bytes() == first.read_bytes()
+        if record_type == "ppi":
+            records = list(iter_decoded_records(first))
+            assert records
+            assert all(record.timestamp_ns is None for record in records)
+            assert all("time_stamp" in record.payload["sample"] for record in records)
+            assert first_report.warnings.count(_PPI_TIMESTAMP_WARNING) == 1

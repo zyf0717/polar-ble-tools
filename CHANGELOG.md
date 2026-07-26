@@ -14,8 +14,8 @@ All notable changes to this project are documented here.
   material into shipping documentation.
 
 Known limitations: encrypted recordings and categories without local contract
-evidence remain unsupported; Verity Sense PPI timestamp interpretation remains
-an experimental compatibility issue.
+evidence remain unsupported; PPI envelope timestamps are absent for every
+device until their SDK semantics are validated.
 
 ## 0.1.1 — 2026-07-25
 

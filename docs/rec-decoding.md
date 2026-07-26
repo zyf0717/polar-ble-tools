@@ -53,6 +53,8 @@ polar-ble rec decode PPI0.REC --output PPI0.jsonl
 The destination is prepared in an owner-private sibling directory. Without an
 explicit overwrite option, publication uses atomic no-clobber semantics.
 Timeouts terminate the full sidecar process group.
+Decoding rejects an output that resolves to, or is a hard link to, the source
+recording, even with `--overwrite`; the source `.REC` is never modified.
 
 ## Python API
 
@@ -80,9 +82,10 @@ summary disagreement, and rows after the summary are rejected.
 
 The sidecar should preserve recording-level metadata when the pinned SDK model
 provides it. Do not infer UTC from a timezone-less SDK value. HR samples have
-no validated per-sample timestamp. The known Verity Sense PPI timestamp anomaly
-is not converted to Unix time: consumers must treat that timestamp as absent
-until its SDK semantics are proven.
+no validated per-sample timestamp. Every PPI record currently emits
+`timestamp_ns: null`, regardless of device, and the sidecar emits one summary
+warning. The raw SDK `time_stamp` remains in the payload. Consumers must treat
+the PPI envelope timestamp as absent until its SDK semantics are proven.
 
 ## Cache and removal
 
@@ -102,4 +105,5 @@ binary.
 See [compatibility](compatibility.md) for evidence-backed support claims. Local
 fixture contracts use `POLAR_BLE_REC_FIXTURE_MANIFEST`, a private JSON file with
 relative paths, source/output SHA-256 values, record type, and record count.
-The manifest and recordings must not be committed.
+The manifest and recordings must not be committed. Decoder protocol-policy
+changes require regenerating each affected private `expected_output_sha256`.

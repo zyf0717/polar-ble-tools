@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from polar_ble_tools.rec import (
     DecoderProtocolError,
     DecoderTimeoutError,
     DecoderVerificationError,
+    RecordingDecodeError,
     decode_recording,
     decoder_status,
     iter_decoded_records,
@@ -91,6 +93,46 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
 
 def _use_cache(monkeypatch: pytest.MonkeyPatch, cache: SdkCache) -> None:
     monkeypatch.setattr(SdkCache, "default", classmethod(lambda cls: cache))
+
+
+def test_decode_rejects_identical_source_and_output_without_starting_decoder(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "PPI0.REC"
+    original = b"recording bytes"
+    source.write_bytes(original)
+
+    with pytest.raises(RecordingDecodeError, match="Output must differ"):
+        decode_recording(source, source, overwrite=True)
+
+    assert source.read_bytes() == original
+
+
+def test_decode_rejects_relative_and_absolute_source_output_aliases(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "PPI0.REC"
+    original = b"recording bytes"
+    source.write_bytes(original)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(RecordingDecodeError, match="Output must differ"):
+        decode_recording(source.name, source.resolve(), overwrite=True)
+
+    assert source.read_bytes() == original
+
+
+def test_decode_rejects_hardlinked_source_and_output(tmp_path: Path) -> None:
+    source, output = tmp_path / "PPI0.REC", tmp_path / "decoded.jsonl"
+    original = b"recording bytes"
+    source.write_bytes(original)
+    os.link(source, output)
+
+    with pytest.raises(RecordingDecodeError, match="Output must differ"):
+        decode_recording(source, output, overwrite=True)
+
+    assert source.read_bytes() == original
+    assert output.read_bytes() == original
 
 
 def test_decode_recording_validates_and_iterates(

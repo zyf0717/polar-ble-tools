@@ -112,6 +112,7 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
     val parent = destination.toAbsolutePath().parent ?: throw UsageError("output must have a parent directory")
     val temporary = Files.createTempFile(parent, ".polar-rec-decoder-", ".jsonl")
     val warnings = linkedSetOf<String>()
+    val recordType = recordType(type)
     var count = 0
     try {
         Files.newBufferedWriter(temporary, StandardCharsets.UTF_8).use { writer ->
@@ -122,8 +123,8 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
             writer.newLine()
             for ((stream, sample) in samples(data)) {
                 writer.write(jsonObject(mapOf(
-                    "type" to "record", "record_type" to recordType(type),
-                    "timestamp_ns" to timestampNs(sample, warnings),
+                    "type" to "record", "record_type" to recordType,
+                    "timestamp_ns" to timestampNs(type, sample, warnings),
                     "payload" to mapOf("stream" to stream, "sample" to sample),
                 ), warnings))
                 writer.newLine()
@@ -131,7 +132,7 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
             }
             writer.write(jsonObject(mapOf(
                 "type" to "summary", "record_count" to count,
-                "record_types" to mapOf(recordType(type) to count), "warnings" to warnings.toList(),
+                "record_types" to mapOf(recordType to count), "warnings" to warnings.toList(),
             ), warnings))
             writer.newLine()
         }
@@ -177,7 +178,11 @@ private fun recordType(type: PmdMeasurementType): String = when (type) {
     else -> throw UnsupportedRecordingError("unsupported measurement type: $type")
 }
 
-private fun timestampNs(sample: Any, warnings: MutableSet<String>): Long? {
+private fun timestampNs(type: PmdMeasurementType, sample: Any, warnings: MutableSet<String>): Long? {
+    if (type == PmdMeasurementType.PPI) {
+        warnings += "PPI timestamps are intentionally omitted pending validated SDK semantics"
+        return null
+    }
     val property = sample::class.memberProperties.singleOrNull { it.name == "timeStamp" } ?: return null
     val polarEpochNs = when (val value = readProperty(property, sample)) {
         is ULong -> if (value <= Long.MAX_VALUE.toULong()) value.toLong() else null

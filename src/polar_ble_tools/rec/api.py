@@ -483,6 +483,11 @@ def decode_recording(
     )
     if not source_path.is_file() or source_path.is_symlink() or not os.access(source_path, os.R_OK):
         raise RecordingDecodeError("Input must be a readable, regular .REC file.")
+    resolved_destination = destination_path.resolve(strict=False)
+    if resolved_destination == source_path or (
+        destination_path.exists() and os.path.samefile(source_path, destination_path)
+    ):
+        raise RecordingDecodeError("Output must differ from the source recording.")
     if destination_path.exists() and not overwrite:
         raise RecordingDecodeError(
             f"Output already exists: {destination_path}; pass overwrite=True to replace it."

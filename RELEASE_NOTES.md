@@ -20,9 +20,10 @@ FTU setup, guarded cleanup, and locally generated-schema BPB decoding.
 ## Compatibility and boundaries
 
 REC decoding is experimental and local-only. Encrypted recordings and record
-categories without private fixture-contract evidence are unsupported. The
-Verity Sense PPI timestamp remains intentionally suppressed until its SDK
-semantics are validated. See [compatibility](docs/compatibility.md).
+categories without private fixture-contract evidence are unsupported. PPI
+envelope timestamps remain intentionally suppressed for every device until
+their SDK semantics are validated; raw SDK timestamps remain in the payload.
+See [compatibility](docs/compatibility.md).
 
 The distribution does not include the Polar BLE SDK, SDK schema source,
 generated SDK artifacts, real recordings, or a compiled decoder binary. Users
