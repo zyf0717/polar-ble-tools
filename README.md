@@ -94,6 +94,8 @@ for the evidence-backed matrix.
 ## Documentation and development
 
 - [Configuration and CLI](docs/configuration.md)
+- [CLI reference](docs/cli-reference.md)
+- [Python API reference](docs/python-api.md)
 - [Architecture](docs/architecture.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Contributor guide](CONTRIBUTING.md)

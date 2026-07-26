@@ -46,6 +46,8 @@ Use `polar-ble COMMAND --help` for command-specific arguments. Raw data defaults
 to `.local/polar-ble-raw`; passive data defaults to
 `.local/polar-ble-passive`.
 
+The complete command/subcommand inventory is in the [CLI reference](cli-reference.md).
+
 ## Library entry points
 
 ```python
@@ -82,6 +84,8 @@ complete = await ftu_status("AA:BB:CC:DD:EE:FF")
 `doctor()` is read-only and returns `DoctorReport`; its `to_dict()` is the same
 shape used by `polar-ble doctor`. FTU helpers own the device session and expose
 apply, status, physical configuration, settings read/update, and diagnostics.
+See the complete [Python API reference](python-api.md), including specialized
+SDK, BPB, REC, passive-file, and lower-level protocol modules.
 
 ## REC decoder commands
 
