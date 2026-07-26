@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import posixpath
 import shutil
 import subprocess
 import tarfile
@@ -228,6 +229,34 @@ def _download(url: str, destination: Path, expected_digest: str) -> None:
         temporary_path.unlink(missing_ok=True)
 
 
+def _safe_jdk_archive_member(member: tarfile.TarInfo, archive_root: str) -> bool:
+    """Validate and strip the single top-level JDK archive directory."""
+    name = PurePosixPath(member.name)
+    if (
+        name.is_absolute()
+        or not name.parts
+        or name.parts[0] != archive_root
+        or ".." in name.parts
+        or member.isdev()
+    ):
+        raise DecoderBuildError("JDK archive contains an unsafe path.")
+    relative = PurePosixPath(*name.parts[1:])
+    if not relative.parts:
+        return False
+    if member.issym() or member.islnk():
+        link = PurePosixPath(member.linkname)
+        target = PurePosixPath(posixpath.normpath(str(name.parent / link)))
+        if (
+            link.is_absolute()
+            or not target.parts
+            or target.parts[0] != archive_root
+            or ".." in target.parts
+        ):
+            raise DecoderBuildError("JDK archive contains an unsafe link.")
+    member.name = relative.as_posix()
+    return True
+
+
 def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) -> None:
     if normalized_platform() != "linux" or normalized_architecture() != "x86_64":
         raise DecoderBuildError("REC decoder builds currently require Linux x86_64.")
@@ -252,11 +281,7 @@ def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) ->
             staged.mkdir()
             with tarfile.open(jdk_archive, "r:gz") as archive:
                 for member in archive.getmembers():
-                    parts = member.name.split("/")[1:]
-                    if member.issym() or member.islnk() or ".." in parts:
-                        raise DecoderBuildError("JDK archive contains an unsafe path.")
-                    member.name = "/".join(parts)
-                    if member.name:
+                    if _safe_jdk_archive_member(member, f"jdk-{JDK_VERSION}"):
                         archive.extract(member, staged)
             staged.replace(java_home)
     if not gradle.is_file():

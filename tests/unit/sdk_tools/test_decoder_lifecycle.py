@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -11,9 +12,26 @@ from polar_ble_tools.sdk_tools.decoder import (
     DecoderBuildError,
     _promote_decoder_directory,
     _restore_decoder_directory,
+    _safe_jdk_archive_member,
     activate_decoder,
     remove_decoder,
 )
+
+
+def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:
+    safe = tarfile.TarInfo("jdk-21/legal/jdk.accessibility/LICENSE")
+    safe.type = tarfile.SYMTYPE
+    safe.linkname = "../java.base/LICENSE"
+
+    assert _safe_jdk_archive_member(safe, "jdk-21")
+    assert safe.name == "legal/jdk.accessibility/LICENSE"
+
+    unsafe = tarfile.TarInfo("jdk-21/legal/LICENSE")
+    unsafe.type = tarfile.SYMTYPE
+    unsafe.linkname = "../../../outside"
+
+    with pytest.raises(DecoderBuildError, match="unsafe link"):
+        _safe_jdk_archive_member(unsafe, "jdk-21")
 
 
 def _entry(path: Path, marker: str) -> None:
