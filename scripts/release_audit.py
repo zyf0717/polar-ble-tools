@@ -27,6 +27,13 @@ PROHIBITED_NAMES = frozenset(
     {"devices.yaml", "test_devices.yaml", "generated-manifest.json", "generation-plan.json"}
 )
 PRIVATE_COMPONENTS = frozenset({"captures", "credentials", "private", "profiles"})
+PROJECT_OWNED_DECODER_TEMPLATES = frozenset(
+    {
+        "src/polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt",
+        "src/polar_ble_tools/sdk_tools/decoder_project/build.gradle.kts",
+        "src/polar_ble_tools/sdk_tools/decoder_project/settings.gradle.kts",
+    }
+)
 SECRET_PATTERNS = (
     re.compile(rb"-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"),
     re.compile(rb"(?:ghp|github_pat)_[A-Za-z0-9_]{20,}"),
@@ -44,8 +51,7 @@ def _git(*arguments: str, text: bool = True) -> str | bytes:
 def _path_reason(path: str) -> str | None:
     parts = tuple(part.casefold() for part in PurePosixPath(path).parts)
     name = parts[-1] if parts else ""
-    decoder_template = "src/polar_ble_tools/sdk_tools/decoder_project/"
-    if path.startswith(decoder_template) and path.casefold().endswith((".kt", ".kts")):
+    if path in PROJECT_OWNED_DECODER_TEMPLATES:
         return None
     if "polar-ble-sdk" in parts:
         return "sdk_checkout"

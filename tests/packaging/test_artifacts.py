@@ -47,6 +47,13 @@ PROHIBITED_CONTENT_MARKERS = (
     b"Copyright (c) Polar " + b"Electro",
     b"Copyright Polar " + b"Electro",
 )
+PROJECT_OWNED_DECODER_TEMPLATES = frozenset(
+    {
+        "polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt",
+        "polar_ble_tools/sdk_tools/decoder_project/build.gradle.kts",
+        "polar_ble_tools/sdk_tools/decoder_project/settings.gradle.kts",
+    }
+)
 
 
 def prohibited_member_reason(member: str) -> str | None:
@@ -62,6 +69,8 @@ def prohibited_member_reason(member: str) -> str | None:
         return "private fixture path"
     if Path(normalized).name in PROHIBITED_FILENAMES:
         return "prohibited generated or private file"
+    if any(normalized.endswith(template) for template in PROJECT_OWNED_DECODER_TEMPLATES):
+        return None
     if normalized.endswith(PROHIBITED_SUFFIXES):
         return "prohibited schema or compiled artifact"
     return None
@@ -172,6 +181,11 @@ def test_prohibited_member_scanner() -> None:
         == "prohibited schema or compiled artifact"
     )
     assert prohibited_member_reason("tests/fixtures/private/device.json") == "private fixture path"
+    assert prohibited_member_reason("polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt") is None
+    assert (
+        prohibited_member_reason("polar_ble_tools/sdk_tools/decoder_project/untrusted.kt")
+        == "prohibited schema or compiled artifact"
+    )
     assert prohibited_member_reason("README.md") is None
 
 
