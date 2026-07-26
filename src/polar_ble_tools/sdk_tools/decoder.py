@@ -22,6 +22,7 @@ from polar_ble_tools import __version__
 from polar_ble_tools.rec import DecoderManifestError, DecoderVerificationError, decoder_status
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.downloader import SUPPORTED_SDK_COMMIT, active_sdk_source
+from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 
 class DecoderBuildError(RuntimeError):
@@ -59,9 +60,24 @@ def _digest(path: Path) -> str:
 
 def _write_json(path: Path, value: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(f"{path.suffix}.tmp")
-    temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    temporary_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary.write(json.dumps(value, sort_keys=True, indent=2) + "\n")
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            temporary_path = Path(temporary.name)
+        os.replace(temporary_path, path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _restore_file(path: Path, payload: bytes | None) -> None:
@@ -76,6 +92,8 @@ def _restore_file(path: Path, payload: bytes | None) -> None:
 
 def _promote_decoder_directory(staged: Path, target: Path) -> Path | None:
     """Replace a decoder entry while retaining the old entry for rollback."""
+    require_within(staged, target.parent)
+    require_within(target, target.parent)
     backup: Path | None = None
     if target.exists():
         if not target.is_dir() or target.is_symlink():
@@ -133,7 +151,9 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
         files[relative] = _digest(path)
     if "bin/polar-rec-decoder" not in files or not any(path.startswith("lib/") for path in files):
-        raise DecoderBuildError("Decoder distribution is missing its launcher or runtime libraries.")
+        raise DecoderBuildError(
+            "Decoder distribution is missing its launcher or runtime libraries."
+        )
     return files
 
 
@@ -153,9 +173,23 @@ def _run(
 
 
 def _decoder_source(source: Path) -> Path:
-    candidate = source / "sources" / "Android" / "android-communications" / "library" / "src" / "main" / "java"
-    if not (candidate / "com/polar/androidcommunications/api/ble/model/offlinerecording/OfflineRecordingData.kt").is_file():
-        raise DecoderBuildError("Active SDK revision does not contain the required Android communications source.")
+    candidate = (
+        source
+        / "sources"
+        / "Android"
+        / "android-communications"
+        / "library"
+        / "src"
+        / "main"
+        / "java"
+    )
+    if not (
+        candidate
+        / "com/polar/androidcommunications/api/ble/model/offlinerecording/OfflineRecordingData.kt"
+    ).is_file():
+        raise DecoderBuildError(
+            "Active SDK revision does not contain the required Android communications source."
+        )
     return candidate
 
 
@@ -176,7 +210,10 @@ def _download(url: str, destination: Path, expected_digest: str) -> None:
     with NamedTemporaryFile(dir=destination.parent, delete=False) as temporary:
         temporary_path = Path(temporary.name)
     try:
-        with urllib.request.urlopen(url, timeout=60) as response, temporary_path.open("wb") as output:
+        with (
+            urllib.request.urlopen(url, timeout=60) as response,
+            temporary_path.open("wb") as output,
+        ):
             shutil.copyfileobj(response, output)
         if _digest(temporary_path) != expected_digest:
             raise DecoderBuildError(f"Checksum mismatch while downloading {destination.name}.")
@@ -191,7 +228,10 @@ def _provision_toolchain(root: Path, *, offline: bool) -> None:
     if platform.system() != "Linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
         raise DecoderBuildError("REC decoder builds currently require Linux x86_64.")
     tools, downloads = root / "tools", root / "downloads"
-    java, gradle = tools / f"jdk-{_JDK_VERSION}" / "bin" / "java", tools / f"gradle-{_GRADLE_VERSION}" / "bin" / "gradle"
+    java, gradle = (
+        tools / f"jdk-{_JDK_VERSION}" / "bin" / "java",
+        tools / f"gradle-{_GRADLE_VERSION}" / "bin" / "gradle",
+    )
     if java.is_file() and gradle.is_file():
         return
     if offline:
@@ -218,7 +258,11 @@ def _provision_toolchain(root: Path, *, offline: bool) -> None:
             with zipfile.ZipFile(gradle_archive) as archive:
                 for member in archive.infolist():
                     path = PurePosixPath(member.filename)
-                    if path.is_absolute() or ".." in path.parts or (member.external_attr >> 16) & 0o170000 == 0o120000:
+                    if (
+                        path.is_absolute()
+                        or ".." in path.parts
+                        or (member.external_attr >> 16) & 0o170000 == 0o120000
+                    ):
                         raise DecoderBuildError("Gradle archive contains an unsafe path.")
                     archive.extract(member, temporary)
             (Path(temporary) / f"gradle-{_GRADLE_VERSION}").replace(gradle.parent.parent)
@@ -263,13 +307,23 @@ def build_decoder(
     if commit is None:
         commit, source = active_sdk_source(cache=cache)
     else:
+        try:
+            commit = require_full_commit(commit)
+        except ValueError as exc:
+            raise DecoderBuildError(str(exc)) from exc
         source = cache.sdk_path(commit) / "source"
         try:
             provenance = json.loads((cache.sdk_path(commit) / "download-manifest.json").read_text())
         except (OSError, json.JSONDecodeError) as exc:
-            raise DecoderBuildError(f"SDK revision {commit} is not staged in the local cache.") from exc
+            raise DecoderBuildError(
+                f"SDK revision {commit} is not staged in the local cache."
+            ) from exc
         if provenance.get("resolved_commit") != commit or not source.is_dir():
             raise DecoderBuildError(f"SDK revision {commit} is not staged in the local cache.")
+    try:
+        commit = require_full_commit(commit)
+    except ValueError as exc:
+        raise DecoderBuildError(str(exc)) from exc
     if commit != SUPPORTED_SDK_COMMIT:
         raise DecoderBuildError(
             f"REC decoding currently supports only the pinned SDK revision {SUPPORTED_SDK_COMMIT}."
@@ -280,8 +334,12 @@ def build_decoder(
     _write_workspace(workspace)
     gradle = build_root / "tools" / f"gradle-{_GRADLE_VERSION}" / "bin" / "gradle"
     command = [
-        str(gradle), "--no-daemon", "--project-dir", str(workspace),
-        f"-PpolarSdkSource={_decoder_source(source)}", "installDist",
+        str(gradle),
+        "--no-daemon",
+        "--project-dir",
+        str(workspace),
+        f"-PpolarSdkSource={_decoder_source(source)}",
+        "installDist",
     ]
     if offline:
         command.insert(1, "--offline")
@@ -300,16 +358,28 @@ def build_decoder(
         staged_executable = staged / "bin" / "polar-rec-decoder"
         runtime_files = _runtime_file_digests(staged)
         manifest = {
-            "manifest_version": 1, "decoder_protocol_version": 1, "sdk_commit": commit,
-            "polar_ble_tools_version": __version__, "build_mode": "jvm",
-            "build_timestamp_utc": datetime.now(UTC).isoformat(), "platform": platform.system().lower(),
-            "architecture": platform.machine().lower(), "java_version": "21.0.12+8", "gradle_version": "9.4.1",
-            "adapter_source_sha256": _adapter_digest(), "executable_relative_path": "bin/polar-rec-decoder",
-            "executable_sha256": _digest(staged_executable), "verification_level": "handshake", "verified": True,
+            "manifest_version": 1,
+            "decoder_protocol_version": 1,
+            "sdk_commit": commit,
+            "polar_ble_tools_version": __version__,
+            "build_mode": "jvm",
+            "build_timestamp_utc": datetime.now(UTC).isoformat(),
+            "platform": platform.system().lower(),
+            "architecture": platform.machine().lower(),
+            "java_version": "21.0.12+8",
+            "gradle_version": "9.4.1",
+            "adapter_source_sha256": _adapter_digest(),
+            "executable_relative_path": "bin/polar-rec-decoder",
+            "executable_sha256": _digest(staged_executable),
+            "verification_level": "handshake",
+            "verified": True,
             "runtime_files": runtime_files,
         }
         _write_json(staged / "manifest.json", manifest)
-        target = cache.decoder_path(commit)
+        try:
+            target = require_within(cache.decoder_path(commit), cache.decoder_root)
+        except ValueError as exc:
+            raise DecoderBuildError(str(exc)) from exc
         backup = _promote_decoder_directory(staged, target)
         try:
             if activate:
@@ -324,7 +394,11 @@ def build_decoder(
 
 def activate_decoder(commit: str, *, cache: SdkCache | None = None) -> None:
     cache = cache or SdkCache.default()
-    manifest = cache.decoder_path(commit) / "manifest.json"
+    try:
+        commit = require_full_commit(commit)
+        manifest = require_within(cache.decoder_path(commit), cache.decoder_root) / "manifest.json"
+    except ValueError as exc:
+        raise DecoderBuildError(str(exc)) from exc
     if not manifest.is_file():
         raise DecoderBuildError(f"Decoder {commit} is not built.")
     active_manifest = cache.active_decoder_manifest_path
@@ -346,7 +420,12 @@ def verify_decoder(*, cache: SdkCache | None = None) -> bool:
 
 def remove_decoder(commit: str, *, cache: SdkCache | None = None) -> bool:
     cache = cache or SdkCache.default()
-    target = cache.decoder_path(commit)
+    try:
+        commit = require_full_commit(commit)
+        target = require_within(cache.decoder_path(commit), cache.decoder_root)
+        build_target = require_within(cache.decoder_build_path(commit), cache.decoder_build_root)
+    except ValueError as exc:
+        raise DecoderBuildError(str(exc)) from exc
     if not target.is_dir():
         return False
     active = cache.active_decoder_manifest_path
@@ -358,4 +437,6 @@ def remove_decoder(commit: str, *, cache: SdkCache | None = None) -> bool:
         if is_active:
             active.unlink()
     shutil.rmtree(target)
+    if build_target.exists():
+        shutil.rmtree(build_target)
     return True

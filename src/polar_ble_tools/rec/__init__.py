@@ -14,6 +14,7 @@ from threading import Thread
 from typing import Any
 
 from polar_ble_tools.schemas.cache import SdkCache
+from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 _PROTOCOL_VERSION = 1
 _MAX_DIAGNOSTIC = 8_192
@@ -129,7 +130,11 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
 
 
 def _recover_interrupted_promotion(cache: SdkCache, commit: str) -> Path:
-    root = cache.decoder_path(commit)
+    try:
+        commit = require_full_commit(commit)
+        root = require_within(cache.decoder_path(commit), cache.decoder_root)
+    except ValueError as exc:
+        raise DecoderManifestError(str(exc)) from exc
     if root.exists():
         return root
     backups = sorted(
@@ -156,8 +161,10 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         commit = active_payload["sdk_commit"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise DecoderManifestError(f"Invalid active decoder manifest at {active}.") from exc
-    if not isinstance(commit, str) or len(commit) != 40:
-        raise DecoderManifestError("Active decoder manifest has an invalid SDK commit.")
+    try:
+        commit = require_full_commit(commit)
+    except ValueError as exc:
+        raise DecoderManifestError("Active decoder manifest has an invalid SDK commit.") from exc
     root = _recover_interrupted_promotion(cache, commit)
     manifest_path = root / "manifest.json"
     try:
@@ -175,16 +182,25 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         or not isinstance(relative, str)
         or not isinstance(expected_digest, str)
         or not isinstance(expected_runtime_files, dict)
-        or not all(isinstance(path, str) and isinstance(digest, str) for path, digest in expected_runtime_files.items())
+        or not all(
+            isinstance(path, str) and isinstance(digest, str)
+            for path, digest in expected_runtime_files.items()
+        )
     ):
-        raise DecoderManifestError("Decoder manifest does not describe a verified protocol-v1 decoder.")
+        raise DecoderManifestError(
+            "Decoder manifest does not describe a verified protocol-v1 decoder."
+        )
     executable = (root / relative).resolve()
     if not _within(executable, root) or not executable.is_file() or executable.is_symlink():
         raise DecoderManifestError("Decoder executable is missing or escapes its cache directory.")
     if _digest(executable) != expected_digest:
-        raise DecoderVerificationError("Decoder executable digest changed; rebuild and verify the decoder.")
+        raise DecoderVerificationError(
+            "Decoder executable digest changed; rebuild and verify the decoder."
+        )
     if _runtime_file_digests(root) != expected_runtime_files:
-        raise DecoderVerificationError("Decoder runtime files changed; rebuild and verify the decoder.")
+        raise DecoderVerificationError(
+            "Decoder runtime files changed; rebuild and verify the decoder."
+        )
     return _Decoder(executable, manifest)
 
 
@@ -222,7 +238,9 @@ def _drain_stream(stream, limit: int, sink: list[bytes | bool]) -> None:
     sink.extend((bytes(payload), exceeded))
 
 
-def _run_sidecar(command: list[str], *, environment: Mapping[str, str], timeout_seconds: float) -> tuple[int, bytes, bytes]:
+def _run_sidecar(
+    command: list[str], *, environment: Mapping[str, str], timeout_seconds: float
+) -> tuple[int, bytes, bytes]:
     process = subprocess.Popen(
         command,
         stdin=subprocess.DEVNULL,
@@ -255,7 +273,11 @@ def _run_sidecar(command: list[str], *, environment: Mapping[str, str], timeout_
 
 def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
     try:
-        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        rows = [
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise DecoderProtocolError("Decoder output is not valid UTF-8 JSON Lines.") from exc
     if len(rows) < 2 or not isinstance(rows[0], dict) or not isinstance(rows[-1], dict):
@@ -263,17 +285,32 @@ def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dic
     header, summary = rows[0], rows[-1]
     if header.get("type") != "header" or summary.get("type") != "summary":
         raise DecoderProtocolError("Decoder output has invalid header or summary ordering.")
-    if header.get("protocol_version") != _PROTOCOL_VERSION or header.get("source_sha256") != source_digest:
-        raise DecoderProtocolError("Decoder output does not match protocol v1 or the requested source.")
+    if (
+        header.get("protocol_version") != _PROTOCOL_VERSION
+        or header.get("source_sha256") != source_digest
+    ):
+        raise DecoderProtocolError(
+            "Decoder output does not match protocol v1 or the requested source."
+        )
     records = rows[1:-1]
     counts: dict[str, int] = {}
     for record in records:
         if not isinstance(record, dict) or record.get("type") != "record":
             raise DecoderProtocolError("Decoder output contains an invalid record.")
-        record_type, timestamp, payload = record.get("record_type"), record.get("timestamp_ns"), record.get("payload")
-        if not isinstance(record_type, str) or record_type != record_type.lower() or not isinstance(payload, dict):
+        record_type, timestamp, payload = (
+            record.get("record_type"),
+            record.get("timestamp_ns"),
+            record.get("payload"),
+        )
+        if (
+            not isinstance(record_type, str)
+            or record_type != record_type.lower()
+            or not isinstance(payload, dict)
+        ):
             raise DecoderProtocolError("Decoder record has an invalid envelope.")
-        if timestamp is not None and (not isinstance(timestamp, int) or isinstance(timestamp, bool)):
+        if timestamp is not None and (
+            not isinstance(timestamp, int) or isinstance(timestamp, bool)
+        ):
             raise DecoderProtocolError("Decoder record timestamp is invalid.")
         counts[record_type] = counts.get(record_type, 0) + 1
     if summary.get("record_count") != len(records) or summary.get("record_types") != counts:
@@ -290,11 +327,16 @@ def decode_recording(
     overwrite: bool = False,
     timeout_seconds: float | None = None,
 ) -> DecodeReport:
-    source_path, destination_path = Path(source).expanduser().resolve(), Path(destination).expanduser()
+    source_path, destination_path = (
+        Path(source).expanduser().resolve(),
+        Path(destination).expanduser(),
+    )
     if not source_path.is_file() or source_path.is_symlink() or not os.access(source_path, os.R_OK):
         raise RecordingDecodeError("Input must be a readable, regular .REC file.")
     if destination_path.exists() and not overwrite:
-        raise RecordingDecodeError(f"Output already exists: {destination_path}; pass overwrite=True to replace it.")
+        raise RecordingDecodeError(
+            f"Output already exists: {destination_path}; pass overwrite=True to replace it."
+        )
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     if not destination_path.parent.is_dir():
         raise RecordingDecodeError("Output parent is not a directory.")
@@ -303,13 +345,27 @@ def decode_recording(
     cache = SdkCache.default()
     decoder = _load_decoder(cache)
     source_digest = _digest(source_path)
-    with NamedTemporaryFile(prefix=f".{destination_path.name}.", suffix=".jsonl", dir=destination_path.parent, delete=False) as output:
+    with NamedTemporaryFile(
+        prefix=f".{destination_path.name}.",
+        suffix=".jsonl",
+        dir=destination_path.parent,
+        delete=False,
+    ) as output:
         temporary = Path(output.name)
     temporary.unlink()
     try:
         try:
             returncode, stdout, stderr = _run_sidecar(
-                [str(decoder.executable), "decode", "--input", str(source_path), "--output", str(temporary), "--protocol", "1"],
+                [
+                    str(decoder.executable),
+                    "decode",
+                    "--input",
+                    str(source_path),
+                    "--output",
+                    str(temporary),
+                    "--protocol",
+                    "1",
+                ],
                 environment=_decoder_environment(cache, str(decoder.manifest["sdk_commit"])),
                 timeout_seconds=timeout_seconds or 120,
             )
@@ -325,7 +381,9 @@ def decode_recording(
         if status.get("status") != "ok" or status.get("record_count") != summary["record_count"]:
             raise DecoderProtocolError("REC decoder status disagrees with the decoded stream.")
         if header.get("sdk_commit") != decoder.manifest["sdk_commit"]:
-            raise DecoderProtocolError("REC decoder SDK provenance differs from its verified manifest.")
+            raise DecoderProtocolError(
+                "REC decoder SDK provenance differs from its verified manifest."
+            )
         temporary.replace(destination_path)
     except Exception:
         temporary.unlink(missing_ok=True)
@@ -358,8 +416,17 @@ def iter_decoded_records(decoded_jsonl: os.PathLike[str] | str) -> Iterator[RecR
 
 
 __all__ = [
-    "DecodeReport", "DecoderManifestError", "DecoderProtocolError", "DecoderStatus",
-    "DecoderTimeoutError", "DecoderUnavailableError", "DecoderVerificationError",
-    "RecDecodeError", "RecRecord", "RecordingDecodeError", "decode_recording",
-    "decoder_status", "iter_decoded_records",
+    "DecodeReport",
+    "DecoderManifestError",
+    "DecoderProtocolError",
+    "DecoderStatus",
+    "DecoderTimeoutError",
+    "DecoderUnavailableError",
+    "DecoderVerificationError",
+    "RecDecodeError",
+    "RecRecord",
+    "RecordingDecodeError",
+    "decode_recording",
+    "decoder_status",
+    "iter_decoded_records",
 ]

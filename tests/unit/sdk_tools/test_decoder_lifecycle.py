@@ -8,9 +8,11 @@ import pytest
 from polar_ble_tools.rec import DecoderVerificationError, decoder_status
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
+    DecoderBuildError,
     _promote_decoder_directory,
     _restore_decoder_directory,
     activate_decoder,
+    remove_decoder,
 )
 
 
@@ -41,7 +43,9 @@ def test_failed_activation_restores_previous_active_manifest(tmp_path: Path) -> 
     cache = SdkCache(tmp_path / "cache")
     previous, invalid = "a" * 40, "b" * 40
     cache.active_decoder_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    cache.active_decoder_manifest_path.write_text(json.dumps({"sdk_commit": previous}), encoding="utf-8")
+    cache.active_decoder_manifest_path.write_text(
+        json.dumps({"sdk_commit": previous}), encoding="utf-8"
+    )
     manifest = cache.decoder_path(invalid) / "manifest.json"
     manifest.parent.mkdir(parents=True)
     manifest.write_text("{}", encoding="utf-8")
@@ -76,10 +80,42 @@ def test_status_recovers_interrupted_same_commit_promotion(tmp_path: Path) -> No
         encoding="utf-8",
     )
     cache.active_decoder_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    cache.active_decoder_manifest_path.write_text(json.dumps({"sdk_commit": commit}), encoding="utf-8")
+    cache.active_decoder_manifest_path.write_text(
+        json.dumps({"sdk_commit": commit}), encoding="utf-8"
+    )
 
     status = decoder_status(cache=cache)
 
     assert not status.available
     assert target.is_dir()
     assert not backup.exists()
+
+
+@pytest.mark.parametrize(
+    "commit",
+    ["../../outside", "/absolute/path", "a" * 39, "A" * 40, "a" * 40 + ".tmp", "*" * 40],
+)
+def test_decoder_lifecycle_rejects_unsafe_commit_paths(tmp_path: Path, commit: str) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    sentinel = tmp_path / "outside"
+    sentinel.mkdir()
+    marker = sentinel / "keep"
+    marker.write_text("safe", encoding="utf-8")
+
+    with pytest.raises(DecoderBuildError, match="full lowercase"):
+        remove_decoder(commit, cache=cache)
+
+    assert marker.read_text(encoding="utf-8") == "safe"
+
+
+def test_status_rejects_malformed_active_commit(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    cache.active_decoder_manifest_path.parent.mkdir(parents=True)
+    cache.active_decoder_manifest_path.write_text(
+        json.dumps({"sdk_commit": "../../outside"}), encoding="utf-8"
+    )
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "invalid SDK commit" in (status.reason or "")
