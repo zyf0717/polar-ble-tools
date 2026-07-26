@@ -11,6 +11,7 @@ from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
     DecoderBuildError,
     _promote_decoder_directory,
+    _replace_incomplete_directory,
     _restore_decoder_directory,
     _safe_jdk_archive_member,
     activate_decoder,
@@ -32,6 +33,17 @@ def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:
 
     with pytest.raises(DecoderBuildError, match="unsafe link"):
         _safe_jdk_archive_member(unsafe, "jdk-21")
+
+
+def test_toolchain_promotion_replaces_incomplete_regular_directory(tmp_path: Path) -> None:
+    staged, target = tmp_path / "staged", tmp_path / "target"
+    _entry(staged, "replacement")
+    _entry(target, "interrupted")
+
+    _replace_incomplete_directory(staged, target, description="JDK")
+
+    assert (target / "marker").read_text(encoding="utf-8") == "replacement"
+    assert not staged.exists()
 
 
 def _entry(path: Path, marker: str) -> None:

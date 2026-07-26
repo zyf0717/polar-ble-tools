@@ -423,14 +423,17 @@ def _validate_header(header: dict[str, Any], source_digest: str) -> None:
         raise DecoderProtocolError("Decoder output has an invalid protocol header.")
 
 
-def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _validated_rows(path: Path, source_digest: str | None) -> tuple[dict[str, Any], dict[str, Any]]:
     header: dict[str, Any] | None = None
     summary: dict[str, Any] | None = None
     counts: dict[str, int] = {}
     record_count = 0
     for line_number, record in _iter_json_rows(path):
         if header is None:
-            _validate_header(record, source_digest)
+            expected_digest = source_digest or record.get("source_sha256")
+            if not isinstance(expected_digest, str):
+                raise DecoderProtocolError("Decoder output has an invalid protocol header.")
+            _validate_header(record, expected_digest)
             header = record
             continue
         if summary is not None:
@@ -563,14 +566,7 @@ def decode_recording(
 
 def iter_decoded_records(decoded_jsonl: os.PathLike[str] | str) -> Iterator[RecRecord]:
     path = Path(decoded_jsonl)
-    try:
-        _, header = next(_iter_json_rows(path))
-        source_digest = header["source_sha256"]
-    except (StopIteration, KeyError, DecoderProtocolError) as exc:
-        raise DecoderProtocolError("Decoded JSONL is missing a valid header.") from exc
-    if not isinstance(source_digest, str):
-        raise DecoderProtocolError("Decoded JSONL has an invalid source digest.")
-    _validated_rows(path, source_digest)
+    _validated_rows(path, None)
     for _, row in _iter_json_rows(path):
         if row.get("type") == "record":
             yield RecRecord(row["record_type"], row["timestamp_ns"], dict(row["payload"]))

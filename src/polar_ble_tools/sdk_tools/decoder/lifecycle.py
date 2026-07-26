@@ -257,6 +257,15 @@ def _safe_jdk_archive_member(member: tarfile.TarInfo, archive_root: str) -> bool
     return True
 
 
+def _replace_incomplete_directory(staged: Path, target: Path, *, description: str) -> None:
+    """Promote a staged directory over an interrupted regular-directory install."""
+    if target.exists() or target.is_symlink():
+        if not target.is_dir() or target.is_symlink():
+            raise DecoderBuildError(f"{description} target is not a regular directory: {target}")
+        shutil.rmtree(target)
+    staged.replace(target)
+
+
 def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) -> None:
     if normalized_platform() != "linux" or normalized_architecture() != "x86_64":
         raise DecoderBuildError("REC decoder builds currently require Linux x86_64.")
@@ -283,7 +292,7 @@ def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) ->
                 for member in archive.getmembers():
                     if _safe_jdk_archive_member(member, f"jdk-{JDK_VERSION}"):
                         archive.extract(member, staged)
-            staged.replace(java_home)
+            _replace_incomplete_directory(staged, java_home, description="JDK")
     if not gradle.is_file():
         with TemporaryDirectory(prefix=".gradle-", dir=tools) as temporary:
             with zipfile.ZipFile(gradle_archive) as archive:
@@ -296,7 +305,11 @@ def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) ->
                     ):
                         raise DecoderBuildError("Gradle archive contains an unsafe path.")
                     archive.extract(member, temporary)
-            (Path(temporary) / f"gradle-{GRADLE_VERSION}").replace(gradle.parent.parent)
+            _replace_incomplete_directory(
+                Path(temporary) / f"gradle-{GRADLE_VERSION}",
+                gradle.parent.parent,
+                description="Gradle",
+            )
 
 
 def _write_workspace(workspace: Path, *, commit: str) -> None:
