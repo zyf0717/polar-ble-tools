@@ -1,6 +1,6 @@
 # SPEC-001: Optional SDK-backed `.REC` decoder sidecar
 
-**Status:** Proposed  
+**Status:** In progress — PPI experimental path implemented
 **Target:** `polar-ble-tools` 0.2.0  
 **Repository baseline:** `main` at `6d087f8249cfb658f9752c96b1da74e566e8b02a`  
 **Implementation branch:** `feat/rec-decoder-sidecar`

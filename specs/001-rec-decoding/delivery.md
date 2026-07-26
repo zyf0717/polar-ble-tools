@@ -1,5 +1,15 @@
 # 16. Implementation sequence
 
+## Progress at `7764217`
+
+| Phase | Status | Evidence / remaining work |
+| --- | --- | --- |
+| 0 — feasibility | Complete | Pure JVM selected and the pinned SDK parser decoded the local Loop Gen 2 PPI fixture. |
+| 1 — protocol/runtime | Complete for protocol v1 | `polar_ble_tools.rec`, fake-sidecar tests, JSONL validation, and `polar-ble rec status|decode` are implemented. |
+| 2 — lifecycle | Partial | Cache paths, manifests, digest verification, activation, status, verify, and removal are implemented. `doctor` integration and a rollback-specific test remain. |
+| 3 — local build | Partial | The installed wheel can provision the pinned Linux x86_64 JDK/Gradle toolchain, compile the sidecar from the staged SDK, and decode the PPI fixture. Final distribution allowlisting and broader SDK contract coverage remain. |
+| 4 — hardening/docs | Partial | README, protocol, manifest, fake-sidecar, packaging, and PPI end-to-end validation exist. Timeout/path/rollback coverage, broader fixture coverage, and a clean full-suite run remain. |
+
 ### Phase 0 — feasibility and decision record
 
 1. Locate the official decode path in the pinned SDK.
@@ -59,21 +69,21 @@
 
 The feature is complete only when all of the following are true:
 
-- [ ] `polar_ble_tools.rec` imports without optional tooling.
-- [ ] Raw `.REC` retrieval remains fully usable without the decoder.
-- [ ] `sdk install` does not build or activate a decoder.
-- [ ] A decoder can be built explicitly from the supported local SDK revision.
-- [ ] No vendor source or locally compiled decoder is tracked or distributed.
+- [x] `polar_ble_tools.rec` imports without optional tooling.
+- [x] Raw `.REC` retrieval remains fully usable without the decoder.
+- [x] `sdk install` does not build or activate a decoder.
+- [x] A decoder can be built explicitly from the supported local SDK revision.
+- [x] No vendor source or locally compiled decoder is tracked or distributed.
 - [ ] Activation is atomic and rollback-safe.
-- [ ] Runtime verifies provenance, protocol, and executable digest.
-- [ ] Decode output uses validated protocol-v1 JSONL.
-- [ ] Failed decoding leaves no successful-looking partial destination.
-- [ ] The Python API and CLI return actionable errors.
-- [ ] Public tests use only fake/project-owned fixtures.
-- [ ] Local SDK contract tests pass against the pinned revision.
-- [ ] Wheel and sdist artifact scans pass.
-- [ ] Documentation clearly states prerequisites, support boundaries, and licensing separation.
-- [ ] `ruff check .`, `pytest`, `python -m build`, and `twine check dist/*` pass.
+- [x] Runtime verifies provenance, protocol, and executable digest.
+- [x] Decode output uses validated protocol-v1 JSONL.
+- [x] Failed decoding leaves no successful-looking partial destination.
+- [x] The Python API and CLI return actionable errors.
+- [x] Public tests use only fake/project-owned fixtures.
+- [ ] Local SDK contract tests pass for every supported recording category and encrypted-recording behavior.
+- [x] Wheel and sdist artifact scans pass.
+- [x] Documentation states the PPI support boundary and licensing separation.
+- [ ] `ruff check .`, the complete test suite, `python -m build`, and `twine check dist/*` pass in one compatible environment.
 
 ## 18. Agent execution rules
 
