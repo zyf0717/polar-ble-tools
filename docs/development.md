@@ -27,6 +27,20 @@ default and require protected hardware, an ignored `test_devices.yaml`, and
 explicit environment flags. A skipped SDK or live test is not a successful
 validation result.
 
+The REC decoder corpus contract is also opt-in and requires a built active
+decoder plus a local, non-redistributable fixture tree:
+
+```bash
+POLAR_BLE_SDK_DECODER_CONTRACT=1 \
+POLAR_BLE_REC_FIXTURE_MANIFEST=/private/path/fixtures.json \
+pytest -q tests/sdk_decoder_contract
+```
+
+The private manifest contains fixture-relative paths, source/output SHA-256,
+record type, and count. It verifies deterministic JSONL output. Do not add the
+manifest, fixture paths, or recordings to the repository. Public tests use a
+fake sidecar and never download the SDK, JDK, Gradle, or Maven artifacts.
+
 ## Repository boundaries
 
 Do not commit or package:

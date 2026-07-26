@@ -14,5 +14,6 @@ def test_primary_cli_lists_available_commands(capsys) -> None:
     assert "raw" in output
     assert "passive" in output
     assert "bpb" in output
+    assert "rec" in output
     assert "sdk" in output
     assert "doctor" in output

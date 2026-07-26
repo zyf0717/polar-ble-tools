@@ -14,9 +14,8 @@ Bluetooth Low Energy.
 - retrieve raw `.REC` recordings with SHA-256 manifests and guarded cleanup;
 - retrieve passive `.BPB` files and decode supported data with local schemas;
 - validate and apply first-time-use (FTU) data;
-- generate and verify optional local schemas from a separately obtained SDK.
-
-Structured `.REC` decoding is not currently included.
+- generate and verify optional local schemas from a separately obtained SDK;
+- locally decode supported `.REC` files to validated JSONL with an optional SDK sidecar.
 
 ## Installation
 
@@ -79,14 +78,30 @@ SDK download, inspection, generation, verification, activation, and removal are
 explicit `polar-ble sdk` commands. Package installation and import never perform
 those operations. See [SDK integration](docs/sdk-integration.md).
 
+REC decoding is optional and local-only. It requires a separately installed SDK
+and a user-built decoder; no SDK source or decoder binary is distributed:
+
+```bash
+polar-ble sdk decoder build
+polar-ble rec status
+polar-ble rec decode PPI0.REC --output PPI0.jsonl
+```
+
+See [REC decoding](docs/rec-decoding.md) for prerequisites, protocol, cache,
+security boundary, and limitations; see [compatibility](docs/compatibility.md)
+for the evidence-backed matrix.
+
 ## Documentation and development
 
 - [Configuration and CLI](docs/configuration.md)
+- [CLI reference](docs/cli-reference.md)
+- [Python API reference](docs/python-api.md)
 - [Architecture](docs/architecture.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [Development](docs/development.md)
 - [Release process](docs/releasing.md)
+- [0.2.0 release notes](RELEASE_NOTES.md)
 
 ## Licence and trademarks
 

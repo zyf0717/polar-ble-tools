@@ -50,3 +50,17 @@ revision, or `--all` when intentionally clearing the entire local SDK cache.
 Do not delete the device copy. Preserve the manifest and local file privately,
 collect again, and compare the reported device size. Cleanup remains blocked
 until size and SHA-256 verification succeeds.
+
+## REC decoder is unavailable
+
+Run `polar-ble rec status` and `polar-ble sdk decoder verify`. A changed or
+missing JDK, launcher, runtime JAR, manifest, platform mismatch, or failed
+handshake makes the decoder unavailable. Rebuild it; removal is limited to an
+exact full commit SHA.
+
+## REC decode fails
+
+The decoder does not support encrypted recordings. Check that a renamed file
+still has a supported recording name, retain the original privately, and inspect
+bounded stderr diagnostics. A null timestamp can be intentional when the SDK
+does not provide validated timestamp semantics.

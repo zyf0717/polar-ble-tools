@@ -1,6 +1,8 @@
 # Releasing
 
-1. Update the version in `pyproject.toml`, `CHANGELOG.md`, and release notes.
+1. Update the version in `pyproject.toml`, date the release heading in
+   `CHANGELOG.md`, and replace `RELEASE_NOTES.md` with the customer-facing
+   release summary.
 2. Run formatting, linting, the supported-Python test matrix, SDK-free unit and
    contract tests, and licensed SDK contracts.
 3. Build and validate both distributions:
@@ -13,14 +15,19 @@
    ```
 
 4. List and inspect every wheel and source-distribution member. Confirm that no
-   SDK source, schema source, generated module, descriptor, capture, inventory,
-   profile, credential, or hardware log is present.
+   SDK source, schema source, generated module, descriptor, `.REC`, `.BPB`,
+   capture, inventory, profile, credential, decoder runtime, or hardware log is
+   present. Confirm the exact decoder-template allowlist is present.
 5. Install the wheel in a clean environment and run:
 
    ```bash
    python -c "import polar_ble_tools"
    polar-ble --version
    polar-ble --help
+   polar-ble rec --help
+   polar-ble rec status
+   polar-ble sdk decoder --help
+   polar-ble doctor
    ```
 
 6. On a private Linux/BlueZ host, run the live single-device matrix. Confirm
@@ -34,9 +41,10 @@
    pass.
 9. Publish to PyPI through trusted publishing and the manually approved `pypi`
    environment.
-10. Create the GitHub release using product-focused release notes and artifact
-   SHA-256 values.
+10. Create the GitHub release from `RELEASE_NOTES.md`, including artifact
+    SHA-256 values and only compatibility claims backed by local evidence.
 
-Never upload SDK source or generated SDK data as a CI artifact or public cache.
+Never upload SDK source, recordings, compiled decoder output, or generated SDK
+data as a CI artifact or public cache.
 Production publication uses short-lived trusted-publishing credentials rather
 than repository API tokens.

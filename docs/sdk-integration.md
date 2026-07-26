@@ -44,3 +44,16 @@ polar-ble sdk remove --all
 This project does not grant rights to the Polar BLE SDK. The user's SDK copy,
 schema source, generated modules, descriptor sets, and upstream licence notice
 remain governed by the terms under which the user obtained them.
+
+## Separate decoder lifecycle
+
+Schema and REC decoder workflows are intentionally independent:
+
+```text
+schema:  sdk install -> inspect -> generate -> verify -> activate
+decoder: sdk decoder build -> verify -> activate -> rec decode
+```
+
+`sdk install` does not build the decoder. The optional decoder uses the same
+separately obtained SDK source but retains a separate local runtime, manifest,
+and activation state. See [REC decoding](rec-decoding.md).

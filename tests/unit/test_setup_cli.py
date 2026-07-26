@@ -31,12 +31,25 @@ def test_ftu_dry_run_redacts_profile_values(tmp_path, capsys) -> None:
     exit_code = ftu_main(["dry-run", "--profile", str(profile)])
 
     captured = capsys.readouterr()
+    output = json.loads(captured.out)
     assert exit_code == 0
-    assert "PHYSDATA.BPB" in captured.out
-    assert "1988-04-03" not in captured.out
-    assert "172.5" not in captured.out
-    assert "65.25" not in captured.out
-    assert "188" not in captured.out
+    assert any("PHYSDATA.BPB" in operation for operation in output["operations"])
+    assert output["profile"] == {
+        "path": str(profile),
+        "fields": [
+            "gender",
+            "birth_date",
+            "height_cm",
+            "weight_kg",
+            "max_heart_rate_bpm",
+            "resting_heart_rate_bpm",
+            "vo2_max",
+            "training_background",
+            "typical_day",
+            "sleep_goal_minutes",
+            "device_time",
+        ],
+    }
     assert captured.err == ""
 
 

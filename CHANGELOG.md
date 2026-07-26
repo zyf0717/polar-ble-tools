@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## 0.2.0 — 2026-07-26
+
+- Added optional local REC decoder lifecycle and `polar-ble rec` commands.
+- Added streaming JSONL protocol validation, digest-verified runtimes, private
+  output publication, bounded diagnostics, and process-group timeout cleanup.
+- Added `doctor()` and direct FTU workflow APIs, plus top-level passive-file
+  collection exports.
+- Added explicit CLI and Python API references.
+- Removed obsolete REC build spike scripts and consolidated the former spec
+  material into shipping documentation.
+
+Known limitations: encrypted recordings and categories without local contract
+evidence remain unsupported; PPI envelope timestamps are absent for every
+device until their SDK semantics are validated.
+
 ## 0.1.1 — 2026-07-25
 
 - Made protected live-device tests opt-in.
