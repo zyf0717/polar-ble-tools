@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 0 — feasibility | Complete | Pure JVM selected and the pinned SDK parser decoded the local Loop Gen 2 PPI fixture. |
 | 1 — protocol/runtime | Complete for protocol v1 | `polar_ble_tools.rec`, fake-sidecar tests, JSONL validation, and `polar-ble rec status|decode` are implemented. |
-| 2 — lifecycle | Partial | Cache paths, manifests, digest verification, activation, status, verify, and removal are implemented. `doctor` integration and a rollback-specific test remain. |
+| 2 — lifecycle | Partial | Cache paths, manifests, digest verification, transactional replacement, activation, status, verify, removal, and `doctor` integration are implemented. Unit coverage verifies promotion rollback and active-manifest restoration after failed activation. Crash-recovery guarantees across process termination remain. |
 | 3 — local build | Partial | The installed wheel can provision the pinned Linux x86_64 JDK/Gradle toolchain, compile the sidecar from the staged SDK, and decode nine unencrypted Loop Gen 2/Verity Sense recordings across ACC, HR, PPG, PPI, skin temperature, magnetometer, and gyroscope. Final distribution allowlisting, encrypted-recording coverage, and the Verity PPI timestamp anomaly remain. |
 | 4 — hardening/docs | Partial | README, protocol, manifest, fake-sidecar, packaging, and PPI end-to-end validation exist. Timeout/path/rollback coverage, broader fixture coverage, and a clean full-suite run remain. |
 

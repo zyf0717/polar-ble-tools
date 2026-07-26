@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from polar_ble_tools.commands.common import print_json
+from polar_ble_tools.rec import decoder_status
 from polar_ble_tools.sdk_tools.downloader import SdkDownloadError, sdk_status
 from polar_ble_tools.sdk_tools.verifier import (
     SchemaVerificationError,
@@ -47,6 +48,7 @@ def doctor_main(argv: list[str] | None = None) -> int:
                 "installed_commits": list(status.installed_commits),
             },
             "schemas": schema,
+            "decoder": decoder_status().__dict__,
         }
     )
     return 0

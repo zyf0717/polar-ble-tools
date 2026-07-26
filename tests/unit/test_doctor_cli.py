@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from polar_ble_tools.commands.doctor import doctor_main
+from polar_ble_tools.rec import DecoderStatus
 from polar_ble_tools.sdk_tools.downloader import SdkStatus
 
 
@@ -11,6 +12,10 @@ def test_doctor_reports_core_ready_and_missing_schemas(monkeypatch, capsys) -> N
         "polar_ble_tools.commands.doctor.sdk_status",
         lambda: SdkStatus(active_commit=None, installed_commits=()),
     )
+    monkeypatch.setattr(
+        "polar_ble_tools.commands.doctor.decoder_status",
+        lambda: DecoderStatus(False, False, None, None, None, "decoder unavailable"),
+    )
 
     assert doctor_main([]) == 0
 
@@ -18,3 +23,11 @@ def test_doctor_reports_core_ready_and_missing_schemas(monkeypatch, capsys) -> N
     assert output["core"] == {"ready": True}
     assert output["schemas"]["ready"] is False
     assert output["schemas"]["remediation"] == "polar-ble sdk install --accept-license"
+    assert output["decoder"] == {
+        "available": False,
+        "protocol_version": None,
+        "reason": "decoder unavailable",
+        "sdk_commit": None,
+        "verification_level": None,
+        "verified": False,
+    }

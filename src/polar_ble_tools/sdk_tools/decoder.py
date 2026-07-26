@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile, TemporaryDirectory
+from uuid import uuid4
 
 from polar_ble_tools import __version__
 from polar_ble_tools.rec import DecoderManifestError, DecoderVerificationError, decoder_status
@@ -60,6 +61,47 @@ def _write_json(path: Path, value: dict[str, object]) -> None:
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def _restore_file(path: Path, payload: bytes | None) -> None:
+    if payload is None:
+        path.unlink(missing_ok=True)
+        return
+    with NamedTemporaryFile(dir=path.parent, delete=False) as temporary:
+        temporary.write(payload)
+        temporary_path = Path(temporary.name)
+    temporary_path.replace(path)
+
+
+def _promote_decoder_directory(staged: Path, target: Path) -> Path | None:
+    """Replace a decoder entry while retaining the old entry for rollback."""
+    backup: Path | None = None
+    if target.exists():
+        if not target.is_dir() or target.is_symlink():
+            raise DecoderBuildError(f"Decoder target is not a regular directory: {target}")
+        backup = target.with_name(f".{target.name}.previous-{uuid4().hex}")
+        target.replace(backup)
+    try:
+        staged.replace(target)
+    except BaseException:
+        if backup is not None and backup.exists():
+            backup.replace(target)
+        raise
+    return backup
+
+
+def _restore_decoder_directory(target: Path, backup: Path | None) -> None:
+    if backup is None:
+        shutil.rmtree(target, ignore_errors=True)
+    elif backup.exists():
+        if target.exists():
+            shutil.rmtree(target)
+        backup.replace(target)
+
+
+def _discard_decoder_backup(backup: Path | None) -> None:
+    if backup is not None and backup.exists():
+        shutil.rmtree(backup)
 
 
 def _adapter_digest() -> str:
@@ -242,11 +284,15 @@ def build_decoder(
         }
         _write_json(staged / "manifest.json", manifest)
         target = cache.decoder_path(commit)
-        if target.exists():
-            shutil.rmtree(target)
-        staged.replace(target)
-    if activate:
-        activate_decoder(commit, cache=cache)
+        backup = _promote_decoder_directory(staged, target)
+        try:
+            if activate:
+                activate_decoder(commit, cache=cache)
+        except BaseException:
+            _restore_decoder_directory(target, backup)
+            raise
+        else:
+            _discard_decoder_backup(backup)
     return DecoderBuildResult(commit, cache.decoder_path(commit), activate)
 
 
@@ -255,9 +301,12 @@ def activate_decoder(commit: str, *, cache: SdkCache | None = None) -> None:
     manifest = cache.decoder_path(commit) / "manifest.json"
     if not manifest.is_file():
         raise DecoderBuildError(f"Decoder {commit} is not built.")
-    _write_json(cache.active_decoder_manifest_path, {"sdk_commit": commit})
+    active_manifest = cache.active_decoder_manifest_path
+    previous_payload = active_manifest.read_bytes() if active_manifest.exists() else None
+    _write_json(active_manifest, {"sdk_commit": commit})
     status = decoder_status(cache=cache)
     if not status.available:
+        _restore_file(active_manifest, previous_payload)
         raise DecoderVerificationError(status.reason or "Activated decoder is not valid.")
 
 
