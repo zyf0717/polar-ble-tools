@@ -5,9 +5,9 @@
 | Phase | Status | Evidence / remaining work |
 | --- | --- | --- |
 | 0 — feasibility | Complete | Pure JVM selected and the pinned SDK parser decoded the local Loop Gen 2 PPI fixture. |
-| 1 — protocol/runtime | Complete for protocol v1 | `polar_ble_tools.rec`, fake-sidecar tests, JSONL validation, and `polar-ble rec status|decode` are implemented. |
+| 1 — protocol/runtime | Complete for protocol v1 | `polar_ble_tools.rec`, fake-sidecar tests, bounded sidecar output, timeout cleanup, JSONL validation, and `polar-ble rec status|decode` are implemented. |
 | 2 — lifecycle | Partial | Cache paths, manifests, digest verification, transactional replacement, activation, status, verify, removal, and `doctor` integration are implemented. Unit coverage verifies promotion rollback and active-manifest restoration after failed activation. Crash-recovery guarantees across process termination remain. |
-| 3 — local build | Partial | The installed wheel can provision the pinned Linux x86_64 JDK/Gradle toolchain, compile the sidecar from the staged SDK, and decode nine unencrypted Loop Gen 2/Verity Sense recordings across ACC, HR, PPG, PPI, skin temperature, magnetometer, and gyroscope. Final distribution allowlisting, encrypted-recording coverage, and the Verity PPI timestamp anomaly remain. |
+| 3 — local build | Partial | The installed wheel can provision the pinned Linux x86_64 JDK/Gradle toolchain, compile the sidecar from the staged SDK, lock its Gradle dependencies, verify the complete allowlisted runtime distribution, and decode nine unencrypted Loop Gen 2/Verity Sense recordings across ACC, HR, PPG, PPI, skin temperature, magnetometer, and gyroscope. Encrypted-recording coverage and the Verity PPI timestamp anomaly remain. |
 | 4 — hardening/docs | Partial | README, protocol, manifest, fake-sidecar, packaging, and PPI end-to-end validation exist. Timeout/path/rollback coverage, broader fixture coverage, and a clean full-suite run remain. |
 
 ### Phase 0 — feasibility and decision record
@@ -80,10 +80,11 @@ The feature is complete only when all of the following are true:
 - [x] Failed decoding leaves no successful-looking partial destination.
 - [x] The Python API and CLI return actionable errors.
 - [x] Public tests use only fake/project-owned fixtures.
-- [ ] Local SDK contract tests pass for every supported recording category and encrypted-recording behavior.
+- [x] Opt-in local SDK contracts pass for the documented unencrypted Loop Gen 2 and Verity Sense corpus.
+- [ ] Encrypted-recording behavior and unexercised SDK record categories are validated or explicitly supported.
 - [x] Wheel and sdist artifact scans pass.
 - [x] Documentation states the PPI support boundary and licensing separation.
-- [ ] `ruff check .`, the complete test suite, `python -m build`, and `twine check dist/*` pass in one compatible environment.
+- [x] `ruff check .`, the complete test suite, `python -m build`, and strict `twine check` pass in one compatible environment.
 
 ## 18. Agent execution rules
 

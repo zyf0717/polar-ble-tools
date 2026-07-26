@@ -87,10 +87,26 @@ polar-ble rec status
 polar-ble rec decode PPI0.REC --output PPI0.jsonl
 ```
 
-The project distributes neither the SDK nor a decoder binary. The initial
-end-to-end validation covers unencrypted `PPI` recordings from Polar Loop Gen
-2; other recording categories are emitted through the same generic JSONL
-envelope but remain unvalidated.
+The first build is Linux x86_64 only. It downloads checksum-verified Temurin
+JDK 21.0.12+8 and Gradle 9.4.1 plus normal Gradle dependencies; it never
+downloads or changes the Polar SDK. Subsequent builds may use
+`polar-ble sdk decoder build --offline` after those dependencies are cached.
+The installed SDK and decoder are stored only in the user-data cache.
+
+The project distributes neither the SDK nor a decoder binary. The currently
+exercised unencrypted compatibility matrix is:
+
+| Device | Record categories |
+| --- | --- |
+| Polar Loop Gen 2 | ACC, HR, PPG, PPI, skin temperature |
+| Polar Verity Sense | magnetometer, gyroscope, PPG, PPI |
+
+Output is UTF-8 JSONL with stable record types, snake_case payload keys, and
+Unix-nanosecond timestamps converted from Polar's 2000-01-01 epoch when the
+SDK supplies a sample timestamp. HR has no per-sample timestamp. The tested
+Verity Sense PPI fixture has an anomalous timestamp near that epoch; retain its
+payload timestamp for diagnosis and do not treat it as collection-time proof.
+Encrypted recordings and categories outside this matrix are unsupported.
 
 ## Documentation and development
 

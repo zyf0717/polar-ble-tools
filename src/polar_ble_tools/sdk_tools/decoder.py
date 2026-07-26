@@ -46,6 +46,7 @@ _JDK_URL = (
 _GRADLE_URL = f"https://services.gradle.org/distributions/{_GRADLE_ARCHIVE}"
 _JDK_SHA256 = "e4446ff06a276155697597cc0f1b15da004ff083f4964a35271ecee567177370"
 _GRADLE_SHA256 = "2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb"
+_RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
 
 
 def _digest(path: Path) -> str:
@@ -107,13 +108,33 @@ def _discard_decoder_backup(backup: Path | None) -> None:
 def _adapter_digest() -> str:
     hasher = hashlib.sha256()
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
-    for name in ("DecoderMain.kt", "build.gradle.kts", "settings.gradle.kts"):
+    for name in ("DecoderMain.kt", "build.gradle.kts", "settings.gradle.kts", "gradle.lockfile"):
         path = template.joinpath(name)
         if path.is_file():
             hasher.update(name.encode("utf-8"))
             hasher.update(b"\0")
             hasher.update(path.read_bytes())
     return hasher.hexdigest()
+
+
+def _runtime_file_digests(root: Path) -> dict[str, str]:
+    """Return the complete, allowlisted runtime file set for a distribution."""
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_dir():
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise DecoderBuildError(f"Decoder distribution has an unsafe entry: {path}")
+        relative = path.relative_to(root).as_posix()
+        allowed = relative in _RUNTIME_LAUNCHERS or (
+            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        )
+        if not allowed:
+            raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
+        files[relative] = _digest(path)
+    if "bin/polar-rec-decoder" not in files or not any(path.startswith("lib/") for path in files):
+        raise DecoderBuildError("Decoder distribution is missing its launcher or runtime libraries.")
+    return files
 
 
 def _run(
@@ -212,9 +233,12 @@ def _write_workspace(workspace: Path) -> None:
     for name, destination in (
         ("settings.gradle.kts", workspace / "settings.gradle.kts"),
         ("build.gradle.kts", workspace / "build.gradle.kts"),
+        ("gradle.lockfile", workspace / "gradle.lockfile"),
         ("DecoderMain.kt", source / "DecoderMain.kt"),
     ):
-        destination.write_bytes(template.joinpath(name).read_bytes())
+        template_path = template.joinpath(name)
+        if template_path.is_file():
+            destination.write_bytes(template_path.read_bytes())
 
 
 def _verify_distribution(executable: Path, toolchain_root: Path) -> None:
@@ -274,6 +298,7 @@ def build_decoder(
         staged = Path(temporary) / "decoder"
         shutil.copytree(distribution, staged)
         staged_executable = staged / "bin" / "polar-rec-decoder"
+        runtime_files = _runtime_file_digests(staged)
         manifest = {
             "manifest_version": 1, "decoder_protocol_version": 1, "sdk_commit": commit,
             "polar_ble_tools_version": __version__, "build_mode": "jvm",
@@ -281,6 +306,7 @@ def build_decoder(
             "architecture": platform.machine().lower(), "java_version": "21.0.12+8", "gradle_version": "9.4.1",
             "adapter_source_sha256": _adapter_digest(), "executable_relative_path": "bin/polar-rec-decoder",
             "executable_sha256": _digest(staged_executable), "verification_level": "handshake", "verified": True,
+            "runtime_files": runtime_files,
         }
         _write_json(staged / "manifest.json", manifest)
         target = cache.decoder_path(commit)

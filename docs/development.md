@@ -27,6 +27,18 @@ default and require protected hardware, an ignored `test_devices.yaml`, and
 explicit environment flags. A skipped SDK or live test is not a successful
 validation result.
 
+The REC decoder corpus contract is also opt-in and requires a built active
+decoder plus a local, non-redistributable fixture tree:
+
+```bash
+POLAR_BLE_SDK_DECODER_CONTRACT=1 \
+POLAR_BLE_REC_FIXTURES=/path/to/rec-fixtures \
+pytest -q tests/sdk_decoder_contract
+```
+
+It verifies deterministic JSONL output for the documented Loop Gen 2 and
+Verity Sense corpus. Do not add fixture paths or recordings to the repository.
+
 ## Repository boundaries
 
 Do not commit or package:

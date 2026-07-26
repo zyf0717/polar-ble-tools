@@ -10,12 +10,15 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from threading import Thread
 from typing import Any
 
 from polar_ble_tools.schemas.cache import SdkCache
 
 _PROTOCOL_VERSION = 1
 _MAX_DIAGNOSTIC = 8_192
+_MAX_STATUS_BYTES = 8_192
+_RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
 
 
 class RecDecodeError(RuntimeError):
@@ -108,6 +111,23 @@ def _within(path: Path, root: Path) -> bool:
     return True
 
 
+def _runtime_file_digests(root: Path) -> dict[str, str]:
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_dir() or path.name == "manifest.json":
+            continue
+        if path.is_symlink() or not path.is_file():
+            raise DecoderManifestError(f"Decoder runtime has an unsafe entry: {path.name}")
+        relative = path.relative_to(root).as_posix()
+        allowed = relative in _RUNTIME_LAUNCHERS or (
+            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        )
+        if not allowed:
+            raise DecoderManifestError(f"Decoder runtime has an unexpected file: {relative}")
+        files[relative] = _digest(path)
+    return files
+
+
 def _load_decoder(cache: SdkCache) -> _Decoder:
     active = cache.active_decoder_manifest_path
     if not active.is_file():
@@ -127,6 +147,7 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         relative = manifest["executable_relative_path"]
         expected_digest = manifest["executable_sha256"]
+        expected_runtime_files = manifest["runtime_files"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise DecoderManifestError(f"Invalid decoder manifest at {manifest_path}.") from exc
     if (
@@ -136,6 +157,8 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         or manifest.get("verified") is not True
         or not isinstance(relative, str)
         or not isinstance(expected_digest, str)
+        or not isinstance(expected_runtime_files, dict)
+        or not all(isinstance(path, str) and isinstance(digest, str) for path, digest in expected_runtime_files.items())
     ):
         raise DecoderManifestError("Decoder manifest does not describe a verified protocol-v1 decoder.")
     executable = (root / relative).resolve()
@@ -143,6 +166,8 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         raise DecoderManifestError("Decoder executable is missing or escapes its cache directory.")
     if _digest(executable) != expected_digest:
         raise DecoderVerificationError("Decoder executable digest changed; rebuild and verify the decoder.")
+    if _runtime_file_digests(root) != expected_runtime_files:
+        raise DecoderVerificationError("Decoder runtime files changed; rebuild and verify the decoder.")
     return _Decoder(executable, manifest)
 
 
@@ -167,6 +192,48 @@ def _diagnostic(value: str | bytes | None) -> str:
         return "no diagnostic output"
     text = value.decode("utf-8", "replace") if isinstance(value, bytes) else value
     return text.strip()[:_MAX_DIAGNOSTIC]
+
+
+def _drain_stream(stream, limit: int, sink: list[bytes | bool]) -> None:
+    payload = bytearray()
+    exceeded = False
+    while chunk := stream.read(8_192):
+        remaining = limit - len(payload)
+        if remaining > 0:
+            payload.extend(chunk[:remaining])
+        exceeded = exceeded or len(chunk) > remaining
+    sink.extend((bytes(payload), exceeded))
+
+
+def _run_sidecar(command: list[str], *, environment: Mapping[str, str], timeout_seconds: float) -> tuple[int, bytes, bytes]:
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=environment,
+    )
+    assert process.stdout is not None and process.stderr is not None
+    stdout: list[bytes | bool] = []
+    stderr: list[bytes | bool] = []
+    stdout_thread = Thread(target=_drain_stream, args=(process.stdout, _MAX_STATUS_BYTES, stdout))
+    stderr_thread = Thread(target=_drain_stream, args=(process.stderr, _MAX_DIAGNOSTIC, stderr))
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        returncode = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        process.wait()
+        raise DecoderTimeoutError("REC decoder timed out; retry with a larger timeout.") from exc
+    finally:
+        stdout_thread.join()
+        stderr_thread.join()
+    stdout_payload, stdout_exceeded = stdout
+    stderr_payload, _ = stderr
+    if stdout_exceeded:
+        raise DecoderProtocolError("REC decoder status exceeded the maximum size.")
+    return returncode, stdout_payload, stderr_payload
 
 
 def _validated_rows(path: Path, source_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -214,6 +281,8 @@ def decode_recording(
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     if not destination_path.parent.is_dir():
         raise RecordingDecodeError("Output parent is not a directory.")
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise RecordingDecodeError("timeout_seconds must be positive.")
     cache = SdkCache.default()
     decoder = _load_decoder(cache)
     source_digest = _digest(source_path)
@@ -222,18 +291,18 @@ def decode_recording(
     temporary.unlink()
     try:
         try:
-            completed = subprocess.run(
+            returncode, stdout, stderr = _run_sidecar(
                 [str(decoder.executable), "decode", "--input", str(source_path), "--output", str(temporary), "--protocol", "1"],
-                check=False, capture_output=True, timeout=timeout_seconds or 120, text=True,
-                env=_decoder_environment(cache, str(decoder.manifest["sdk_commit"])),
+                environment=_decoder_environment(cache, str(decoder.manifest["sdk_commit"])),
+                timeout_seconds=timeout_seconds or 120,
             )
-        except subprocess.TimeoutExpired as exc:
-            raise DecoderTimeoutError("REC decoder timed out; retry with a larger timeout.") from exc
-        if completed.returncode:
-            raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(completed.stderr)}")
+        except OSError as exc:
+            raise RecordingDecodeError(f"REC decoder could not start: {exc}") from exc
+        if returncode:
+            raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(stderr)}")
         try:
-            status = json.loads(completed.stdout)
-        except json.JSONDecodeError as exc:
+            status = json.loads(stdout)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise DecoderProtocolError("REC decoder returned malformed status JSON.") from exc
         header, summary = _validated_rows(temporary, source_digest)
         if status.get("status") != "ok" or status.get("record_count") != summary["record_count"]:

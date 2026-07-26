@@ -47,6 +47,10 @@ dependencies {
     implementation("androidx.annotation:annotation:1.6.0")
 }
 
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 application {
     mainClass = "DecoderMainKt"
     applicationName = "polar-rec-decoder"

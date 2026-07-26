@@ -9,6 +9,8 @@ import pytest
 
 from polar_ble_tools.rec import (
     DecoderProtocolError,
+    DecoderTimeoutError,
+    DecoderVerificationError,
     decode_recording,
     decoder_status,
     iter_decoded_records,
@@ -22,7 +24,7 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _decoder(cache: SdkCache, *, summary_count: int = 1) -> Path:
+def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -> Path:
     root = cache.decoder_path(COMMIT)
     executable = root / "bin" / "polar-rec-decoder"
     executable.parent.mkdir(parents=True)
@@ -31,6 +33,10 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1) -> Path:
         "import hashlib, json, pathlib, sys\n"
         "if sys.argv[1] in ('version', 'self-test'):\n"
         " print(json.dumps({'status':'ok','protocol_version':1})); raise SystemExit(0)\n"
+        f"if {mode!r} == 'timeout':\n"
+        " import time; time.sleep(60)\n"
+        f"if {mode!r} == 'oversized-status':\n"
+        " print('x' * 9000); raise SystemExit(0)\n"
         "source = pathlib.Path(sys.argv[3]).read_bytes()\n"
         "output = pathlib.Path(sys.argv[5])\n"
         "digest = hashlib.sha256(source).hexdigest()\n"
@@ -50,6 +56,7 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1) -> Path:
                 "sdk_commit": COMMIT,
                 "executable_relative_path": "bin/polar-rec-decoder",
                 "executable_sha256": _digest(executable),
+                "runtime_files": {"bin/polar-rec-decoder": _digest(executable)},
                 "verification_level": "handshake",
                 "verified": True,
             }
@@ -89,4 +96,44 @@ def test_decode_rejects_inconsistent_summary(monkeypatch: pytest.MonkeyPatch, tm
     source.write_bytes(b"sample")
 
     with pytest.raises(DecoderProtocolError, match="summary"):
+        decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+def test_decoder_rejects_unmanifested_runtime_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    _use_cache(monkeypatch, cache)
+    (cache.decoder_path(COMMIT) / "lib").mkdir()
+    (cache.decoder_path(COMMIT) / "lib" / "unexpected.jar").write_bytes(b"not trusted")
+    source = tmp_path / "PPI0.REC"
+    source.write_bytes(b"sample")
+
+    with pytest.raises(DecoderVerificationError, match="runtime files changed"):
+        decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+def test_decode_timeout_terminates_child_and_removes_temporary_output(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache, mode="timeout")
+    _use_cache(monkeypatch, cache)
+    source, output = tmp_path / "PPI0.REC", tmp_path / "decoded.jsonl"
+    source.write_bytes(b"sample")
+
+    with pytest.raises(DecoderTimeoutError):
+        decode_recording(source, output, timeout_seconds=0.05)
+
+    assert not output.exists()
+    assert not list(tmp_path.glob(".decoded.jsonl.*.jsonl"))
+
+
+def test_decode_rejects_oversized_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache, mode="oversized-status")
+    _use_cache(monkeypatch, cache)
+    source = tmp_path / "PPI0.REC"
+    source.write_bytes(b"sample")
+
+    with pytest.raises(DecoderProtocolError, match="maximum size"):
         decode_recording(source, tmp_path / "decoded.jsonl")
