@@ -10,6 +10,8 @@ All notable changes to this project are documented here.
 - Added experimental local REC decoding infrastructure and protocol validation.
 - Added runtime-file allowlisting/digest verification, bounded sidecar output,
   timeout cleanup, Gradle dependency locking, and opt-in local corpus contracts.
+- Added v0.2.0 Python facades for structured `doctor()` readiness and FTU
+  apply/status/configuration/settings/diagnostics workflows.
 
 Known limitations: encrypted recordings and categories without local contract
 evidence remain unsupported; Verity Sense PPI timestamp interpretation remains

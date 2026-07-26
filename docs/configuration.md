@@ -66,6 +66,23 @@ release_device_connection(mac_address=target)
 
 The package does not read an inventory unless the caller supplies its path.
 
+The v0.2.0 facade also exposes structured local readiness and the live FTU
+workflow without constructing CLI argument lists:
+
+```python
+from polar_ble_tools import apply_ftu, doctor, ftu_status
+from polar_ble_tools.polar.setup import FtuProfile
+
+readiness = doctor()
+profile = FtuProfile.from_json_file("profile.json")
+result = await apply_ftu("AA:BB:CC:DD:EE:FF", profile)
+complete = await ftu_status("AA:BB:CC:DD:EE:FF")
+```
+
+`doctor()` is read-only and returns `DoctorReport`; its `to_dict()` is the same
+shape used by `polar-ble doctor`. FTU helpers own the device session and expose
+apply, status, physical configuration, settings read/update, and diagnostics.
+
 ## REC decoder commands
 
 `polar-ble sdk decoder build [--offline] [--no-activate]` builds the optional
