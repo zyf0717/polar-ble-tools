@@ -22,6 +22,32 @@ Schema-versioned stored artifacts reject unsupported versions. Backward
 readers may accept older versions only through an explicit migration path and
 must never reinterpret an unknown field as deletion evidence.
 
+## Local SDK acceptance provenance
+
+The local SDK install manifest is a project-owned, local-only model. It binds
+one explicit acceptance to one staged SDK content identity and copied licence
+digest:
+
+```text
+sdk_commit
+source_identity
+license_filename
+license_sha256
+accepted_at
+acceptance_method
+```
+
+`source_identity` is content-addressed for a user-supplied SDK path.
+`accepted_at` is UTC and `acceptance_method` is a stable project-owned value,
+such as `cli_flag`. The model records neither user identity, username,
+hostname, shell history, machine identifier, nor telemetry. It is local cache
+state and is excluded from public artifacts.
+
+Acceptance is valid only when the staged SDK identity and licence filename and
+digest exactly match the record. A change requires a new explicit acceptance;
+the record cannot silently apply to another revision, source snapshot, or
+licence text. Schema activation remains independent of decoder activation.
+
 ## Recording-control results
 
 The high-level APIs return these conceptual immutable models:
@@ -190,6 +216,11 @@ PolarBleToolsError
 │   ├── ManifestError
 │   ├── VerificationError
 │   └── PublicationError
+├── SdkLifecycleError
+│   ├── LicenseAcceptanceRequiredError
+│   ├── LicenseAcceptanceMismatchError
+│   ├── LicenseNoticeMissingError
+│   └── LicenseNoticeMismatchError
 └── RecDecodeError
     ├── DecoderUnavailableError
     ├── DecoderManifestError
@@ -217,10 +248,20 @@ operation
 retryable
 ```
 
+The following stable codes are required where applicable:
+
+```text
+license_notice_missing
+license_notice_mismatch
+license_acceptance_required
+license_acceptance_mismatch
+sdk_output_contract_mismatch
+```
+
 Optional cause metadata may identify a project-owned subsystem, but never an
 SDK class name or secret. `retryable` is false for validation, unsupported,
-manifest-integrity, and secret-invalid errors; it may be true for transport and
-timeout errors when retry is safe.
+manifest-integrity, licence/notice-integrity, acceptance, and secret-invalid
+errors; it may be true for transport and timeout errors when retry is safe.
 
 ## CLI output and exit behavior
 

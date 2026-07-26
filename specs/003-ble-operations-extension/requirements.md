@@ -184,7 +184,7 @@ package version
 
 **FR-025** — A decoder built for another platform or architecture must report unavailable with an actionable rebuild command.
 
-**FR-026** — ARM64 support must not weaken archive path, symlink, executable, digest, cache-boundary, or rollback checks.
+**FR-026** — Linux aarch64 support must not weaken archive path, symlink, executable, digest, cache-boundary, or rollback checks.
 
 ## Protected REC decoding
 
@@ -325,7 +325,7 @@ recording identity.
 - passive cleanup dry-run and one controlled destructive deletion;
 - BPB decode for each claimed schema-backed domain;
 - REC decode for every claimed measurement category;
-- Linux x86-64 and Linux ARM64 sidecar status where hosts are available.
+- Linux x86_64 and Linux aarch64 sidecar status where hosts are available.
 
 **FR-042** — Verity Sense validation must cover:
 
@@ -418,3 +418,103 @@ documentation drift
 ```
 
 The phase is not complete while new behavior leaves a known avoidable duplication or responsibility leak in the touched subsystem.
+
+## SDK provenance, licensing, and protected-data boundaries
+
+**FR-059** — Protobuf message definitions, field numbers, enum definitions,
+descriptor sets, and generated language bindings must be generated locally from
+the separately obtained and licensed SDK schema inputs. They must not be
+manually transcribed, reconstructed, translated, committed, packaged, or
+published. Project code may map generated messages into stable project-owned
+models only after generation.
+
+`protoc` generation is an explicit user-initiated SDK workflow. Generated
+`_pb2.py` modules and descriptor sets remain local cache material governed by
+the applicable upstream SDK licence. BPB decoding must use those generated
+modules and must not embed copied or reconstructed schema definitions in
+project source. When generation is unavailable, decoding reports unavailable;
+there is no hand-maintained schema fallback.
+
+**FR-060** — The local SDK install manifest must bind licence acceptance to the
+exact staged SDK content and copied licence digest. It records at least:
+
+```text
+sdk_commit
+source_identity
+license_filename
+license_sha256
+accepted_at
+acceptance_method
+```
+
+`accepted_at` is UTC. `acceptance_method` is a stable project-owned value such
+as `cli_flag`. A changed licence digest, SDK revision, or content-addressed
+user-supplied SDK snapshot requires new explicit acceptance. An unchanged
+verified cache entry may be reused transactionally. Acceptance records contain
+no personal identity, username, hostname, shell history, machine identifier,
+telemetry, or public artifact data.
+
+**FR-061** — Every locally built decoder cache entry must include the exact
+`Polar_SDK_License.txt` from the resolved SDK source and every required
+upstream third-party notice from the compiled source subset. Its manifest must
+record each cache-relative notice path and SHA-256 digest. Decoder activation
+and verification fail closed if a required licence is absent, a digest differs,
+a path escapes the decoder cache, or an unexpected notice file replaces a
+recorded file.
+
+The runtime allowlist permits only specifically named licence/notice files in
+addition to approved launchers and JARs. These files remain decoder-local cache
+material and must not enter the Python wheel, sdist, repository, public CI
+artifact or cache, container layer, release asset, or distribution.
+
+**FR-062** — Protected REC decoding must construct the pinned SDK's
+secret/security model inside the JVM sidecar and invoke the pinned SDK's
+existing REC parser with that model. It supports only security strategies
+demonstrably supported by the pinned SDK and private fixture contracts. The
+sidecar exposes only project-owned request, response, error, and JSONL
+contracts; when the SDK cannot decode a recording, it returns a typed
+unsupported or decode error.
+
+The implementation must not independently parse REC headers, metadata, or
+payloads, decrypt REC metadata or payloads, decode REC compression, translate the SDK
+parser into any language, copy protected parsing logic into project-authored
+modules, patch SDK source to expose unsupported behavior, or use Python PMD
+secret/decryption code as a REC fallback.
+
+**FR-063** — Each claimed REC record category must have an explicit
+project-owned adapter mapping and payload contract. The contract defines public
+field names, units, nullability, numeric treatment, timestamp policy, binary
+encoding, and stable record type. SDK reflection may be a private extraction
+mechanism only; it must not automatically determine public field names,
+nesting, or serialized structure.
+
+Unknown SDK fields are ignored or produce a controlled unsupported or
+version-mismatch result; they are never serialized opportunistically. An output
+contract change requires an explicit protocol or schema-version decision and
+private fixture revalidation. Private fixture hashes change only after that
+intentional contract decision.
+
+**FR-064** — Restricted SDK-derived and private material must not enter GitHub
+Actions artifacts, CI caches, uploaded dependency caches, container or OCI
+image layers, Gradle build scans, test reports, coverage bundles, crash dumps,
+debug logs, SBOM/provenance bundles, retained temporary CI archives, Git LFS,
+release-candidate bundles, release assets, distributions, or Git history.
+
+Public CI uses only synthetic inputs, fake sidecars, and project-authored
+fixtures. Protected SDK compilation, real REC/BPB fixtures, hardware tests,
+and protected compatibility contracts run only locally or in an explicitly
+private environment that uploads no restricted material.
+
+**FR-065** — Real-device fixtures must be consented, disposable, synthetic
+where possible, or otherwise approved for their test purpose. Fixtures, decoded
+outputs, profile contents, device identifiers, MAC addresses, participant
+identifiers, and secrets remain private. Compatibility evidence contains only
+the redacted metadata required by this specification; logs and failure reports
+contain no raw or decoded participant data.
+
+Protected validation environments document fixture retention and deletion.
+Documentation must state that the package is not diagnostic, clinical,
+medical-device, life-supporting, or life-critical software, and that data users
+remain responsible for applicable privacy and data-protection obligations.
+Passive algorithm outputs must not be represented as equivalent to raw waveform
+data.

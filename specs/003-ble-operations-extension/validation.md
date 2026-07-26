@@ -39,18 +39,33 @@ Assert:
   attempts termination after protocol failure or cancellation;
 - per-file PFTP response failures continue while BLE transport failures abort;
 - batch decode works with a fake sidecar;
+- generated-schema absence reports unavailable and never activates a copied,
+  reconstructed, transcribed, or hand-maintained schema fallback;
+- schema-generation and decoder-build workflows are explicit and independent;
+- SDK acceptance manifests bind `sdk_commit`, content identity, licence filename,
+  digest, UTC time, and acceptance method without identity or host metadata;
+- changed licence files, mismatched acceptance records, and changed staged
+  content require explicit re-acceptance; an unchanged verified cache entry is
+  reusable transactionally;
 - no operation implicitly downloads or builds anything.
 
 ### Sidecar tests
 
 Assert:
 
-- x86-64 and ARM64 toolchain selection, including `amd64` and `arm64` alias
+- Linux x86_64 and Linux aarch64 toolchain selection, including `amd64` and `arm64` alias
   normalization;
 - checksum mismatch rejection;
 - unsafe archive entry rejection;
 - wrong-platform decoder rejection;
 - transactional activation and rollback;
+- exact `Polar_SDK_License.txt` and required upstream notices are copied from
+  the resolved SDK revision into the staged decoder cache;
+- missing licence, missing notice, modified licence/notice, escaping notice
+  path, and unexpected replacement notice fail activation and verification;
+- notice manifest paths/digests are cache-relative and removal deletes the
+  decoder-local licence/notices with the cache entry;
+- failed notice verification or promotion preserves the last verified decoder;
 - protocol-v1 compatibility;
 - protocol-v2 handshake and capability negotiation;
 - protected requests use stdin and contain no input, output, or secret in argv;
@@ -65,6 +80,12 @@ Assert:
   stream readers;
 - JSONL header/record/summary ordering, provenance, digest, counts, types,
   finite-number handling, and no-rows-after-summary validation;
+- each supported REC category uses an explicit project-owned adapter mapping;
+  SDK property discovery, class names, property names, or reflection order
+  cannot alter JSONL automatically;
+- a newly observed SDK property fails with `sdk_output_contract_mismatch` or is
+  ignored according to the declared mapping, and fixture expectations change
+  only after an intentional output-version decision;
 - source/output alias rejection;
 - batch tree discovery ignores symlinks and its resolved output subtree;
 - manifest traversal, absolute paths, duplicates, inline secrets, digest
@@ -79,6 +100,9 @@ Against the pinned separately licensed SDK:
 
 - build and verify the sidecar on each claimed architecture;
 - run `version` and `self-test`;
+- prove the adapter constructs the pinned SDK secret/security model inside the
+  JVM and invokes the pinned SDK REC parser, rather than a project-authored
+  parser or decryptor;
 - decode each claimed private fixture category;
 - validate encrypted fixtures separately;
 - record the negotiated protocol, protected-decode capability, and security
@@ -86,6 +110,21 @@ Against the pinned separately licensed SDK:
 - verify expected source/output SHA-256 and record counts;
 - remove generated SDK/decoder material after the run;
 - upload no SDK source, JARs, class files, recordings, decoded data, or secrets.
+
+### Private fixture contracts
+
+Run only in a protected environment with approved fixtures. Assert:
+
+- each claimed category matches its explicit project-owned payload contract,
+  units, nullability, numeric treatment, timestamp policy, and binary encoding;
+- fixture and decoded-output SHA-256 values match only after an intentional
+  protocol/schema or adapter-contract change;
+- unknown SDK fields do not appear in JSONL opportunistically;
+- real-device fixture sources, decoded outputs, profile content, identifiers,
+  and secrets are not retained in public test output, logs, failure reports, or
+  uploaded artifacts;
+- retention and deletion of protected fixtures are recorded by the private
+  validation environment.
 
 ### Hardware tests
 
@@ -103,15 +142,22 @@ pass/fail
 approved limitation
 ```
 
-Do not log MAC addresses, profile contents, raw payloads, secrets, or exact private paths.
+Do not log MAC addresses, profile contents, raw payloads, decoded participant
+data, secrets, or exact private paths. Real-device fixtures must be consented,
+disposable, synthetic where possible, or otherwise approved for the test
+purpose.
 
 Passive evidence must distinguish time coverage from signal coverage. It must
 not treat passive activity, automatic samples, or low-rate temperature as
 evidence for raw ACC, PPG, continuous PPI, or equivalent waveform support.
 
-### Packaging audit
+### Release and workflow artifact audit
 
-Wheel, sdist, Git history, workflow artifacts, and release assets must reject:
+Wheel, sdist, repository history, workflow configuration, GitHub Actions
+artifacts, CI and uploaded dependency caches, container/OCI image layers,
+Gradle build scans, test reports, coverage bundles, crash dumps, debug logs,
+SBOM/provenance bundles, retained temporary CI archives, Git LFS,
+release-candidate bundles, and release assets must reject:
 
 ```text
 *.jar
@@ -128,9 +174,19 @@ device inventories
 FTU profiles
 secrets
 private compatibility manifests
+SDK acceptance manifests
+decoder-local licence/notice files
+Polar_SDK_License.txt
 ```
 
 Project-authored Kotlin adapter templates remain permitted.
+
+The audit inspects workflow definitions and upload/cache configuration, not only
+material that already exists in a built wheel or release bundle. Public CI uses
+only synthetic inputs, fake sidecars, and project-authored fixtures. Protected
+SDK compilation, fixtures, hardware tests, and compatibility contracts must
+run locally or in an explicitly private environment that uploads no restricted
+material.
 
 ## Documentation requirements
 
@@ -159,5 +215,14 @@ Documentation must state:
 - which device and record categories have actual evidence;
 - that raw REC remains authoritative;
 - that unsupported or unvalidated behavior is reported rather than inferred;
+- that schemas are generated locally from separately licensed SDK inputs and
+  are never manually reconstructed or shipped;
+- that the optional REC sidecar uses the pinned official SDK parser and carries
+  required licence/notice material only in its local cache entry;
+- that the package is not diagnostic, clinical, medical-device, life-supporting,
+  or life-critical software;
+- that users remain responsible for applicable privacy and data-protection
+  obligations;
+- that protected fixtures and device/participant data remain private;
 - release-facing text remains product-focused and contains no comparative
   migration framing.

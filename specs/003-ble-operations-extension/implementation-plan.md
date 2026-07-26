@@ -64,23 +64,37 @@ tests/unit/test_passive_storage.py
 tests/unit/test_passive.py
 ```
 
-## Phase 3 — ARM64 sidecar and toolchain model refactor
+## Phase 3 — Linux aarch64 sidecar, SDK lifecycle, and toolchain model refactor
 
-1. Refactor toolchain constants into architecture-indexed immutable descriptors.
-2. Add pinned Linux ARM64 JDK provenance.
-3. Normalize `amd64`/`arm64` host aliases at one boundary.
-4. Generalize provisioning, manifest writing, verification, status checks, and
+1. Make generated-schema provenance explicit: schemas, descriptor sets, and
+   bindings are generated only in the user-initiated SDK workflow from the
+   separately licensed SDK inputs; no reconstructed fallback is permitted.
+2. Bind SDK acceptance records to the staged content identity, licence filename,
+   digest, UTC acceptance time, and project-owned acceptance method.
+3. Refactor toolchain constants into architecture-indexed immutable descriptors.
+4. Add pinned Linux aarch64 JDK provenance.
+5. Normalize `amd64`/`arm64` host aliases at one boundary.
+6. Generalize provisioning, manifest writing, verification, status checks, and
    remediation across descriptors.
-5. Record descriptor and runtime digests in the active decoder manifest.
-6. Add synthetic unit tests for both architectures.
-7. Run a protected ARM64 build/self-test on Raspberry Pi OS or Ubuntu ARM64.
+7. Copy the resolved SDK licence and required notices into staged decoder cache
+   entries; record and verify cache-relative paths and digests before promotion.
+8. Record descriptor, runtime, licence, and notice digests in the active
+   decoder manifest.
+9. Add synthetic unit tests for both architectures and acceptance/notice
+   mismatch or rollback behavior.
+10. Run a protected aarch64 build/self-test on Raspberry Pi OS or Ubuntu
+    aarch64.
 
 Expected files:
 
 ```text
+src/polar_ble_tools/sdk_tools/downloader.py
+src/polar_ble_tools/sdk_tools/generator.py
+src/polar_ble_tools/schemas/cache.py
 src/polar_ble_tools/sdk_tools/decoder/toolchain.py
 src/polar_ble_tools/sdk_tools/decoder/lifecycle.py
 src/polar_ble_tools/rec/api.py
+tests/unit/test_sdk_lifecycle.py
 tests/unit/test_decoder_toolchain.py
 tests/unit/test_decoder_lifecycle.py
 tests/sdk_decoder_contract/
@@ -91,17 +105,21 @@ docs/compatibility.md
 ## Phase 4 — secret-aware sidecar protocol and invocation refactor
 
 1. Document v1/v2 negotiation, capabilities, bounded request/status schemas,
-   and stable error codes.
+   stable error codes, and the official-parser-only boundary.
 2. Implement redacted immutable secret models, owner-private CLI sources, and
    provider validation.
-3. Implement the single-request stdin process lifecycle, bounded concurrent
+3. Construct the pinned SDK security model only in the sidecar and call the
+   pinned SDK REC parser; stop the workstream if this requires parser
+   translation, independent decryption, or SDK-source modification.
+4. Implement the single-request stdin process lifecycle, bounded concurrent
    stream draining, timeout/cancellation process-group cleanup, and canary
    redaction checks.
-4. Extend the project-owned Kotlin adapter.
-5. Preserve protocol-v1 unencrypted operation.
-6. Add fake-sidecar tests proving secrets never reach argv, environment,
+5. Extend the project-owned Kotlin adapter only as a contract adapter around
+   the SDK parser; do not copy SDK parsing or decryption logic.
+6. Preserve protocol-v1 unencrypted operation.
+7. Add fake-sidecar tests proving secrets never reach argv, environment,
    diagnostics, logs, manifests, or outputs.
-7. Validate controlled encrypted fixtures privately.
+8. Validate controlled encrypted fixtures privately.
 
 Expected files:
 
@@ -126,16 +144,22 @@ Do not create abstraction files that merely move a few constants without establi
    first sidecar invocation.
 4. Reuse single-file decode publication and validation without copying
    orchestration logic.
-5. Add immutable summary/result models, relative-path serialization, and thin
+5. Define explicit, versioned project-owned payload mappings for each claimed
+   REC category, including fields, units, nullability, numeric handling,
+   timestamps, and binary encoding.
+6. Restrict reflection to private SDK extraction; reject unreviewed SDK output
+   changes instead of serializing new properties automatically.
+7. Add immutable summary/result models, relative-path serialization, and thin
    CLI commands.
-6. Add unsupported-only, partial-failure, digest-mismatch, overwrite, summary
+8. Add unsupported-only, partial-failure, digest-mismatch, overwrite, summary
    publication, and refactor-resilience tests.
-7. Add private corpus runs across all claimed categories.
+9. Add private corpus runs across all claimed categories.
 
 Expected files:
 
 ```text
 src/polar_ble_tools/rec/batch.py
+src/polar_ble_tools/rec/adapters.py              # add for explicit payload contracts
 src/polar_ble_tools/commands/rec.py
 src/polar_ble_tools/rec/__init__.py
 tests/unit/test_rec_batch.py
@@ -147,12 +171,22 @@ docs/rec-decoding.md
 
 ## Phase 6 — protected validation, maintenance review, and release readiness
 
-1. Run ordinary tests, packaging audit, SDK contract tests, and private fixture contracts.
+1. Run ordinary tests, SDK-free public tests, private SDK contracts, private
+   fixture contracts, hardware validation, and the release/workflow artifact
+   audit as separate gates.
 2. Run Loop Gen 2 and Verity Sense protected hardware matrices.
-3. Run ARM64 decoder build and decode.
+3. Run Linux aarch64 decoder build and decode.
 4. Run two-device concurrency and controlled radio-loss checks.
 5. Perform the maintainability review from FR-058 across every touched subsystem.
 6. Remove remaining avoidable duplication, responsibility leaks, stale code paths, and documentation drift.
 7. Update compatibility claims strictly from recorded evidence.
-8. Prepare release-ready artifacts through the existing build-once TestPyPI-to-PyPI promotion process when the maintainer chooses a release version.
-9. Ensure all release-facing text describes only `polar-ble-tools`, its changes, and its supported boundaries.
+8. Audit workflow configuration, CI caches, uploaded artifacts, container
+   layers, build scans, reports, SBOM/provenance bundles, temporary archives,
+   and Git LFS for restricted material.
+9. Confirm protected fixture retention/deletion, evidence redaction, and
+   non-medical positioning requirements.
+10. Prepare release-ready artifacts through the existing build-once
+    TestPyPI-to-PyPI promotion process when the maintainer chooses a release
+    version.
+11. Ensure all release-facing text describes only `polar-ble-tools`, its
+    changes, and its supported boundaries.

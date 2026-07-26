@@ -10,7 +10,7 @@ Host normalization maps:
 ```text
 Linux                         → linux
 AMD64, amd64, x86_64          → x86_64
-ARM64, arm64, aarch64         → aarch64
+AArch64, arm64, aarch64       → aarch64
 ```
 
 All other platform/architecture pairs are unsupported. Toolchain selection is
@@ -59,6 +59,37 @@ reverified before decode. A mismatch reports unavailable or verification
 failure with `polar-ble sdk decoder build` as remediation; it never silently
 selects another decoder.
 
+## SDK licence and notice material
+
+Decoder build copies the exact `Polar_SDK_License.txt` from the resolved SDK
+source into the staged decoder cache entry. It also copies every upstream
+third-party notice required by the compiled SDK source subset. The build records
+each file as a manifest item:
+
+```text
+kind                 license | notice
+cache_relative_path
+sha256
+source_identity
+```
+
+The licence and notice paths are fixed, specifically named allowlist entries.
+They must be regular, non-symlink files that resolve inside the staged decoder
+cache. The runtime allowlist otherwise contains only approved launchers and
+JARs. The manifest contains the SHA-256 of every copied licence/notice file and
+the exact resolved SDK source identity used to obtain it.
+
+Activation, verification, and status fail closed when `Polar_SDK_License.txt`
+is absent, a required notice is absent, a recorded digest differs, a recorded
+path escapes the cache, or an unexpected replacement notice file appears. A
+failed build or activation preserves the last verified active decoder. Removing
+a decoder cache entry removes its decoder-local licence and notice copies with
+that entry.
+
+These files are local decoder-cache material. They are not copied into Git, the
+Python wheel or sdist, public CI artifacts or caches, container layers, release
+assets, or distributions.
+
 ## Protocol versions
 
 Protocol v1 remains the unencrypted command-line protocol used by existing
@@ -87,6 +118,24 @@ sdk_commit
 Protocol-v2 also returns `capabilities`, which explicitly identifies
 protected-decode strategies and batch-request support. Capability absence is
 unsupported, not false evidence of support.
+
+## Official SDK parser boundary
+
+The JVM sidecar constructs the pinned SDK's own recording secret/security model
+from the project-owned request only inside the JVM process. It then calls the
+pinned SDK's existing REC parser with that model. Security strategies are
+enabled only after the pinned SDK and protected fixture contract demonstrate
+support. If the SDK cannot parse the recording or expose the requested
+strategy, the sidecar returns a stable project-owned unsupported or decode
+error.
+
+The sidecar may adapt SDK parser results to project-owned output, but it must
+not independently parse REC headers, metadata, or payloads, decrypt metadata or payloads,
+decode compression, translate the parser into Python, Kotlin, Swift, Rust, C,
+or another implementation, copy protected parsing logic into project-authored
+code, patch SDK source, or use Python PMD secret/decryption behavior as a REC
+fallback. Reflection, when unavoidable, is limited to private SDK result
+extraction and does not implement parsing or decryption.
 
 ## Protocol-v2 request
 
@@ -192,6 +241,9 @@ secret_strategy_unsupported
 recording_security_unsupported
 decode_failed
 timeout
+license_notice_missing
+license_notice_mismatch
+sdk_output_contract_mismatch
 ```
 
 Unknown codes are protocol errors. Stderr is diagnostic only, size-limited,
@@ -255,6 +307,33 @@ Output is created in a private staging directory under the destination parent.
 No-clobber publication is atomic. Overwrite uses atomic replacement only after
 the existing destination is confirmed to be a regular project-owned decoded
 JSONL file. Source and destination aliasing is always rejected.
+
+## Explicit payload adapters and output versioning
+
+Each supported REC category has a versioned project-owned adapter contract.
+For every category it declares:
+
+```text
+record_type
+public fields and nesting
+units
+nullability
+integer/float and non-finite-number treatment
+timestamp policy
+binary encoding
+warnings and unsupported conditions
+```
+
+The adapter maps private SDK parser results into this declared contract. SDK
+class names, property names, reflection order, and newly discovered properties
+must not determine JSONL field names, nesting, or output shape. Unknown SDK
+properties are ignored or result in controlled `sdk_output_contract_mismatch`
+or unsupported behavior; they are never emitted opportunistically.
+
+Any public adapter change requires an intentional decoder protocol or output
+schema-version decision. The change updates the relevant project-owned mapping,
+fixture expectations, and private fixture hashes together. Private fixture
+hashes must not be regenerated merely to accept an unreviewed SDK output change.
 
 ## Decode-manifest input
 
