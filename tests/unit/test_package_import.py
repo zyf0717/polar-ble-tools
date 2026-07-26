@@ -11,7 +11,6 @@ from pathlib import Path
 def test_package_imports_without_generated_schemas() -> None:
     package = importlib.import_module("polar_ble_tools")
 
-    assert package.__version__ == "0.1.1"
     assert callable(package.discover_devices)
     assert callable(package.pair_device)
     assert callable(package.connect_device)

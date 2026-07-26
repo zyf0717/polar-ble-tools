@@ -19,7 +19,7 @@ timeout.
 
 ## Other devices
 
-No other device is confirmed for `0.1.1`. Devices exposing compatible PMD and
+No other device is currently confirmed. Devices exposing compatible PMD and
 PFTP services are expected to support some operations, but should be treated as
 untested until their capability matrix passes on protected hardware.
 

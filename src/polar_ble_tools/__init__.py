@@ -1,5 +1,7 @@
 """Unofficial local BLE tooling for supported Polar devices."""
 
+from importlib.metadata import version
+
 from polar_ble_tools.ble.bluetoothctl_pairing import (
     PairingError,
     connect_device,
@@ -30,4 +32,4 @@ __all__ = [
     "__version__",
 ]
 
-__version__ = "0.1.1"
+__version__ = version("polar-ble-tools")

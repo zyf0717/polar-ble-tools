@@ -2,7 +2,9 @@ name: pypi-release
 
 on:
   push:
-    tags: ["v0.1.1"]
+    tags:
+      - "v*"
+      - "!v*rc*"
 
 permissions:
   contents: read
@@ -21,23 +23,51 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          project_version="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if [[ ! "$project_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "pyproject.toml project.version must be a stable semantic version; found: $project_version" >&2
+            exit 1
+          fi
+          expected_tag="v$project_version"
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "Release tag $GITHUB_REF_NAME does not match pyproject.toml version $project_version; expected $expected_tag." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin main:refs/remotes/origin/main
           tag_ref="refs/tags/$GITHUB_REF_NAME"
           tagged_commit="$(
             git ls-remote --tags origin "${tag_ref}^{}" \
               | awk -v ref="${tag_ref}^{}" '$2 == ref { print $1 }'
           )"
-          test -n "$tagged_commit"
-          test "$tagged_commit" = "$GITHUB_SHA"
+          if [ -z "$tagged_commit" ]; then
+            echo "Release tag $GITHUB_REF_NAME is not an annotated tag on origin." >&2
+            exit 1
+          fi
+          if [ "$tagged_commit" != "$GITHUB_SHA" ]; then
+            echo "Annotated tag $GITHUB_REF_NAME resolves to $tagged_commit, not workflow commit $GITHUB_SHA." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$tagged_commit" origin/main; then
+            echo "Tagged commit $tagged_commit is not contained in origin/main." >&2
+            exit 1
+          fi
+
           run_id="$(
             gh run list \
               --workflow testpypi-candidate.yml \
               --commit "$GITHUB_SHA" \
+              --event workflow_dispatch \
               --status success \
               --limit 1 \
               --json databaseId \
               --jq '.[0].databaseId'
           )"
-          test -n "$run_id"
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "No successful manually dispatched TestPyPI candidate run exists for commit $GITHUB_SHA." >&2
+            exit 1
+          fi
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
   promote-and-compare:
     needs: validate-tag-and-candidate

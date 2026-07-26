@@ -1,8 +1,6 @@
 name: testpypi-candidate
 
 on:
-  push:
-    tags: ["v*rc*"]
   workflow_dispatch:
 
 permissions:
@@ -107,11 +105,55 @@ jobs:
         with:
           python-version: "3.11"
       - run: |
+          set -euo pipefail
+          version="${{ needs.build.outputs.version }}"
+          download_directory="$(mktemp -d)"
+          trap 'rm -rf "$download_directory"' EXIT
+          shopt -s nullglob
+
+          for attempt in $(seq 1 24); do
+            rm -f "$download_directory"/*
+            if python -m pip download \
+              --no-cache-dir \
+              --no-deps \
+              --index-url https://test.pypi.org/simple/ \
+              --dest "$download_directory" \
+              "polar-ble-tools==$version"; then
+              wheels=("$download_directory"/polar_ble_tools-"$version"-*.whl)
+              if [ "${#wheels[@]}" -eq 1 ]; then
+                break
+              fi
+              echo "TestPyPI candidate polar-ble-tools==$version has no unique wheel yet; retrying." >&2
+            fi
+            if [ "$attempt" -eq 24 ]; then
+              echo "TestPyPI candidate polar-ble-tools==$version had no unique wheel after 120 seconds." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          wheels=("$download_directory"/polar_ble_tools-"$version"-*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "Expected exactly one TestPyPI wheel for polar-ble-tools==$version; found: ${wheels[*]:-none}" >&2
+            exit 1
+          fi
+          wheel="${wheels[0]}"
+
           python -m pip install --upgrade pip
-          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "polar-ble-tools==${{ needs.build.outputs.version }}"
+          python -m pip install "$wheel"
+          installed_version="$(python -c 'from importlib.metadata import version; print(version("polar-ble-tools"))')"
+          if [ "$installed_version" != "$version" ]; then
+            echo "Installed polar-ble-tools version $installed_version does not match TestPyPI candidate $version." >&2
+            exit 1
+          fi
           polar-ble --version
           polar-ble --help
           polar-ble raw --help
-          python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "polar-ble-tools[sdk]==${{ needs.build.outputs.version }}"
+          wheel_uri="$(
+            python -c \
+              'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().as_uri())' \
+              "$wheel"
+          )"
+          python -m pip install "polar-ble-tools[sdk] @ $wheel_uri"
           polar-ble doctor
           polar-ble bpb --help
