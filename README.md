@@ -1,5 +1,9 @@
 # polar-ble-tools
 
+[![PyPI](https://img.shields.io/pypi/v/polar-ble-tools?label=pypi)](https://pypi.org/project/polar-ble-tools/)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Apache--2.0-yellow.svg)](https://github.com/zyf0717/polar-ble-tools/blob/main/LICENSE)
+
 Independent Python tools for working with supported Polar wearable devices over
 Bluetooth Low Energy.
 
