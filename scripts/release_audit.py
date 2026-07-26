@@ -44,6 +44,9 @@ def _git(*arguments: str, text: bool = True) -> str | bytes:
 def _path_reason(path: str) -> str | None:
     parts = tuple(part.casefold() for part in PurePosixPath(path).parts)
     name = parts[-1] if parts else ""
+    decoder_template = "src/polar_ble_tools/sdk_tools/decoder_project/"
+    if path.startswith(decoder_template) and path.casefold().endswith((".kt", ".kts")):
+        return None
     if "polar-ble-sdk" in parts:
         return "sdk_checkout"
     if "_generated" in parts:

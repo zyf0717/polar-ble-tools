@@ -1,6 +1,6 @@
 # REC decoder sidecar feasibility
 
-**Status:** pure-JVM decoder validated against a local PPI recording; adapter protocol pending
+**Status:** pure-JVM protocol-v1 sidecar implemented; PPI end-to-end validation complete
 
 **SDK commit:** `ccff6812c40fff1753c72385387d1877ca9b27b4` (the release pin).
 
@@ -52,22 +52,25 @@ parser without copying it into this repository or the spike workspace. The parse
 samples on two independent runs; the results were equal and match the fixture's existing expected count. This
 validates the `PPI` record category for an unencrypted recording.
 
-This validates the pure-JVM build and class-loading path. It does **not** validate decoding semantics, record
-categories beyond PPI, JSONL output, encrypted recordings, or deterministic output beyond the validated PPI
-fixture.
+The project-owned sidecar now emits protocol-v1 JSONL through a generic,
+project-owned envelope. It was built from the cached pinned source, activated
+through the decoder cache, and decoded the same PPI fixture through
+`polar-ble rec decode`. Python validated the sidecar's executable digest,
+status JSON, JSONL header/source digest, records, and summary before atomically
+publishing the output. The resulting output contains seven `ppi` records and
+preserves all PPI sample fields supplied by the official parser.
+
+This validates pure-JVM build/class-loading, protocol-v1 output, and the PPI
+record category. It does **not** validate semantics or compatibility for other
+record categories, encrypted recordings, or devices.
 
 ## Required validation before approval
 
-1. Capture the exact source set and dependency lockfile in the isolated build workspace.
-2. Confirm the adapter can emit deterministic protocol-v1 JSONL and that no SDK sources, classes, AARs, or
-   sample data are placed in a distributable project artifact.
-3. Record the exact command, runtime dependencies, access mechanism, supported recording variants, and
-   licence implications here before adding production adapter, build, or lifecycle code.
+1. Add local contract coverage for every supported recording category and encrypted-recording behavior.
+2. Add a dependency lockfile or equivalent verified Gradle dependency metadata to the isolated build.
+3. Validate deterministic JSONL byte output over a broader sample corpus.
 
 ## Current blockers
 
-- No JSONL adapter has yet exercised the official parser against a non-empty recording.
-
-The Phase 0 gate in [the overview](../overview.md) therefore remains closed. The repository may add no
-production decoder adapter, build, lifecycle, or runtime implementation until the validation above produces
-a reproducible supported path.
+- No blocker remains for the PPI-only experimental path. Broader recording
+  compatibility remains explicitly unvalidated.

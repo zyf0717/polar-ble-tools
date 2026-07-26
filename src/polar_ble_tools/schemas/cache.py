@@ -41,3 +41,21 @@ class SdkCache:
 
     def generated_path(self, commit: str) -> Path:
         return self.generated_root / commit
+
+    @property
+    def decoder_build_root(self) -> Path:
+        return self.root / "decoder-build" / "polar"
+
+    @property
+    def decoder_root(self) -> Path:
+        return self.root / "decoder" / "polar"
+
+    @property
+    def active_decoder_manifest_path(self) -> Path:
+        return self.root / "active-decoder.json"
+
+    def decoder_build_path(self, commit: str) -> Path:
+        return self.decoder_build_root / commit
+
+    def decoder_path(self, commit: str) -> Path:
+        return self.decoder_root / commit

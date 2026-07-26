@@ -14,9 +14,8 @@ Bluetooth Low Energy.
 - retrieve raw `.REC` recordings with SHA-256 manifests and guarded cleanup;
 - retrieve passive `.BPB` files and decode supported data with local schemas;
 - validate and apply first-time-use (FTU) data;
-- generate and verify optional local schemas from a separately obtained SDK.
-
-Structured `.REC` decoding is not currently included.
+- generate and verify optional local schemas from a separately obtained SDK;
+- optionally decode supported `.REC` files to validated JSONL using a locally built SDK sidecar.
 
 ## Installation
 
@@ -78,6 +77,20 @@ an SDK copy separately obtained and licensed by the user.
 SDK download, inspection, generation, verification, activation, and removal are
 explicit `polar-ble sdk` commands. Package installation and import never perform
 those operations. See [SDK integration](docs/sdk-integration.md).
+
+REC decoding is separate and experimental. It requires a separately installed,
+supported SDK revision plus a user-built local decoder:
+
+```bash
+polar-ble sdk decoder build
+polar-ble rec status
+polar-ble rec decode PPI0.REC --output PPI0.jsonl
+```
+
+The project distributes neither the SDK nor a decoder binary. The initial
+end-to-end validation covers unencrypted `PPI` recordings from Polar Loop Gen
+2; other recording categories are emitted through the same generic JSONL
+envelope but remain unvalidated.
 
 ## Documentation and development
 

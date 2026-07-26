@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from json import JSONDecodeError
 from pathlib import Path
 
+from polar_ble_tools.rec import DecoderManifestError, DecoderVerificationError, decoder_status
 from polar_ble_tools.schemas.cache import SdkCache
+from polar_ble_tools.sdk_tools.decoder import (
+    DecoderBuildError,
+    activate_decoder,
+    build_decoder,
+    remove_decoder,
+    verify_decoder,
+)
 from polar_ble_tools.sdk_tools.discovery import ProtoDiscoveryError
 from polar_ble_tools.sdk_tools.downloader import (
     SdkDownloadError,
@@ -63,6 +72,18 @@ def _build_parser() -> argparse.ArgumentParser:
     commands.add_parser("inspect")
     commands.add_parser("generate")
     commands.add_parser("verify")
+    decoder = commands.add_parser("decoder", help="Build and manage the optional REC decoder.")
+    decoder_commands = decoder.add_subparsers(dest="decoder_command", required=True)
+    build = decoder_commands.add_parser("build")
+    build.add_argument("--commit", help="Use a staged SDK revision instead of the active revision.")
+    build.add_argument("--no-activate", action="store_true")
+    build.add_argument("--offline", action="store_true")
+    decoder_commands.add_parser("verify")
+    decoder_commands.add_parser("status")
+    activate = decoder_commands.add_parser("activate")
+    activate.add_argument("--commit", required=True)
+    decoder_remove = decoder_commands.add_parser("remove")
+    decoder_remove.add_argument("--commit", required=True)
     remove = commands.add_parser("remove")
     removal_target = remove.add_mutually_exclusive_group(required=True)
     removal_target.add_argument("--commit", help="Full resolved SDK revision identifier.")
@@ -78,6 +99,30 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.command == "decoder":
+            if args.decoder_command == "build":
+                result = build_decoder(
+                    commit=args.commit, activate=not args.no_activate, offline=args.offline
+                )
+                print(f"built REC decoder for {result.sdk_commit}: {result.decoder_path}")
+                return 0
+            if args.decoder_command == "verify":
+                verify_decoder()
+                print("verified active REC decoder")
+                return 0
+            if args.decoder_command == "status":
+                print(json.dumps(decoder_status().__dict__, sort_keys=True))
+                return 0
+            if args.decoder_command == "activate":
+                activate_decoder(args.commit)
+                print(f"activated REC decoder {args.commit}")
+                return 0
+            if args.decoder_command == "remove":
+                if remove_decoder(args.commit):
+                    print(f"removed REC decoder {args.commit}")
+                    return 0
+                print(f"REC decoder {args.commit} is not built")
+                return 1
         if args.command == "download":
             result = install_sdk(
                 accept_license=args.accept_license,
@@ -150,6 +195,9 @@ def main(argv: list[str] | None = None) -> int:
         ProtoReaderError,
         SchemaGenerationError,
         SchemaVerificationError,
+        DecoderBuildError,
+        DecoderManifestError,
+        DecoderVerificationError,
         JSONDecodeError,
         OSError,
         subprocess.SubprocessError,

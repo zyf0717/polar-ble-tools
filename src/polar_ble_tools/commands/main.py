@@ -21,6 +21,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subcommands.add_parser("raw", help="List, retrieve, and safely clean raw REC files.")
     subcommands.add_parser("passive", help="List and collect raw passive BPB files.")
     subcommands.add_parser("bpb", help="Decode local BPB files with the explicit schema cache.")
+    subcommands.add_parser("rec", help="Decode local REC files with the optional SDK sidecar.")
     subcommands.add_parser("doctor", help="Report core and optional schema readiness.")
     return parser
 
@@ -51,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
         from polar_ble_tools.commands.bpb import bpb_main
 
         return bpb_main(argv[1:])
+    if argv and argv[0] == "rec":
+        from polar_ble_tools.commands.rec import rec_main
+
+        return rec_main(argv[1:])
     if argv and argv[0] == "discover":
         from polar_ble_tools.commands.discover import discover_main
 
