@@ -32,7 +32,9 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         "#!" + sys.executable + "\n"
         "import hashlib, json, pathlib, sys\n"
         "if sys.argv[1] in ('version', 'self-test'):\n"
-        " print(json.dumps({'status':'ok','protocol_version':1})); raise SystemExit(0)\n"
+        " print(json.dumps({'status':'ok','protocol_version':1,'sdk_commit':'"
+        + COMMIT
+        + "','decoder_version':'test'})); raise SystemExit(0)\n"
         f"if {mode!r} == 'timeout':\n"
         " import time; time.sleep(60)\n"
         f"if {mode!r} == 'oversized-status':\n"
@@ -40,7 +42,9 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         "source = pathlib.Path(sys.argv[3]).read_bytes()\n"
         "output = pathlib.Path(sys.argv[5])\n"
         "digest = hashlib.sha256(source).hexdigest()\n"
-        "rows = [{'type':'header','protocol_version':1,'sdk_commit':'" + COMMIT + "','decoder_version':'test','source_sha256':digest}, {'type':'record','record_type':'ppi','timestamp_ns':None,'payload':{'value':1}}, {'type':'summary','record_count':"
+        "rows = [{'type':'header','protocol_version':1,'sdk_commit':'"
+        + COMMIT
+        + "','decoder_version':'test','source_sha256':digest}, {'type':'record','record_type':'ppi','timestamp_ns':None,'payload':{'value':1}}, {'type':'summary','record_count':"
         + str(summary_count)
         + ",'record_types':{'ppi':1},'warnings':[]}]\n"
         "output.write_text('\\n'.join(json.dumps(row) for row in rows) + '\\n')\n"
@@ -54,19 +58,34 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "manifest_version": 1,
                 "decoder_protocol_version": 1,
                 "sdk_commit": COMMIT,
+                "decoder_version": "test",
                 "executable_relative_path": "bin/polar-rec-decoder",
                 "executable_sha256": _digest(executable),
                 "runtime_files": {"bin/polar-rec-decoder": _digest(executable)},
+                "runtime": {
+                    "kind": "pinned-jvm",
+                    "platform": "linux",
+                    "architecture": "x86_64",
+                    "java_version": "21.0.12+8",
+                    "java_relative_cache_path": "toolchains/rec-jvm/linux/x86_64/jdk-21.0.12+8",
+                    "java_executable_sha256": "",
+                },
                 "verification_level": "handshake",
                 "verified": True,
             }
         ),
         encoding="utf-8",
     )
-    cache.active_decoder_manifest_path.write_text(json.dumps({"sdk_commit": COMMIT}), encoding="utf-8")
-    java = cache.decoder_build_path(COMMIT) / "tools" / "jdk-21.0.12+8" / "bin" / "java"
+    cache.active_decoder_manifest_path.write_text(
+        json.dumps({"sdk_commit": COMMIT}), encoding="utf-8"
+    )
+    java = cache.rec_jvm_java_home("linux", "x86_64", "21.0.12+8") / "bin" / "java"
     java.parent.mkdir(parents=True)
-    java.symlink_to(Path(sys.executable))
+    java.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    java.chmod(0o755)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    manifest["runtime"]["java_executable_sha256"] = _digest(java)
+    (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     return executable
 
 
@@ -74,7 +93,9 @@ def _use_cache(monkeypatch: pytest.MonkeyPatch, cache: SdkCache) -> None:
     monkeypatch.setattr(SdkCache, "default", classmethod(lambda cls: cache))
 
 
-def test_decode_recording_validates_and_iterates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_decode_recording_validates_and_iterates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     cache = SdkCache(tmp_path / "cache")
     _decoder(cache)
     _use_cache(monkeypatch, cache)
@@ -88,7 +109,9 @@ def test_decode_recording_validates_and_iterates(monkeypatch: pytest.MonkeyPatch
     assert decoder_status().available
 
 
-def test_decode_rejects_inconsistent_summary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_decode_rejects_inconsistent_summary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     cache = SdkCache(tmp_path / "cache")
     _decoder(cache, summary_count=2)
     _use_cache(monkeypatch, cache)
@@ -99,7 +122,9 @@ def test_decode_rejects_inconsistent_summary(monkeypatch: pytest.MonkeyPatch, tm
         decode_recording(source, tmp_path / "decoded.jsonl")
 
 
-def test_decoder_rejects_unmanifested_runtime_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_decoder_rejects_unmanifested_runtime_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     cache = SdkCache(tmp_path / "cache")
     _decoder(cache)
     _use_cache(monkeypatch, cache)

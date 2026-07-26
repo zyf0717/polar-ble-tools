@@ -47,6 +47,14 @@ class SdkCache:
         return self.root / "decoder-build" / "polar"
 
     @property
+    def rec_jvm_toolchain_root(self) -> Path:
+        """Persistent toolchains shared by all local REC decoder revisions."""
+        return self.root / "toolchains" / "rec-jvm"
+
+    def rec_jvm_java_home(self, platform: str, architecture: str, version: str) -> Path:
+        return self.rec_jvm_toolchain_root / platform / architecture / f"jdk-{version}"
+
+    @property
     def decoder_root(self) -> Path:
         return self.root / "decoder" / "polar"
 
