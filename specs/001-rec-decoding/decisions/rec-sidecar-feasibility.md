@@ -1,6 +1,6 @@
 # REC decoder sidecar feasibility
 
-**Status:** blocked — production adapter not approved
+**Status:** pure-JVM decoder validated against a local PPI recording; adapter protocol pending
 
 **SDK commit:** `ccff6812c40fff1753c72385387d1877ca9b27b4` (the release pin).
 
@@ -28,22 +28,45 @@
 - A headless Android/JVM adapter remains a fallback only if the JVM spike exposes a compile-time or runtime
   dependency not visible in the static analysis.
 
+## Pure-JVM spike validation
+
+The project-owned setup script, `scripts/setup_rec_jvm_spike.sh`, provisioned the following checksum-verified
+local toolchain without downloading or modifying the SDK checkout:
+
+- Temurin JDK `21.0.12+8`;
+- Gradle `9.4.1`;
+- Kotlin Gradle plugin `2.3.20`;
+- `kotlinx-coroutines-core:1.10.2` and `androidx.annotation:annotation:1.6.0`.
+
+An external Kotlin/JVM project compiled the selected SDK dependency closure in the same module as a
+project-owned smoke adapter. The source set includes the offline-recording parser, the complete PMD root
+package, PMD model classes, and their required BLE/common support classes. No Android SDK, Android runtime, or
+Android Gradle Plugin was present.
+
+The smoke adapter executed successfully. It invoked `BlePMDClient.parseDeltaFramesAll` and
+`OfflineRecordingData.parseDataFromOfflineFile`; the latter correctly rejected an empty input through the
+official parser. The vendor sources emit Kotlin 2.3 warnings, so the spike must not use warnings-as-errors.
+
+A locally owned, repository-tracked Loop Gen 2 `PPI0.REC` fixture was then passed directly to the pinned SDK
+parser without copying it into this repository or the spike workspace. The parser returned `PpiData` with seven
+samples on two independent runs; the results were equal and match the fixture's existing expected count. This
+validates the `PPI` record category for an unencrypted recording.
+
+This validates the pure-JVM build and class-loading path. It does **not** validate decoding semantics, record
+categories beyond PPI, JSONL output, encrypted recordings, or deterministic output beyond the validated PPI
+fixture.
+
 ## Required validation before approval
 
-1. On a machine with JDK 21, create an external Kotlin/JVM adapter workspace that compiles the selected SDK
-   source files in the same module as the project-owned adapter, without changing the cached SDK source.
-2. Confirm the exact source set and dependency lockfile required to invoke the internal decoder without copying
-   or translating vendor implementation code.
-3. Decode one locally owned, non-redistributed `.REC` sample and capture the available record categories.
-4. Confirm the adapter can emit deterministic protocol-v1 JSONL and that no SDK sources, classes, AARs, or
+1. Capture the exact source set and dependency lockfile in the isolated build workspace.
+2. Confirm the adapter can emit deterministic protocol-v1 JSONL and that no SDK sources, classes, AARs, or
    sample data are placed in a distributable project artifact.
-5. Record the exact command, runtime dependencies, access mechanism, supported recording variants, and
+3. Record the exact command, runtime dependencies, access mechanism, supported recording variants, and
    licence implications here before adding production adapter, build, or lifecycle code.
 
 ## Current blockers
 
-- No JDK or Java runtime is installed in the implementation environment.
-- No locally owned `.REC` sample is available for the required end-to-end decode.
+- No JSONL adapter has yet exercised the official parser against a non-empty recording.
 
 The Phase 0 gate in [the overview](../overview.md) therefore remains closed. The repository may add no
 production decoder adapter, build, lifecycle, or runtime implementation until the validation above produces
