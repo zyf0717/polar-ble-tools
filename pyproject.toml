@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polar-ble-tools"
-version = "0.2.0"
-description = "Unofficial local BLE tooling for supported Polar devices."
+version = "0.2.1"
+description = "Offline-first BLE tools for collecting and retrieving device-resident data from supported Polar wearables."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
@@ -13,7 +13,21 @@ license-files = ["LICENSE", "NOTICE"]
 authors = [
     { name = "Yifei Zheng", email = "zyf0717@gmail.com" },
 ]
-keywords = ["ble", "bluez", "bluetooth", "polar", "pmd", "pftp", "recording"]
+keywords = [
+    "ble",
+    "bluez",
+    "bluetooth",
+    "polar",
+    "pmd",
+    "pftp",
+    "offline-recording",
+    "on-device-recording",
+    "device-storage",
+    "wearable-data",
+    "data-collection",
+    "rec",
+    "bpb",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",

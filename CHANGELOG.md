@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here.
 
+## 0.2.1 — 2026-07-27
+
+### Documentation
+
+- Reframed the package description around offline, device-resident data
+  collection and delayed local retrieval.
+- Clarified that data collection and retrieval do not require Polar Flow.
+- Expanded package keywords for offline recording, device storage, and wearable
+  data collection.
+
 ## 0.2.0 — 2026-07-26
 
 - Added optional local REC decoder lifecycle and `polar-ble rec` commands.
