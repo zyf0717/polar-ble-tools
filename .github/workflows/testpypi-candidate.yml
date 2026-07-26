@@ -149,6 +149,11 @@ jobs:
           polar-ble --version
           polar-ble --help
           polar-ble raw --help
-          python -m pip install "${wheel}[sdk]"
+          wheel_uri="$(
+            python -c \
+              'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().as_uri())' \
+              "$wheel"
+          )"
+          python -m pip install "polar-ble-tools[sdk] @ $wheel_uri"
           polar-ble doctor
           polar-ble bpb --help
