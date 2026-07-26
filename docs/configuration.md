@@ -51,7 +51,11 @@ The complete command/subcommand inventory is in the [CLI reference](cli-referenc
 ## Library entry points
 
 ```python
+from datetime import date
+
 from polar_ble_tools import (
+    PassiveDomain,
+    collect_passive_files,
     connect_device,
     discover_devices,
     pair_device,
@@ -64,6 +68,14 @@ pairing = pair_device(mac_address=target, scan_seconds=15.0)
 assert pairing.paired and pairing.bonded and pairing.trusted
 connection = connect_device(mac_address=target)
 release_device_connection(mac_address=target)
+
+passive = await collect_passive_files(
+    target,
+    domains=(PassiveDomain.DAILY_SUMMARY,),
+    from_date=date(2026, 7, 1),
+    to_date=date(2026, 7, 1),
+    root=".local/polar-ble-passive",
+)
 ```
 
 The package does not read an inventory unless the caller supplies its path.

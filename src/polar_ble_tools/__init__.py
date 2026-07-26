@@ -24,9 +24,12 @@ from polar_ble_tools.ble.bluetoothctl_pairing import (
 from polar_ble_tools.ble.transport import PairingStatus
 from polar_ble_tools.collection import (
     cleanup_raw_recordings,
+    collect_passive_files,
     collect_raw_recordings,
+    list_passive_files,
     list_raw_recordings,
 )
+from polar_ble_tools.polar.passive import PassiveDomain
 from polar_ble_tools.polar.pmd import PmdClient, PolarDeviceDataType
 
 __all__ = [
@@ -34,11 +37,13 @@ __all__ = [
     "DoctorReport",
     "DoctorSchemaStatus",
     "FtuApplyResult",
+    "PassiveDomain",
     "PolarDeviceDataType",
     "PairingError",
     "PairingStatus",
     "apply_ftu",
     "cleanup_raw_recordings",
+    "collect_passive_files",
     "collect_raw_recordings",
     "connect_device",
     "diagnose_ftu",
@@ -46,6 +51,7 @@ __all__ = [
     "doctor",
     "ftu_status",
     "list_raw_recordings",
+    "list_passive_files",
     "pair_device",
     "physical_configuration",
     "release_device_connection",

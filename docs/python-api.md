@@ -11,6 +11,9 @@ pass a `transport_factory` in tests or custom integrations.
 | `list_raw_recordings` | async | List device REC entries. |
 | `collect_raw_recordings` | async | Retrieve and hash-store raw REC files. |
 | `cleanup_raw_recordings` | async | Delete only verified raw recordings. |
+| `PassiveDomain` | enum | Select passive BPB domains for listing and collection. |
+| `list_passive_files` | async | List device passive BPB entries for a date range and domain set. |
+| `collect_passive_files` | async | Retrieve and hash-store passive BPB files. |
 | `doctor` | sync | Return `DoctorReport` for core, SDK-schema, and REC-decoder readiness. |
 | `apply_ftu` | async | Apply `FtuProfile`, including its optional settings patch. |
 | `ftu_status` | async | Return FTU completion state. |
@@ -23,7 +26,7 @@ Specialized modules are deliberately separate from the top-level facade:
 
 | Module | Public operations |
 | --- | --- |
-| `polar_ble_tools.collection` | `list_passive_files`, `collect_passive_files`, plus raw collection APIs. |
+| `polar_ble_tools.collection` | Lower-level raw/passive collection APIs and result models. |
 | `polar_ble_tools.bpb_decode` | `decode_bpb_file`, `decode_bpb_manifest`, path/schema helpers. |
 | `polar_ble_tools.rec` | `decoder_status`, `verify_active_decoder`, `decode_recording`, `iter_decoded_records`, result models, and typed decode exceptions. |
 | `polar_ble_tools.sdk_tools` | SDK staging/status/inspection/removal. |
