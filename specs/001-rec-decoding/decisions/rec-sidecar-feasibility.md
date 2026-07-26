@@ -60,9 +60,26 @@ status JSON, JSONL header/source digest, records, and summary before atomically
 publishing the output. The resulting output contains seven `ppi` records and
 preserves all PPI sample fields supplied by the official parser.
 
-This validates pure-JVM build/class-loading, protocol-v1 output, and the PPI
-record category. It does **not** validate semantics or compatibility for other
-record categories, encrypted recordings, or devices.
+The local corpus was then expanded without copying any recording into this
+repository. The sidecar decoded all nine unencrypted files from the Loop Gen 2
+and Verity Sense fixture trees: Loop Gen 2 ACC (377 records), HR (5), PPG
+(188), PPI (7), and skin temperature (5); Verity Sense magnetometer (40),
+gyroscope (40), PPI (30), and PPG (440). The protocol now uses project-owned
+record-type slugs, snake_case payload keys, and converts SDK sample timestamps
+from Polar's documented 2000-01-01 epoch to Unix nanoseconds. HR has no
+per-sample timestamp in the official model and is emitted with `null`.
+
+The Verity Sense PPI fixture's official-parser timestamp resolves to 2000-07-27
+after epoch conversion, unlike the other fixture timestamps, which resolve to
+their 2026 collection dates. The raw SDK value is preserved as
+`payload.sample.time_stamp`; the envelope timestamp is retained as the
+documented epoch conversion but this anomaly must not be used as temporal
+correctness evidence.
+
+This validates pure-JVM build/class-loading and protocol-v1 decoding for the
+listed unencrypted record categories on two devices. It does **not** validate
+encrypted recordings, all SDK record categories, or timestamp correctness for
+the anomalous Verity Sense PPI data.
 
 ## Required validation before approval
 
@@ -72,5 +89,6 @@ record categories, encrypted recordings, or devices.
 
 ## Current blockers
 
-- No blocker remains for the PPI-only experimental path. Broader recording
-  compatibility remains explicitly unvalidated.
+- No blocker remains for the listed unencrypted Loop Gen 2 and Verity Sense
+  categories. Encrypted recordings, unsupported categories, deterministic
+  corpus-wide output, and the Verity Sense PPI timestamp anomaly remain open.

@@ -13,8 +13,9 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 
 private const val PROTOCOL_VERSION = 1
-private const val DECODER_VERSION = "0.1.0"
+private const val DECODER_VERSION = "0.1.1"
 private const val SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
+private const val POLAR_EPOCH_UNIX_NS = 946_684_800_000_000_000L
 
 private class UsageError(message: String) : RuntimeException(message)
 private class UnsupportedRecordingError(message: String) : RuntimeException(message)
@@ -115,7 +116,8 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
             writer.newLine()
             for ((stream, sample) in samples(data)) {
                 writer.write(jsonObject(mapOf(
-                    "type" to "record", "record_type" to type.name.lowercase(), "timestamp_ns" to null,
+                    "type" to "record", "record_type" to recordType(type),
+                    "timestamp_ns" to timestampNs(sample, warnings),
                     "payload" to mapOf("stream" to stream, "sample" to sample),
                 ), warnings))
                 writer.newLine()
@@ -123,7 +125,7 @@ private fun writeJsonl(destination: Path, type: PmdMeasurementType, source: Byte
             }
             writer.write(jsonObject(mapOf(
                 "type" to "summary", "record_count" to count,
-                "record_types" to mapOf(type.name.lowercase() to count), "warnings" to warnings.toList(),
+                "record_types" to mapOf(recordType(type) to count), "warnings" to warnings.toList(),
             ), warnings))
             writer.newLine()
         }
@@ -143,7 +145,7 @@ private fun samples(data: Any): List<Pair<String, Any>> {
     val result = mutableListOf<Pair<String, Any>>()
     for (property in data::class.memberProperties.sortedBy { it.name }) {
         val value = readProperty(property, data)
-        if (value is Iterable<*>) value.filterNotNull().forEach { result += property.name to it }
+        if (value is Iterable<*>) value.filterNotNull().forEach { result += jsonKey(property.name) to it }
     }
     if (result.isEmpty()) result += "data" to data
     return result
@@ -151,6 +153,46 @@ private fun samples(data: Any): List<Pair<String, Any>> {
 
 @Suppress("UNCHECKED_CAST")
 private fun readProperty(property: KProperty1<out Any, *>, target: Any): Any? = (property as KProperty1<Any, *>).get(target)
+
+private fun recordType(type: PmdMeasurementType): String = when (type) {
+    PmdMeasurementType.ACC -> "acc"
+    PmdMeasurementType.ECG -> "ecg"
+    PmdMeasurementType.GYRO -> "gyro"
+    PmdMeasurementType.MAGNETOMETER -> "mag"
+    PmdMeasurementType.OFFLINE_HR -> "hr"
+    PmdMeasurementType.PPG -> "ppg"
+    PmdMeasurementType.PPI -> "ppi"
+    PmdMeasurementType.SKIN_TEMP -> "skin_temperature"
+    PmdMeasurementType.TEMPERATURE -> "temperature"
+    else -> "unknown"
+}
+
+private fun timestampNs(sample: Any, warnings: MutableSet<String>): Long? {
+    val property = sample::class.memberProperties.singleOrNull { it.name == "timeStamp" } ?: return null
+    val polarEpochNs = when (val value = readProperty(property, sample)) {
+        is ULong -> if (value <= Long.MAX_VALUE.toULong()) value.toLong() else null
+        is UInt -> value.toLong()
+        is Long -> value.takeIf { it >= 0 }
+        is Int -> value.toLong().takeIf { it >= 0 }
+        else -> null
+    }
+    if (polarEpochNs == null || polarEpochNs > Long.MAX_VALUE - POLAR_EPOCH_UNIX_NS) {
+        warnings += "SDK timestamp could not be represented as Unix nanoseconds"
+        return null
+    }
+    return polarEpochNs + POLAR_EPOCH_UNIX_NS
+}
+
+private fun jsonKey(value: String): String = buildString {
+    value.forEachIndexed { index, character ->
+        if (character.isUpperCase()) {
+            val previous = value.getOrNull(index - 1)
+            val next = value.getOrNull(index + 1)
+            if (index > 0 && previous != '_' && (!previous!!.isUpperCase() || next?.isLowerCase() == true)) append('_')
+            append(character.lowercaseChar())
+        } else append(character)
+    }
+}
 
 private fun jsonObject(value: Map<String, Any?>, warnings: MutableSet<String>): String =
     value.entries.joinToString(prefix = "{", postfix = "}") { (key, item) -> "${jsonString(key)}:${jsonValue(item, warnings)}" }
@@ -167,13 +209,13 @@ private fun jsonValue(value: Any?, warnings: MutableSet<String>, depth: Int = 0)
     is Map<*, *> -> value.entries.joinToString(prefix = "{", postfix = "}") { (key, item) ->
         val stringKey = key as? String
             ?: throw UnsupportedRecordingError("JSON object keys must be strings")
-        "${jsonString(stringKey)}:${jsonValue(item, warnings, depth + 1)}"
+        "${jsonString(jsonKey(stringKey))}:${jsonValue(item, warnings, depth + 1)}"
     }
     is Iterable<*> -> value.joinToString(prefix = "[", postfix = "]") { jsonValue(it, warnings, depth + 1) }
     is Array<*> -> value.joinToString(prefix = "[", postfix = "]") { jsonValue(it, warnings, depth + 1) }
     else -> {
         if (depth >= 16) throw UnsupportedRecordingError("SDK value nesting exceeds 16 levels")
-        jsonObject(value::class.memberProperties.sortedBy { it.name }.associate { it.name to readProperty(it, value) }, warnings)
+        jsonObject(value::class.memberProperties.sortedBy { it.name }.associate { jsonKey(it.name) to readProperty(it, value) }, warnings)
     }
 }
 
