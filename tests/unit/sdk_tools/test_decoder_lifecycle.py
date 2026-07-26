@@ -119,3 +119,13 @@ def test_status_rejects_malformed_active_commit(tmp_path: Path) -> None:
 
     assert not status.available
     assert "invalid SDK commit" in (status.reason or "")
+
+
+def test_remove_decoder_also_removes_orphaned_workspace(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "d" * 40
+    workspace = cache.decoder_build_path(commit)
+    workspace.mkdir(parents=True)
+
+    assert remove_decoder(commit, cache=cache)
+    assert not workspace.exists()

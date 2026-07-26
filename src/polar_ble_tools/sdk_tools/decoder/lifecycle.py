@@ -464,8 +464,10 @@ def remove_decoder(commit: str, *, cache: SdkCache | None = None) -> bool:
         build_target = require_within(cache.decoder_build_path(commit), cache.decoder_build_root)
     except ValueError as exc:
         raise DecoderBuildError(str(exc)) from exc
-    if not target.is_dir():
-        return False
+    removed = False
+    if target.is_dir() and not target.is_symlink():
+        shutil.rmtree(target)
+        removed = True
     active = cache.active_decoder_manifest_path
     if active.is_file():
         try:
@@ -474,7 +476,11 @@ def remove_decoder(commit: str, *, cache: SdkCache | None = None) -> bool:
             is_active = False
         if is_active:
             active.unlink()
-    shutil.rmtree(target)
     if build_target.exists():
+        if not build_target.is_dir() or build_target.is_symlink():
+            raise DecoderBuildError(
+                f"Decoder build workspace is not a regular directory: {build_target}"
+            )
         shutil.rmtree(build_target)
-    return True
+        removed = True
+    return removed
