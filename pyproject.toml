@@ -70,3 +70,6 @@ ignore = ["E501"]
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["polar_ble_tools*"]
+
+[tool.setuptools.package-data]
+"polar_ble_tools.sdk_tools" = ["decoder_project/*.kt", "decoder_project/*.kts"]
