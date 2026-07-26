@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 0 — feasibility | Complete | Pure JVM selected and the pinned SDK parser decoded the local Loop Gen 2 PPI fixture. |
 | 1 — protocol/runtime | Complete for protocol v1 | `polar_ble_tools.rec`, fake-sidecar tests, bounded sidecar output, timeout cleanup, JSONL validation, and `polar-ble rec status|decode` are implemented. |
-| 2 — lifecycle | Partial | Cache paths, manifests, digest verification, transactional replacement, activation, status, verify, removal, and `doctor` integration are implemented. Unit coverage verifies promotion rollback and active-manifest restoration after failed activation. Crash-recovery guarantees across process termination remain. |
+| 2 — lifecycle | Complete | Cache paths, manifests, digest verification, transactional replacement, activation, status, verify, removal, and `doctor` integration are implemented. Unit coverage verifies promotion rollback, active-manifest restoration after failed activation, and recovery of an interrupted same-commit promotion. |
 | 3 — local build | Partial | The installed wheel can provision the pinned Linux x86_64 JDK/Gradle toolchain, compile the sidecar from the staged SDK, lock its Gradle dependencies, verify the complete allowlisted runtime distribution, and decode nine unencrypted Loop Gen 2/Verity Sense recordings across ACC, HR, PPG, PPI, skin temperature, magnetometer, and gyroscope. Encrypted-recording coverage and the Verity PPI timestamp anomaly remain. |
 | 4 — hardening/docs | Partial | README, protocol, manifest, fake-sidecar, packaging, and PPI end-to-end validation exist. Timeout/path/rollback coverage, broader fixture coverage, and a clean full-suite run remain. |
 
@@ -74,7 +74,7 @@ The feature is complete only when all of the following are true:
 - [x] `sdk install` does not build or activate a decoder.
 - [x] A decoder can be built explicitly from the supported local SDK revision.
 - [x] No vendor source or locally compiled decoder is tracked or distributed.
-- [ ] Activation is atomic and rollback-safe.
+- [x] Activation is atomic and rollback-safe, including interrupted same-commit promotion recovery.
 - [x] Runtime verifies provenance, protocol, and executable digest.
 - [x] Decode output uses validated protocol-v1 JSONL.
 - [x] Failed decoding leaves no successful-looking partial destination.

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from polar_ble_tools.rec import DecoderVerificationError
+from polar_ble_tools.rec import DecoderVerificationError, decoder_status
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
     _promote_decoder_directory,
@@ -40,7 +40,7 @@ def test_decoder_promotion_can_restore_previous_entry(tmp_path: Path) -> None:
 def test_failed_activation_restores_previous_active_manifest(tmp_path: Path) -> None:
     cache = SdkCache(tmp_path / "cache")
     previous, invalid = "a" * 40, "b" * 40
-    cache.active_decoder_manifest_path.parent.mkdir(parents=True)
+    cache.active_decoder_manifest_path.parent.mkdir(parents=True, exist_ok=True)
     cache.active_decoder_manifest_path.write_text(json.dumps({"sdk_commit": previous}), encoding="utf-8")
     manifest = cache.decoder_path(invalid) / "manifest.json"
     manifest.parent.mkdir(parents=True)
@@ -52,3 +52,34 @@ def test_failed_activation_restores_previous_active_manifest(tmp_path: Path) -> 
     assert json.loads(cache.active_decoder_manifest_path.read_text(encoding="utf-8")) == {
         "sdk_commit": previous
     }
+
+
+def test_status_recovers_interrupted_same_commit_promotion(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "c" * 40
+    target = cache.decoder_path(commit)
+    backup = target.with_name(f".{commit}.previous-interrupted")
+    _entry(backup, "previous")
+    (backup / "manifest.json").write_text(
+        json.dumps(
+            {
+                "manifest_version": 1,
+                "decoder_protocol_version": 1,
+                "sdk_commit": commit,
+                "executable_relative_path": "bin/polar-rec-decoder",
+                "executable_sha256": "0" * 64,
+                "runtime_files": {},
+                "verification_level": "handshake",
+                "verified": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    cache.active_decoder_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    cache.active_decoder_manifest_path.write_text(json.dumps({"sdk_commit": commit}), encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert target.is_dir()
+    assert not backup.exists()

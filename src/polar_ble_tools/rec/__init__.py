@@ -128,6 +128,23 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
     return files
 
 
+def _recover_interrupted_promotion(cache: SdkCache, commit: str) -> Path:
+    root = cache.decoder_path(commit)
+    if root.exists():
+        return root
+    backups = sorted(
+        path
+        for path in cache.decoder_root.glob(f".{commit}.previous-*")
+        if path.is_dir() and not path.is_symlink()
+    )
+    if len(backups) == 1:
+        backups[0].replace(root)
+        return root
+    if backups:
+        raise DecoderManifestError("Interrupted decoder promotion has ambiguous recovery entries.")
+    return root
+
+
 def _load_decoder(cache: SdkCache) -> _Decoder:
     active = cache.active_decoder_manifest_path
     if not active.is_file():
@@ -141,7 +158,7 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         raise DecoderManifestError(f"Invalid active decoder manifest at {active}.") from exc
     if not isinstance(commit, str) or len(commit) != 40:
         raise DecoderManifestError("Active decoder manifest has an invalid SDK commit.")
-    root = cache.decoder_path(commit)
+    root = _recover_interrupted_promotion(cache, commit)
     manifest_path = root / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
