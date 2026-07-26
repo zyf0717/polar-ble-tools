@@ -101,6 +101,7 @@ for the evidence-backed matrix.
 - [Contributor guide](CONTRIBUTING.md)
 - [Development](docs/development.md)
 - [Release process](docs/releasing.md)
+- [0.2.0 release notes](RELEASE_NOTES.md)
 
 ## Licence and trademarks
 

@@ -2,16 +2,16 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.2.0 — 2026-07-26
 
-- Added the optional local REC decoder sidecar and `polar-ble rec` commands.
-- Added verified local decoder build, activation, status, verification, removal,
-  and `doctor` readiness reporting.
-- Added experimental local REC decoding infrastructure and protocol validation.
-- Added runtime-file allowlisting/digest verification, bounded sidecar output,
-  timeout cleanup, Gradle dependency locking, and opt-in local corpus contracts.
-- Added v0.2.0 Python facades for structured `doctor()` readiness and FTU
-  apply/status/configuration/settings/diagnostics workflows.
+- Added optional local REC decoder lifecycle and `polar-ble rec` commands.
+- Added streaming JSONL protocol validation, digest-verified runtimes, private
+  output publication, bounded diagnostics, and process-group timeout cleanup.
+- Added `doctor()` and direct FTU workflow APIs, plus top-level passive-file
+  collection exports.
+- Added explicit CLI and Python API references.
+- Removed obsolete REC build spike scripts and consolidated the former spec
+  material into shipping documentation.
 
 Known limitations: encrypted recordings and categories without local contract
 evidence remain unsupported; Verity Sense PPI timestamp interpretation remains

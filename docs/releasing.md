@@ -1,6 +1,8 @@
 # Releasing
 
-1. Update the version in `pyproject.toml`, `CHANGELOG.md`, and release notes.
+1. Update the version in `pyproject.toml`, date the release heading in
+   `CHANGELOG.md`, and replace `RELEASE_NOTES.md` with the customer-facing
+   release summary.
 2. Run formatting, linting, the supported-Python test matrix, SDK-free unit and
    contract tests, and licensed SDK contracts.
 3. Build and validate both distributions:
@@ -39,8 +41,8 @@
    pass.
 9. Publish to PyPI through trusted publishing and the manually approved `pypi`
    environment.
-10. Create the GitHub release using product-focused release notes and artifact
-   SHA-256 values.
+10. Create the GitHub release from `RELEASE_NOTES.md`, including artifact
+    SHA-256 values and only compatibility claims backed by local evidence.
 
 Never upload SDK source, recordings, compiled decoder output, or generated SDK
 data as a CI artifact or public cache.
