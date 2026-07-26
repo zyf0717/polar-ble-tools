@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tarfile
+import tomllib
 import venv
 import zipfile
 from email.parser import BytesParser
@@ -12,6 +13,12 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def project_version() -> str:
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as metadata:
+        return tomllib.load(metadata)["project"]["version"]
+
 
 SKIPPED_SOURCE_DIRECTORIES = frozenset(
     {"dist", "build", "__pycache__", ".git", ".venv", ".pytest_cache"}
@@ -203,7 +210,7 @@ def test_wheel_metadata_uses_pep_639_and_declares_public_contract(
     metadata = wheel_metadata(wheel)
 
     assert metadata["Name"] == "polar-ble-tools"
-    assert metadata["Version"] == "0.1.1"
+    assert metadata["Version"] == project_version()
     assert metadata["Requires-Python"] == ">=3.11"
     assert metadata["License-Expression"] == "Apache-2.0"
     assert {"LICENSE", "NOTICE"}.issubset(metadata.get_all("License-File", []))

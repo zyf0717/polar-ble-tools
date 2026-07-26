@@ -16,7 +16,7 @@ Bluetooth Low Energy.
 - validate and apply first-time-use (FTU) data;
 - generate and verify optional local schemas from a separately obtained SDK.
 
-Structured `.REC` decoding is not included in `0.1.1`.
+Structured `.REC` decoding is not currently included.
 
 ## Installation
 

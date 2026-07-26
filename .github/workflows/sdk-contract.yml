@@ -2,15 +2,12 @@ name: sdk-contract
 
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*rc*"]
 
 permissions:
   contents: read
 
 jobs:
   contract:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     env:
       PYTHONNOUSERSITE: "1"
