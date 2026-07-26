@@ -39,6 +39,6 @@
 - No Android SDK/toolchain is installed or verified.
 - No locally owned `.REC` sample is available for the required end-to-end decode.
 
-The Phase 0 gate in `specs/001-rec-decoding.md` therefore remains closed. The repository may add no
+The Phase 0 gate in [the overview](../overview.md) therefore remains closed. The repository may add no
 production decoder adapter, build, lifecycle, or runtime implementation until the validation above produces
 a reproducible supported path.
