@@ -65,6 +65,16 @@ _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.
 _LICENSE_RELATIVE_PATH = f"licenses/{SDK_LICENSE_FILE}"
 _NOTICE_RELATIVE_PATHS = {name: f"notices/{name}" for name in SDK_NOTICE_FILES}
 _TOOLCHAIN_MANIFEST = ".polar-rec-toolchain.json"
+_DECODER_PROJECT_FILES = (
+    "DecoderMain.kt",
+    "JsonProtocol.kt",
+    "PayloadAdapter.kt",
+    "Publication.kt",
+    "RecordingDecoder.kt",
+    "build.gradle.kts",
+    "gradle.lockfile",
+    "settings.gradle.kts",
+)
 
 
 @dataclass(frozen=True)
@@ -152,7 +162,7 @@ def _discard_decoder_backup(backup: Path | None) -> None:
 def _adapter_digest() -> str:
     hasher = hashlib.sha256()
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
-    for name in ("DecoderMain.kt", "build.gradle.kts", "settings.gradle.kts", "gradle.lockfile"):
+    for name in _DECODER_PROJECT_FILES:
         path = template.joinpath(name)
         if path.is_file():
             hasher.update(name.encode("utf-8"))
@@ -509,12 +519,12 @@ def _write_workspace(workspace: Path, *, commit: str) -> None:
     source = workspace / "src" / "main" / "kotlin"
     source.mkdir(parents=True)
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
-    for name, destination in (
-        ("settings.gradle.kts", workspace / "settings.gradle.kts"),
-        ("build.gradle.kts", workspace / "build.gradle.kts"),
-        ("gradle.lockfile", workspace / "gradle.lockfile"),
-        ("DecoderMain.kt", source / "DecoderMain.kt"),
-    ):
+    for name in _DECODER_PROJECT_FILES:
+        destination = (
+            workspace / name
+            if name.endswith(".kts") or name == "gradle.lockfile"
+            else source / name
+        )
         template_path = template.joinpath(name)
         if template_path.is_file():
             destination.write_bytes(template_path.read_bytes())

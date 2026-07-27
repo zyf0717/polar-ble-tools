@@ -1,17 +1,6 @@
 """Validated local decoding of Polar offline recording files."""
 
 from polar_ble_tools.rec.api import (
-    DecodeReport,
-    DecoderManifestError,
-    DecoderProtocolError,
-    DecoderStatus,
-    DecoderTimeoutError,
-    DecoderUnavailableError,
-    DecoderVerificationError,
-    RecDecodeError,
-    RecordingDecodeError,
-    RecRecord,
-    UnsupportedRecordingError,
     decode_recording,
     decoder_status,
     iter_decoded_records,
@@ -23,6 +12,19 @@ from polar_ble_tools.rec.batch import (
     BatchFileResult,
     decode_recording_manifest,
     decode_recording_tree,
+)
+from polar_ble_tools.rec.models import (
+    DecodeReport,
+    DecoderManifestError,
+    DecoderProtocolError,
+    DecoderStatus,
+    DecoderTimeoutError,
+    DecoderUnavailableError,
+    DecoderVerificationError,
+    RecDecodeError,
+    RecordingDecodeError,
+    RecRecord,
+    UnsupportedRecordingError,
 )
 
 __all__ = [

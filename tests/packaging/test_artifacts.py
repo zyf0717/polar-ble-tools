@@ -52,6 +52,10 @@ PROHIBITED_CONTENT_MARKERS = (
 PROJECT_OWNED_DECODER_TEMPLATES = frozenset(
     {
         "polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt",
+        "polar_ble_tools/sdk_tools/decoder_project/JsonProtocol.kt",
+        "polar_ble_tools/sdk_tools/decoder_project/PayloadAdapter.kt",
+        "polar_ble_tools/sdk_tools/decoder_project/Publication.kt",
+        "polar_ble_tools/sdk_tools/decoder_project/RecordingDecoder.kt",
         "polar_ble_tools/sdk_tools/decoder_project/build.gradle.kts",
         "polar_ble_tools/sdk_tools/decoder_project/settings.gradle.kts",
     }

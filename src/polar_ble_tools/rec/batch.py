@@ -13,15 +13,14 @@ from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
 from types import MappingProxyType
 
-from polar_ble_tools.rec.api import (
+from polar_ble_tools.rec.api import decode_recording, iter_decoded_records
+from polar_ble_tools.rec.models import (
     DecodeReport,
     DecoderManifestError,
     DecoderProtocolError,
     RecDecodeError,
     RecordingDecodeError,
     UnsupportedRecordingError,
-    decode_recording,
-    iter_decoded_records,
 )
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
     normalized_architecture,

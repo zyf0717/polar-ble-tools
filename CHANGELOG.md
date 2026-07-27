@@ -24,6 +24,13 @@ All notable changes to this project are documented here.
   corresponding Python APIs, constrained overwrite, per-file outcomes, and
   atomic versioned summaries.
 
+### Changed
+
+- Decomposed REC decoding into cohesive model, sidecar process, protocol
+  validation, publication, and batch orchestration modules, and split the JVM
+  template into command, SDK parsing, payload adaptation, JSON protocol, and
+  publication modules without changing the public API.
+
 ## 0.3.2 — 2026-07-27
 
 ### Fixed

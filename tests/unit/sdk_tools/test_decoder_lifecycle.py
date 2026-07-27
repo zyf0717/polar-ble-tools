@@ -17,6 +17,7 @@ from polar_ble_tools.sdk_tools.decoder import (
     _sdk_material,
     _tool_entry_verified,
     _write_tool_entry_manifest,
+    _write_workspace,
     activate_decoder,
     remove_decoder,
 )
@@ -26,6 +27,22 @@ from polar_ble_tools.sdk_tools.decoder.errors import (
 )
 from polar_ble_tools.sdk_tools.decoder.toolchain import toolchain_descriptor
 from polar_ble_tools.sdk_tools.downloader import install_sdk
+
+
+def test_workspace_contains_all_cohesive_sidecar_modules(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+
+    _write_workspace(workspace, commit="a" * 40)
+
+    source = workspace / "src" / "main" / "kotlin"
+    assert {path.name for path in source.glob("*.kt")} == {
+        "BuildInfo.kt",
+        "DecoderMain.kt",
+        "JsonProtocol.kt",
+        "PayloadAdapter.kt",
+        "Publication.kt",
+        "RecordingDecoder.kt",
+    }
 
 
 def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:

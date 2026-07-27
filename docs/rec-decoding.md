@@ -18,6 +18,13 @@ the separately licensed SDK. This keeps SDK classes, source, and binaries out
 of the Python runtime and release artifacts while retaining a versioned,
 project-owned JSONL boundary.
 
+The Python implementation keeps public models and errors, sidecar process
+control, JSONL validation, constrained publication, and batch orchestration in
+separate modules. The public API continues to be exported from
+`polar_ble_tools.rec`. The JVM template independently separates command
+dispatch, official-SDK parsing, payload adaptation, JSONL encoding, and atomic
+publication; all template inputs remain bound by the adapter source digest.
+
 ## Prerequisites
 
 Use Linux x86_64, install the SDK extra, and explicitly stage the supported SDK:

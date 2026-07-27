@@ -34,5 +34,5 @@ All items are deferred beyond `0.3.0` and governed by
 - [x] **FR-037** — Destination preflight and constrained overwrite.
 - [x] **FR-038** — Versioned batch summaries.
 - [ ] **FR-039** — Secure once-per-source secret resolution.
-- [ ] **FR-049** — Cohesive REC-module decomposition.
+- [x] **FR-049** — Cohesive REC-module decomposition.
 - [ ] **FR-063** — Explicit stable payload adapter contracts.
