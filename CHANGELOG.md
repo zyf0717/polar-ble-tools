@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Changed
+
+- Pairing failures caused by BlueZ connection-attempt failures now include
+  bounded retry and troubleshooting guidance.
+
 ## 0.3.0 — 2026-07-27
 
 ### Added

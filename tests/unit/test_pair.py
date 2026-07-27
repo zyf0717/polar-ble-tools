@@ -3,6 +3,7 @@ from pathlib import Path
 from polar_ble_tools.ble.bluetoothctl_pairing import (
     BluetoothDevice,
     PairingError,
+    _pairing_failure_message,
     connect_device,
     discover_devices,
     pair_device,
@@ -80,6 +81,16 @@ def test_parse_info_requires_all_success_flags() -> None:
 
     assert status.ready is True
     assert status.mac_address == "AA:BB:CC:DD:EE:FF"
+
+
+def test_connection_attempt_failure_includes_bounded_remediation() -> None:
+    message = _pairing_failure_message(
+        "AA:BB:CC:DD:EE:FF",
+        "org.bluez.Error.ConnectionAttemptFailed",
+    )
+
+    assert "Retry once after a few seconds." in message
+    assert "disconnect other hosts" in message
 
 
 def test_load_allowed_mac_addresses_reads_inventory_file(tmp_path: Path) -> None:

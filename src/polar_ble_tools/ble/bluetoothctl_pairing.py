@@ -30,6 +30,17 @@ INFO_FLAG_RE = re.compile(
 )
 PAIRING_SUCCESS_RE = re.compile(r"Pairing successful", re.IGNORECASE)
 PAIRING_FAILURE_RE = re.compile(r"Failed to pair:\s*(?P<reason>.+)", re.IGNORECASE)
+CONNECTION_ATTEMPT_FAILED = "org.bluez.Error.ConnectionAttemptFailed"
+
+
+def _pairing_failure_message(mac_address: str, reason: str) -> str:
+    message = f"BlueZ pairing failed for {mac_address}: {reason}"
+    if CONNECTION_ATTEMPT_FAILED not in reason:
+        return message
+    return (
+        f"{message}\n"
+        "Retry once after a few seconds. If it persists, disconnect other hosts and check BlueZ logs."
+    )
 
 
 class PairingError(RuntimeError):
@@ -269,7 +280,7 @@ class BluetoothctlSession:
             failure = PAIRING_FAILURE_RE.search(output)
             if failure:
                 raise PairingError(
-                    f"BlueZ pairing failed for {mac_address}: {failure.group('reason').strip()}"
+                    _pairing_failure_message(mac_address, failure.group("reason").strip())
                 )
             if PAIRING_SUCCESS_RE.search(output):
                 return output
