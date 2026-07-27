@@ -6,7 +6,8 @@ control.
 
 ## Discovery and authorization
 
-Discovery does not pair, connect, trust, or otherwise alter a device:
+Discovery reports only live BLE scan observations; it does not pair, connect,
+trust, or otherwise alter a device:
 
 ```bash
 polar-ble discover --scan-seconds 15 --name Polar
@@ -80,7 +81,7 @@ passive = await collect_passive_files(
 
 The package does not read an inventory unless the caller supplies its path.
 
-The `0.3.0` facade also exposes structured local readiness and the live FTU
+The `0.3.1` facade also exposes structured local readiness and the live FTU
 workflow without constructing CLI argument lists:
 
 ```python

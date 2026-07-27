@@ -23,6 +23,7 @@ DEVICE_LINE_RE = re.compile(
     r"^\s*(?:\[[A-Z]+\]\s+)?Device (?P<mac>(?:[0-9A-F]{2}:){5}[0-9A-F]{2}) (?P<name>.+)$",
     re.MULTILINE,
 )
+LIVE_DEVICE_LINE_RE = re.compile(r"^\s*\[(?:NEW|CHG)\]\s+Device .+$", re.MULTILINE)
 RSSI_UPDATE_RE = re.compile(r"^RSSI:\s*(?P<rssi>-?\d+)\s*$", re.IGNORECASE)
 INFO_FLAG_RE = re.compile(
     r"^\s*(?P<key>Paired|Bonded|Trusted|Connected):\s+(?P<value>yes|no)\s*$",
@@ -112,6 +113,11 @@ def parse_devices(output: str) -> list[BluetoothDevice]:
             rssi=previous.rssi if previous else None,
         )
     return list(devices.values())
+
+
+def parse_live_scan_devices(output: str) -> list[BluetoothDevice]:
+    """Parse only device observations emitted while ``bluetoothctl`` scans."""
+    return parse_devices("\n".join(LIVE_DEVICE_LINE_RE.findall(output)))
 
 
 def select_device(
@@ -261,7 +267,6 @@ class BluetoothctlSession:
                 )
             )
         collected.append(self.command("scan off", idle_timeout=0.8, total_timeout=5.0))
-        collected.append(self.command("devices", idle_timeout=0.6, total_timeout=5.0))
         return "".join(collected)
 
     def pair(self, mac_address: str, *, timeout_seconds: float = 45.0) -> str:
@@ -326,7 +331,7 @@ def _scan_discovered_devices(
     scan_seconds: float,
 ) -> list[BluetoothDevice]:
     """Use the shared BlueZ discovery path for discovery and pairing."""
-    return parse_devices(session.scan(scan_seconds))
+    return parse_live_scan_devices(session.scan(scan_seconds))
 
 
 def pair_device(

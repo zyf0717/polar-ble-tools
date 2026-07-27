@@ -9,6 +9,7 @@ from polar_ble_tools.ble.bluetoothctl_pairing import (
     pair_device,
     parse_devices,
     parse_info,
+    parse_live_scan_devices,
     release_device_connection,
     select_device,
 )
@@ -34,6 +35,22 @@ def test_parse_devices_keeps_name_and_captures_rssi_updates() -> None:
     devices = parse_devices(
         "[NEW] Device AA:BB:CC:DD:EE:FF Polar Loop Gen 2\n"
         "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -47\n"
+    )
+
+    assert devices == [
+        BluetoothDevice(
+            mac_address="AA:BB:CC:DD:EE:FF",
+            name="Polar Loop Gen 2",
+            rssi=-47,
+        )
+    ]
+
+
+def test_parse_live_scan_devices_excludes_cached_device_records() -> None:
+    devices = parse_live_scan_devices(
+        "[NEW] Device AA:BB:CC:DD:EE:FF Polar Loop Gen 2\n"
+        "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -47\n"
+        "Device 11:22:33:44:55:66 Cached Polar device\n"
     )
 
     assert devices == [

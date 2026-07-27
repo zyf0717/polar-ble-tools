@@ -7,7 +7,7 @@ retrieval remains independent of it. The sidecar accepts only unencrypted
 recordings in the compatibility matrix; encrypted and unvalidated categories
 are unsupported.
 
-`0.3.0` supports only explicit single-file decoding on Linux x86_64. Linux
+`0.3.1` supports only explicit single-file decoding on Linux x86_64. Linux
 aarch64, protected recordings, tree/manifest batch decoding, and expanded
 adapter certification are deferred to SPEC-004 and SPEC-005.
 

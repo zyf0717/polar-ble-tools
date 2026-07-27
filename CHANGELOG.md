@@ -2,12 +2,14 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.3.1 — 2026-07-27
 
 ### Changed
 
 - Pairing failures caused by BlueZ connection-attempt failures now include
   bounded retry and troubleshooting guidance.
+- Discovery now excludes cached BlueZ device records and reports only devices
+  observed during the active scan.
 
 ## 0.3.0 — 2026-07-27
 

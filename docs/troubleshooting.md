@@ -69,7 +69,7 @@ exact full commit SHA.
 
 ## REC decode fails
 
-The `0.3.0` decoder does not support encrypted recordings or batch decoding.
+The `0.3.1` decoder does not support encrypted recordings or batch decoding.
 Check that a renamed file
 still has a supported recording name, retain the original privately, and inspect
 bounded stderr diagnostics. A null timestamp can be intentional when the SDK
