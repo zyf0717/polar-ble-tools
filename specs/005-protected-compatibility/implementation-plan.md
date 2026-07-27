@@ -1,6 +1,9 @@
 # Implementation plan
 
-## Phase 1 — evidence governance
+## Phase 1 — evidence governance (deferred)
+
+Resume only after policy ownership, reviewer roles, and retention defaults are
+explicitly approved.
 
 1. Approve the private matrix, public evidence schema, and reviewer roles.
 2. Inventory fixtures and define consent, access, retention, and deletion.

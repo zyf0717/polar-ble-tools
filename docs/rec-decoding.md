@@ -19,11 +19,11 @@ of the Python runtime and release artifacts while retaining a versioned,
 project-owned JSONL boundary.
 
 The Python implementation keeps public models and errors, sidecar process
-control, JSONL validation, constrained publication, and batch orchestration in
-separate modules. The public API continues to be exported from
-`polar_ble_tools.rec`. The JVM template independently separates command
-dispatch, official-SDK parsing, payload adaptation, JSONL encoding, and atomic
-publication; all template inputs remain bound by the adapter source digest.
+control, JSONL validation, and constrained publication in separate modules.
+The public API continues to be exported from `polar_ble_tools.rec`. The JVM
+template independently separates command dispatch, official-SDK parsing,
+payload adaptation, JSONL encoding, and atomic publication; all template inputs
+remain bound by the adapter source digest.
 
 ## Prerequisites
 
@@ -78,49 +78,17 @@ recording, even with `--overwrite`; the source `.REC` is never modified.
 Overwrite accepts only an existing project-owned decoded JSONL stream that
 passes header, record, and summary validation.
 
-## Decode a tree or manifest
-
-```bash
-polar-ble rec decode-tree recordings/ --output-root decoded/
-polar-ble rec decode-manifest recordings.jsonl \
-  --root recordings/ --output-root decoded/
-```
-
-Tree mode selects readable regular `.REC` files case-insensitively, does not
-follow symlinks, excludes its output subtree, preserves relative paths, and
-orders work by relative POSIX path. Both modes preflight every destination
-before starting the sidecar. Individual unsupported or failed recordings do not
-stop later files; `summary.json` records deterministic outcomes and is
-published atomically after processing.
-
-The manifest is newline-terminated JSONL with one strict row per recording:
-
-```json
-{"schema_version": 1, "source": "relative/path/ACC.REC", "source_sha256": "optional lowercase SHA-256"}
-```
-
-Sources must be root-relative regular REC files. Absolute paths, traversal,
-symlinks, duplicate sources or destinations, unknown fields, inline secrets,
-unsupported schema versions, and digest mismatches fail the operation before
-decoding. `secret_id` is reserved by the schema but requires the deferred
-protected protocol and a configured provider.
-
 ## Python API
 
 ```python
 from polar_ble_tools.rec import (
     decode_recording,
-    decode_recording_manifest,
-    decode_recording_tree,
     iter_decoded_records,
 )
 
 report = decode_recording("PPI0.REC", "PPI0.jsonl")
 for record in iter_decoded_records("PPI0.jsonl"):
     print(record.record_type, record.timestamp_ns, record.payload)
-
-tree = decode_recording_tree("recordings", "decoded")
-manifest = decode_recording_manifest("recordings.jsonl", "recordings", "decoded-from-manifest")
 ```
 
 `iter_decoded_records` validates the complete stream before yielding records

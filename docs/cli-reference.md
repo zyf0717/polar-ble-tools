@@ -47,8 +47,6 @@ direct Python API is available.
 | `sdk decoder remove` | Remove sidecar/workspace | `remove_decoder()` |
 | `rec status` | Check active REC sidecar | `decoder_status()` |
 | `rec decode` | Decode local REC into JSONL | `decode_recording()` |
-| `rec decode-tree INPUT_ROOT --output-root OUTPUT_ROOT` | Decode a deterministic REC tree | `decode_recording_tree()` |
-| `rec decode-manifest MANIFEST --root SOURCE_ROOT --output-root OUTPUT_ROOT` | Decode a strict REC manifest | `decode_recording_manifest()` |
 | `doctor` | Report core/SDK/decoder readiness | `doctor()` |
 
 The command wrappers remain available as `*_main(argv)` functions and

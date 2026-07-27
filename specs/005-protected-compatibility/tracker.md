@@ -3,11 +3,14 @@
 Existing observations may satisfy individual rows only when they conform to
 [the evidence contract](evidence-contract.md).
 
-## Phase 1 — evidence contract
+## Phase 1 — evidence contract (deferred)
 
-- [x] Define the private test matrix and redacted evidence schema.
-- [x] Define fixture consent, retention, deletion, and access rules.
-- [x] Define restricted-artifact and release-candidate audit gates.
+Policy defaults and reviewer ownership require explicit maintainer or
+organizational approval before implementation.
+
+- [ ] Define the private test matrix and redacted evidence schema.
+- [ ] Define fixture consent, retention, deletion, and access rules.
+- [ ] Define restricted-artifact and release-candidate audit gates.
 
 ## Phase 2 — device and radio validation
 

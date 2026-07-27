@@ -17,7 +17,11 @@
 5. Preserve v1 unprotected behavior.
 6. Add canary leakage, timeout, malformed-output, and process cleanup tests.
 
-## Phase 3 — batch decoding and adapters
+## Phase 3 — batch decoding and adapters (deferred)
+
+This phase has no public CLI or Python API implementation. Resume it only after
+single-file decoder contracts are certified against the protected corpus and
+batch decoding is approved as a product priority.
 
 1. Separate discovery, manifest validation, invocation, adaptation, and output
    publication.

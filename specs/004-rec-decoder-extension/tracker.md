@@ -25,14 +25,17 @@ All items are deferred beyond `0.3.0` and governed by
 - [ ] **FR-032** — Stable redacted security error categories.
 - [ ] **FR-062** — Official SDK parser only; no fallback parser/decryptor.
 
-## Phase 3 — batch decoding and adapters
+## Phase 3 — batch decoding and adapters (deferred)
 
-- [x] **FR-033** — Tree and manifest batch CLI.
-- [x] **FR-034** — Corresponding public Python APIs.
-- [x] **FR-035** — Deterministic, symlink-safe, atomic tree decoding.
-- [x] **FR-036** — Strict schema-versioned manifest validation.
-- [x] **FR-037** — Destination preflight and constrained overwrite.
-- [x] **FR-038** — Versioned batch summaries.
+Batch CLI/API work is deferred until the single-file decoder is certified
+against the protected corpus and the feature is approved as a product priority.
+
+- [ ] **FR-033** — Tree and manifest batch CLI.
+- [ ] **FR-034** — Corresponding public Python APIs.
+- [ ] **FR-035** — Deterministic, symlink-safe, atomic tree decoding.
+- [ ] **FR-036** — Strict schema-versioned manifest validation.
+- [ ] **FR-037** — Destination preflight and constrained overwrite.
+- [ ] **FR-038** — Versioned batch summaries.
 - [ ] **FR-039** — Secure once-per-source secret resolution.
 - [x] **FR-049** — Cohesive REC-module decomposition.
 - [ ] **FR-063** — Explicit stable payload adapter contracts.

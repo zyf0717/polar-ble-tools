@@ -1,7 +1,10 @@
 # REC sidecar and batch protocol
 
-This document makes FR-021 through FR-039 normative. The protocol is
-project-owned; SDK objects remain behind the sidecar boundary.
+FR-021 through FR-032 are normative. The protocol is project-owned; SDK objects
+remain behind the sidecar boundary.
+
+FR-033 through FR-039 are deferred design constraints. The batch formats below
+are not implemented public contracts.
 
 ## Platform and toolchain descriptors
 

@@ -22,12 +22,6 @@ that make one BLE operation safe and usable. Higher-level application
 orchestration belongs in an orchestration layer built on these APIs, and is
 out of scope for this project.
 
-Wearable recordings and decoded outputs can contain sensitive personal data.
-Keep device inventories, profiles, recordings, payloads, and identifiers in
-access-controlled local storage and apply an explicit retention/deletion
-policy. This tooling is for engineering and data-retrieval workflows; it is not
-a medical device and does not provide diagnosis, treatment, or medical advice.
-
 > `polar-ble-tools` is an unofficial community project. It is not affiliated
 > with, endorsed by, sponsored by, or maintained by Polar Electro Oy.
 

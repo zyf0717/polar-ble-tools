@@ -55,6 +55,9 @@ No message contains secret material.
 
 ## Batch decoding
 
+FR-033 through FR-039 are deferred. They describe a possible future contract,
+not current CLI or Python API behavior.
+
 **FR-033** — Provide `rec decode-tree` and `rec decode-manifest` CLI operations.
 
 **FR-034** — Provide corresponding `decode_recording_tree()` and

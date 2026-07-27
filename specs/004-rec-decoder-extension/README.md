@@ -1,6 +1,6 @@
 # SPEC-004: Optional REC decoder extension
 
-**Status:** In progress; public lifecycle and unprotected batch slices implemented
+**Status:** In progress; lifecycle/provenance slices implemented, batch deferred
 **Depends on:** SPEC-003 core BLE tooling
 
 ## Scope
@@ -10,7 +10,7 @@ SPEC-004 owns optional SDK-backed REC decoder expansion:
 - verified Linux x86_64 and aarch64 toolchains;
 - content-bound SDK provenance, licence acceptance, and runtime notices;
 - secret-aware sidecar protocol negotiation and protected REC decoding;
-- deterministic tree and manifest batch decoding;
+- deterministic tree and manifest batch decoding (deferred);
 - explicit project-owned REC payload adapters and summaries;
 - strict restricted-material boundaries.
 

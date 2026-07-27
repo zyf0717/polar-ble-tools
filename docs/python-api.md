@@ -36,7 +36,7 @@ Specialized modules are deliberately separate from the top-level facade:
 | --- | --- |
 | `polar_ble_tools.collection` | Lower-level raw/passive collection APIs and result models. |
 | `polar_ble_tools.bpb_decode` | `decode_bpb_file`, `decode_bpb_manifest`, path/schema helpers. |
-| `polar_ble_tools.rec` | `decoder_status`, `verify_active_decoder`, `decode_recording`, `decode_recording_tree`, `decode_recording_manifest`, `iter_decoded_records`, result models, and typed decode exceptions. |
+| `polar_ble_tools.rec` | `decoder_status`, `verify_active_decoder`, `decode_recording`, `iter_decoded_records`, result models, and typed decode exceptions. |
 | `polar_ble_tools.sdk_tools` | SDK staging/status/inspection/removal. |
 | `polar_ble_tools.sdk_tools.generator` / `verifier` | Explicit schema generation and verification. |
 | `polar_ble_tools.sdk_tools.decoder` | `build_decoder`, `verify_decoder`, `activate_decoder`, `remove_decoder`. |

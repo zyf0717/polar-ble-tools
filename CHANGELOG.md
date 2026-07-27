@@ -12,9 +12,6 @@ All notable changes to this project are documented here.
   is not decoding evidence, and blocked cleanup candidates do not constitute an
   eligible cleanup dry-run.
 - Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
-- Defined the protected private-matrix/public-evidence schemas, fixture consent
-  and retention lifecycle, and fail-closed release-candidate audit gates.
-- Added explicit sensitive-data handling and non-medical positioning.
 
 ### Added
 
@@ -23,16 +20,13 @@ All notable changes to this project are documented here.
   actionable platform mismatch reporting.
 - Added content-bound SDK licence acceptance plus decoder-local, digest-verified
   licence and third-party notice material.
-- Added deterministic `rec decode-tree` and `rec decode-manifest` operations,
-  corresponding Python APIs, constrained overwrite, per-file outcomes, and
-  atomic versioned summaries.
 
 ### Changed
 
 - Decomposed REC decoding into cohesive model, sidecar process, protocol
-  validation, publication, and batch orchestration modules, and split the JVM
-  template into command, SDK parsing, payload adaptation, JSON protocol, and
-  publication modules without changing the public API.
+  validation, and publication modules, and split the JVM template into command,
+  SDK parsing, payload adaptation, JSON protocol, and publication modules
+  without changing the public API.
 
 ## 0.3.2 — 2026-07-27
 

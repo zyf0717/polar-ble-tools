@@ -1,6 +1,6 @@
 # SPEC-005: Protected compatibility and release evidence
 
-**Status:** In progress; evidence governance defined, protected validation pending
+**Status:** Deferred; policy ownership and protected validation pending
 **Depends on:** SPEC-003; SPEC-004 where decoder claims are evaluated
 
 ## Scope
