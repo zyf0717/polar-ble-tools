@@ -150,6 +150,7 @@ async def collect_passive_files(
     root: str | Path,
     device_id: str | None = None,
     existing_file_policy: ExistingFilePolicy | str = ExistingFilePolicy.SKIP,
+    delete_after_collect: bool = False,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> PassiveCollectionResult:
     resolved = resolve_polar_device_target(target)
@@ -167,6 +168,7 @@ async def collect_passive_files(
                 from_date=from_date,
                 to_date=to_date,
                 existing_file_policy=policy,
+                delete_after_collect=delete_after_collect,
             )
 
     return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)

@@ -33,7 +33,7 @@ implementation, contract tests, and required documentation are complete.
 - [ ] **FR-012** — Provide public async collection and cleanup APIs.
 - [ ] **FR-013** — Implement the required PFTP sync lifecycle, including failure/cancellation teardown and local-only cleanup dry runs.
 - [ ] **FR-014** — Gate deletion on exact manifest, file, size, digest, device, domain, and date verification.
-- [ ] **FR-015** — Restrict delete-after-collect eligibility and retain unknown/latest logical-date records.
+- [x] **FR-015** — Restrict delete-after-collect eligibility and retain unknown/latest logical-date records.
 - [ ] **FR-016** — Preserve source device files after fetch, decode, manifest, or verification failure.
 - [ ] **FR-017** — Reject unsafe cleanup domains, cutoffs, unknown dates, and out-of-domain files.
 - [ ] **FR-018** — Append immutable, secret-free JSONL audit records for every deletion attempt.

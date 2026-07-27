@@ -13,6 +13,7 @@ from polar_ble_tools.storage_utils import append_json_line, atomic_write_bytes
 SCHEMA_VERSION = 1
 DEFAULT_PASSIVE_ROOT = Path(".local/polar-ble-passive")
 MANIFEST_FILENAME = "manifest.jsonl"
+DELETION_AUDIT_FILENAME = "deletion-audit.jsonl"
 DEVICE_ID_RE = re.compile(r"[^A-Za-z0-9]+")
 
 
@@ -78,6 +79,9 @@ class PassiveFileStore:
 
     def manifest_path(self, device_id: str) -> Path:
         return self.root / self.sanitize_device_id(device_id) / MANIFEST_FILENAME
+
+    def deletion_audit_path(self, device_id: str) -> Path:
+        return self.root / self.sanitize_device_id(device_id) / DELETION_AUDIT_FILENAME
 
     def local_file_path(self, device_id: str, device_path: str) -> Path:
         parts = _safe_device_path_parts(device_path)
@@ -152,7 +156,12 @@ class PassiveFileStore:
         return entry
 
     def verify_existing_file(
-        self, device_id: str, *, device_path: str, device_size: int
+        self,
+        device_id: str,
+        *,
+        device_path: str,
+        device_size: int,
+        domain: str | None = None,
     ) -> PassiveFileManifestEntry | None:
         expected_device_id = self.sanitize_device_id(device_id)
         for entry in reversed(self.read_manifest(device_id)):
@@ -160,6 +169,7 @@ class PassiveFileStore:
                 entry.schema_version != SCHEMA_VERSION
                 or entry.device_id != expected_device_id
                 or entry.device_path != device_path
+                or (domain is not None and entry.domain != domain)
                 or entry.status != "fetched"
                 or entry.device_size != device_size
                 or entry.fetched_size != device_size
@@ -171,6 +181,43 @@ class PassiveFileStore:
             if hashlib.sha256(path.read_bytes()).hexdigest() == entry.sha256:
                 return entry
         return None
+
+    def append_deletion_audit(
+        self,
+        device_id: str,
+        *,
+        operation_id: str,
+        domain: str,
+        logical_date: str | None,
+        device_path: str,
+        local_path: str | None,
+        local_sha256: str | None,
+        status: str,
+        deleted_paths: tuple[str, ...] = (),
+        error: str | None = None,
+        dry_run: bool = False,
+        observed_at: datetime | None = None,
+    ) -> None:
+        """Append one immutable, payload-free passive deletion audit row."""
+        timestamp = (observed_at or datetime.now(UTC)).astimezone(UTC)
+        append_json_line(
+            self.deletion_audit_path(device_id),
+            {
+                "observed_at": timestamp.isoformat().replace("+00:00", "Z"),
+                "operation_id": operation_id,
+                "schema_version": SCHEMA_VERSION,
+                "device_id": self.sanitize_device_id(device_id),
+                "domain": domain,
+                "logical_date": logical_date,
+                "device_path": device_path,
+                "local_path": local_path,
+                "local_sha256": local_sha256,
+                "status": status,
+                "deleted_paths": list(deleted_paths),
+                "error": error,
+                "dry_run": dry_run,
+            },
+        )
 
     def resolve_local_path(self, stored_path: str) -> Path:
         candidate = Path(stored_path)

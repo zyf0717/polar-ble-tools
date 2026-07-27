@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from uuid import uuid4
 
 from polar_ble_tools.ble.transport import BleTransportError
 from polar_ble_tools.passive_data.storage import PassiveFileManifestEntry, PassiveFileStore
@@ -32,6 +33,9 @@ class PassiveCollectionRecordResult:
     fetched_size: int | None = None
     sha256: str | None = None
     error: str | None = None
+    logical_date: str | None = None
+    delete_status: str | None = None
+    delete_error: str | None = None
 
     def to_jsonable(self) -> dict[str, object]:
         return self.__dict__.copy()
@@ -48,6 +52,8 @@ class PassiveCollectionResult:
     failed: int
     missing: list[str]
     records: list[PassiveCollectionRecordResult]
+    deleted: int = 0
+    delete_failed: int = 0
 
     @property
     def ok(self) -> bool:
@@ -70,6 +76,7 @@ class PassiveFileCollector:
         from_date: date,
         to_date: date,
         existing_file_policy: ExistingFilePolicy | str = ExistingFilePolicy.SKIP,
+        delete_after_collect: bool = False,
     ) -> PassiveCollectionResult:
         policy = normalize_existing_file_policy(existing_file_policy)
         listing = await self.client.list_files(domains, from_date=from_date, to_date=to_date)
@@ -101,6 +108,8 @@ class PassiveFileCollector:
                 )
                 continue
             records.append(_stored_result(entry, "fetched", persisted))
+        if delete_after_collect and not any(record.status == "failed" for record in records):
+            records = await self._delete_after_collect(device_id, listing.entries, records)
         return PassiveCollectionResult(
             device_id=device_id,
             output_dir=str(self.store.root),
@@ -111,7 +120,76 @@ class PassiveFileCollector:
             failed=sum(record.status == "failed" for record in records),
             missing=listing.missing,
             records=records,
+            deleted=sum(record.delete_status == "deleted" for record in records),
+            delete_failed=sum(
+                record.delete_status in {"blocked_unverified", "failed"} for record in records
+            ),
         )
+
+    async def _delete_after_collect(
+        self,
+        device_id: str,
+        entries: list[PassiveFileEntry],
+        records: list[PassiveCollectionRecordResult],
+    ) -> list[PassiveCollectionRecordResult]:
+        by_path = {entry.path: entry for entry in entries}
+        eligible = [
+            record
+            for record in records
+            if record.status in {"fetched", "skipped"} and record.logical_date is not None
+        ]
+        if not eligible:
+            return records
+        latest_date = max(record.logical_date for record in eligible)
+        operation_id = str(uuid4())
+        outcomes: dict[str, tuple[str, str | None]] = {}
+        for record in eligible:
+            if record.logical_date == latest_date:
+                continue
+            entry = by_path[record.device_path]
+            verified = self.store.verify_existing_file(
+                device_id,
+                device_path=entry.path,
+                device_size=entry.size,
+                domain=entry.domain.value,
+            )
+            if verified is None:
+                status, error = "blocked_unverified", "local verification failed"
+                deleted_paths: tuple[str, ...] = ()
+            else:
+                try:
+                    await self.client.remove_file(entry)
+                except Exception as exc:
+                    if isinstance(exc, BleTransportError):
+                        raise
+                    status, error, deleted_paths = "failed", str(exc), ()
+                else:
+                    status, error, deleted_paths = "deleted", None, (entry.path,)
+            self.store.append_deletion_audit(
+                device_id,
+                operation_id=operation_id,
+                domain=entry.domain.value,
+                logical_date=record.logical_date,
+                device_path=entry.path,
+                local_path=record.local_path,
+                local_sha256=record.sha256,
+                status=status,
+                deleted_paths=deleted_paths,
+                error=error,
+            )
+            outcomes[entry.path] = (status, error)
+        return [
+            record
+            if record.device_path not in outcomes
+            else PassiveCollectionRecordResult(
+                **{
+                    **record.__dict__,
+                    "delete_status": outcomes[record.device_path][0],
+                    "delete_error": outcomes[record.device_path][1],
+                }
+            )
+            for record in records
+        ]
 
 
 def _stored_result(
@@ -124,4 +202,5 @@ def _stored_result(
         manifest.local_path,
         manifest.fetched_size,
         manifest.sha256,
+        logical_date=entry.logical_date.isoformat() if entry.logical_date else None,
     )

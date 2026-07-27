@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -43,3 +44,37 @@ def test_passive_store_rejects_size_mismatch_and_escaping_path(tmp_path: Path) -
         )
     with pytest.raises(PassiveFileStoreError, match="Invalid passive device path"):
         store.local_file_path("AA:BB:CC:DD:EE:FF", "/U/../../escape.BPB")
+
+
+def test_passive_store_writes_payload_free_deletion_audit(tmp_path: Path) -> None:
+    store = PassiveFileStore(tmp_path)
+    store.append_deletion_audit(
+        "AA:BB:CC:DD:EE:FF",
+        operation_id="operation-1",
+        domain="daily_summary",
+        logical_date="2026-06-25",
+        device_path="/U/0/20260625/DSUM/DSUM.BPB",
+        local_path="AABBCCDDEEFF/files/U/0/20260625/DSUM/DSUM.BPB",
+        local_sha256="a" * 64,
+        status="dry_run",
+        dry_run=True,
+    )
+
+    row = json.loads(store.deletion_audit_path("AA:BB:CC:DD:EE:FF").read_text())
+    assert row["status"] == "dry_run"
+    assert row["dry_run"] is True
+    assert set(row) >= {
+        "observed_at",
+        "operation_id",
+        "schema_version",
+        "device_id",
+        "domain",
+        "logical_date",
+        "device_path",
+        "local_path",
+        "local_sha256",
+        "status",
+        "deleted_paths",
+        "error",
+        "dry_run",
+    }

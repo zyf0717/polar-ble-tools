@@ -42,6 +42,7 @@ def build_passive_parser() -> argparse.ArgumentParser:
         default="skip",
         help="Reuse verified local files or refetch them. Default: %(default)s.",
     )
+    collect.add_argument("--delete-after-collect", action="store_true")
     return parser
 
 
@@ -91,6 +92,7 @@ async def _collect(
         to_date=to_date,
         root=args.root,
         existing_file_policy=args.existing_file_policy,
+        delete_after_collect=args.delete_after_collect,
     )
     print_json(result.to_jsonable())
     return 0 if result.ok else 1

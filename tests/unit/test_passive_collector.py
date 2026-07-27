@@ -79,3 +79,49 @@ def test_passive_collector_overwrites_verified_files_when_requested(tmp_path: Pa
         assert len(PassiveFileStore(tmp_path).read_manifest("AA:BB:CC:DD:EE:FF")) == 2
 
     asyncio.run(run())
+
+
+def test_delete_after_collect_retains_latest_date_and_audits_deletion(tmp_path: Path) -> None:
+    class Client:
+        def __init__(self) -> None:
+            self.entries = [
+                PassiveFileEntry(
+                    PassiveDomain.DAILY_SUMMARY,
+                    "/U/0/20260624/DSUM/DSUM.BPB",
+                    3,
+                    date(2026, 6, 24),
+                ),
+                PassiveFileEntry(
+                    PassiveDomain.DAILY_SUMMARY,
+                    "/U/0/20260625/DSUM/DSUM.BPB",
+                    3,
+                    date(2026, 6, 25),
+                ),
+            ]
+            self.removed: list[str] = []
+
+        async def list_files(self, *_args, **_kwargs):
+            return PassiveFileListing(self.entries, [])
+
+        async def fetch_raw_file(self, _entry):
+            return b"raw"
+
+        async def remove_file(self, entry):
+            self.removed.append(entry.path)
+
+    async def run() -> None:
+        client = Client()
+        store = PassiveFileStore(tmp_path)
+        result = await PassiveFileCollector(client, store).collect(  # type: ignore[arg-type]
+            "AA:BB:CC:DD:EE:FF",
+            (PassiveDomain.DAILY_SUMMARY,),
+            from_date=date(2026, 6, 24),
+            to_date=date(2026, 6, 25),
+            delete_after_collect=True,
+        )
+        assert client.removed == ["/U/0/20260624/DSUM/DSUM.BPB"]
+        assert result.deleted == 1
+        assert result.records[1].delete_status is None
+        assert '"status":"deleted"' in store.deletion_audit_path("AA:BB:CC:DD:EE:FF").read_text()
+
+    asyncio.run(run())
