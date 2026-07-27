@@ -17,9 +17,10 @@ manifests, guarded cleanup, and optional local decoding for supported formats.
 Data collection and retrieval do not require Polar Flow.
 
 This repository is deliberately limited to BLE tooling: protocol access,
-device-facing operations, local persistence safeguards, and minimal helpers
+device-facing operations, local persistence safeguards, and helpers
 that make one BLE operation safe and usable. Higher-level application
-orchestration belongs in a separate package built on these APIs.
+orchestration belongs in an orchestration layer built on these APIs, and is
+out of scope for this project.
 
 > `polar-ble-tools` is an unofficial community project. It is not affiliated
 > with, endorsed by, sponsored by, or maintained by Polar Electro Oy.
