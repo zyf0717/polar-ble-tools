@@ -29,16 +29,16 @@ implementation, contract tests, and required documentation are complete.
 
 ## Phase 2 — passive deletion safety and storage refactor
 
-- [ ] **FR-011** — Provide `passive collect` and `passive cleanup` CLI operations and options.
-- [ ] **FR-012** — Provide public async collection and cleanup APIs.
-- [ ] **FR-013** — Implement the required PFTP sync lifecycle, including failure/cancellation teardown and local-only cleanup dry runs.
-- [ ] **FR-014** — Gate deletion on exact manifest, file, size, digest, device, domain, and date verification.
+- [x] **FR-011** — Provide `passive collect` and `passive cleanup` CLI operations and options.
+- [x] **FR-012** — Provide public async collection and cleanup APIs.
+- [x] **FR-013** — Implement the required PFTP sync lifecycle, including failure/cancellation teardown and local-only cleanup dry runs.
+- [x] **FR-014** — Gate deletion on exact manifest, file, size, digest, device, domain, and date verification.
 - [x] **FR-015** — Restrict delete-after-collect eligibility and retain unknown/latest logical-date records.
-- [ ] **FR-016** — Preserve source device files after fetch, decode, manifest, or verification failure.
-- [ ] **FR-017** — Reject unsafe cleanup domains, cutoffs, unknown dates, and out-of-domain files.
-- [ ] **FR-018** — Append immutable, secret-free JSONL audit records for every deletion attempt.
+- [x] **FR-016** — Preserve source device files after fetch, decode, manifest, or verification failure.
+- [x] **FR-017** — Reject unsafe cleanup domains, cutoffs, unknown dates, and out-of-domain files.
+- [x] **FR-018** — Append immutable, secret-free JSONL audit records for every deletion attempt.
 - [ ] **FR-019** — Use the specified stable passive-deletion statuses.
-- [ ] **FR-020** — Continue across per-file protocol failures while aborting on transport failures.
+- [x] **FR-020** — Continue across per-file protocol failures while aborting on transport failures.
 - [ ] **FR-048** — Share raw/passive storage utilities only where invariants truly match; retain domain-specific models and eligibility.
 
 ## Phase 3 — Linux aarch64 sidecar, SDK lifecycle, and toolchain model refactor

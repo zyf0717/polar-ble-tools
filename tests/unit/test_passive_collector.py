@@ -4,6 +4,8 @@ import asyncio
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from polar_ble_tools.passive_data.collector import PassiveFileCollector
 from polar_ble_tools.passive_data.storage import PassiveFileStore
 from polar_ble_tools.polar.passive import (
@@ -52,6 +54,28 @@ def test_passive_collector_hash_stores_and_skips_verified_files(tmp_path: Path) 
         assert (second.fetched, second.skipped, second.failed) == (0, 1, 0)
         assert second.missing == ["/U/0/20260626/DSUM/DSUM.BPB"]
         assert client.fetches == 1
+
+    asyncio.run(run())
+
+
+def test_cleanup_rejects_unknown_logical_dates(tmp_path: Path) -> None:
+    async def run() -> None:
+        store = PassiveFileStore(tmp_path)
+        store.persist_file(
+            "AA:BB:CC:DD:EE:FF",
+            domain="autos",
+            device_path="/U/0/AUTOS/AUTOS001.BPB",
+            device_size=3,
+            payload=b"raw",
+            logical_date=None,
+        )
+        with pytest.raises(ValueError, match="unknown logical dates"):
+            await PassiveFileCollector(None, store).cleanup(  # type: ignore[arg-type]
+                "AA:BB:CC:DD:EE:FF",
+                domain=PassiveDomain.AUTOS,
+                delete_through=date(2026, 6, 24),
+                dry_run=True,
+            )
 
     asyncio.run(run())
 

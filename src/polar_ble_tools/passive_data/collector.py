@@ -223,6 +223,14 @@ class PassiveFileCollector:
             for entry in self.store.read_manifest(device_id)
             if entry.domain == domain.value
         }
+        unknown_date_paths = sorted(
+            entry.device_path for entry in latest.values() if entry.logical_date is None
+        )
+        if unknown_date_paths:
+            raise ValueError(
+                "Passive cleanup does not support records with unknown logical dates: "
+                + ", ".join(unknown_date_paths)
+            )
         selected = sorted(
             (
                 entry
