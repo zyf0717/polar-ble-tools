@@ -18,9 +18,8 @@ Data collection and retrieval do not require Polar Flow.
 
 This repository is deliberately limited to BLE tooling: protocol access,
 device-facing operations, local persistence safeguards, and minimal helpers
-that make one BLE operation safe and usable. Timed recordings, multi-step
-capture flows, scheduling, experiment protocols, and other application-level
-orchestration belong in a separate package built on these APIs.
+that make one BLE operation safe and usable. Higher-level application
+orchestration belongs in a separate package built on these APIs.
 
 > `polar-ble-tools` is an unofficial community project. It is not affiliated
 > with, endorsed by, sponsored by, or maintained by Polar Electro Oy.
