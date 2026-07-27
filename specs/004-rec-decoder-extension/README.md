@@ -1,6 +1,6 @@
 # SPEC-004: Optional REC decoder extension
 
-**Status:** Proposed; deferred beyond `0.3.0`
+**Status:** In progress; public lifecycle and unprotected batch slices implemented
 **Depends on:** SPEC-003 core BLE tooling
 
 ## Scope

@@ -7,9 +7,11 @@ retrieval remains independent of it. The sidecar accepts only unencrypted
 recordings in the compatibility matrix; encrypted and unvalidated categories
 are unsupported.
 
-`0.3.2` supports only explicit single-file decoding on Linux x86_64. Linux
-aarch64, protected recordings, tree/manifest batch decoding, and expanded
-adapter certification are deferred to SPEC-004 and SPEC-005.
+The public compatibility claim remains explicit unprotected decoding on Linux
+x86_64. The lifecycle implementation now has pinned Linux aarch64 descriptors
+and equivalent synthetic safety contracts, but a real aarch64 build/run remains
+a protected validation gate. Protected recordings and expanded adapter
+certification remain deferred to SPEC-004 and SPEC-005.
 
 The project uses a local JVM sidecar because Polar's official REC parser is in
 the separately licensed SDK. This keeps SDK classes, source, and binaries out
@@ -25,9 +27,16 @@ python -m pip install "polar-ble-tools[sdk]"
 polar-ble sdk install --accept-license
 ```
 
-The first decoder build provisions checksum-verified Temurin JDK 21.0.12+8 and
-Gradle 9.4.1 in the user cache. Nothing is downloaded, built, or activated on
-import or by `sdk install`.
+The first decoder build provisions architecture-specific, checksum-verified
+Temurin JDK 21.0.12+8 and Gradle 9.4.1 in the user cache. Reuse requires a
+descriptor-bound local manifest and unchanged executable digest. Nothing is
+downloaded, built, or activated on import or by `sdk install`.
+
+SDK installation records the exact staged source digest, licence filename and
+digest, resolved revision, acceptance time, and project-owned acceptance method.
+Decoder builds copy the exact SDK licence and required third-party listing into
+the local decoder entry. Activation and status fail closed when either file,
+path, or digest changes.
 
 ## Build and activate the local decoder
 
@@ -59,15 +68,52 @@ explicit overwrite option, publication uses atomic no-clobber semantics.
 Timeouts terminate the full sidecar process group.
 Decoding rejects an output that resolves to, or is a hard link to, the source
 recording, even with `--overwrite`; the source `.REC` is never modified.
+Overwrite accepts only an existing project-owned decoded JSONL stream that
+passes header, record, and summary validation.
+
+## Decode a tree or manifest
+
+```bash
+polar-ble rec decode-tree recordings/ --output-root decoded/
+polar-ble rec decode-manifest recordings.jsonl \
+  --root recordings/ --output-root decoded/
+```
+
+Tree mode selects readable regular `.REC` files case-insensitively, does not
+follow symlinks, excludes its output subtree, preserves relative paths, and
+orders work by relative POSIX path. Both modes preflight every destination
+before starting the sidecar. Individual unsupported or failed recordings do not
+stop later files; `summary.json` records deterministic outcomes and is
+published atomically after processing.
+
+The manifest is newline-terminated JSONL with one strict row per recording:
+
+```json
+{"schema_version": 1, "source": "relative/path/ACC.REC", "source_sha256": "optional lowercase SHA-256"}
+```
+
+Sources must be root-relative regular REC files. Absolute paths, traversal,
+symlinks, duplicate sources or destinations, unknown fields, inline secrets,
+unsupported schema versions, and digest mismatches fail the operation before
+decoding. `secret_id` is reserved by the schema but requires the deferred
+protected protocol and a configured provider.
 
 ## Python API
 
 ```python
-from polar_ble_tools.rec import decode_recording, iter_decoded_records
+from polar_ble_tools.rec import (
+    decode_recording,
+    decode_recording_manifest,
+    decode_recording_tree,
+    iter_decoded_records,
+)
 
 report = decode_recording("PPI0.REC", "PPI0.jsonl")
 for record in iter_decoded_records("PPI0.jsonl"):
     print(record.record_type, record.timestamp_ns, record.payload)
+
+tree = decode_recording_tree("recordings", "decoded")
+manifest = decode_recording_manifest("recordings.jsonl", "recordings", "decoded-from-manifest")
 ```
 
 `iter_decoded_records` validates the complete stream before yielding records

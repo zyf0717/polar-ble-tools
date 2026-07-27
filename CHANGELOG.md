@@ -13,6 +13,17 @@ All notable changes to this project are documented here.
   eligible cleanup dry-run.
 - Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
 
+### Added
+
+- Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
+  architecture alias normalization, descriptor-bound offline cache reuse, and
+  actionable platform mismatch reporting.
+- Added content-bound SDK licence acceptance plus decoder-local, digest-verified
+  licence and third-party notice material.
+- Added deterministic `rec decode-tree` and `rec decode-manifest` operations,
+  corresponding Python APIs, constrained overwrite, per-file outcomes, and
+  atomic versioned summaries.
+
 ## 0.3.2 — 2026-07-27
 
 ### Fixed
