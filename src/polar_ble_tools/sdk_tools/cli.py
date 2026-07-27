@@ -124,6 +124,12 @@ def main(argv: list[str] | None = None) -> int:
                     commit=args.commit, activate=not args.no_activate, offline=args.offline
                 )
                 print(f"built REC decoder for {result.sdk_commit}: {result.decoder_path}")
+                print(
+                    "Warning: do not redistribute this locally compiled decoder under "
+                    "polar-ble-tools' Apache-2.0 licence alone; it contains or links "
+                    "SDK-governed material.",
+                    file=sys.stderr,
+                )
                 return 0
             if args.decoder_command == "verify":
                 verify_decoder()

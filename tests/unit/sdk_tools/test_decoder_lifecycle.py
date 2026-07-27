@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tarfile
 from pathlib import Path
@@ -10,6 +11,8 @@ from polar_ble_tools.rec import DecoderVerificationError, decoder_status
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
     DecoderBuildError,
+    _copy_sdk_license_attribution,
+    _make_extracted_executable,
     _promote_decoder_directory,
     _replace_incomplete_directory,
     _restore_decoder_directory,
@@ -21,6 +24,7 @@ from polar_ble_tools.sdk_tools.decoder import (
     remove_decoder,
 )
 from polar_ble_tools.sdk_tools.decoder.toolchain import toolchain_descriptor
+from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 
 
 def test_workspace_contains_all_cohesive_sidecar_modules(tmp_path: Path) -> None:
@@ -37,6 +41,44 @@ def test_workspace_contains_all_cohesive_sidecar_modules(tmp_path: Path) -> None
         "Publication.kt",
         "RecordingDecoder.kt",
     }
+
+
+def test_sdk_license_is_copied_exactly_as_attribution(tmp_path: Path) -> None:
+    source, runtime = tmp_path / "sdk", tmp_path / "runtime"
+    source.mkdir()
+    payload = b"Polar SDK licence bytes\r\n\x00unchanged\n"
+    (source / SDK_LICENSE_FILE).write_bytes(payload)
+    commit = "a" * 40
+
+    attribution = _copy_sdk_license_attribution(source, runtime, commit=commit)
+
+    copied = runtime / "attribution" / SDK_LICENSE_FILE
+    assert copied.read_bytes() == payload
+    assert attribution == {
+        "relative_path": f"attribution/{SDK_LICENSE_FILE}",
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "sdk_commit": commit,
+        "purpose": "attribution",
+        "is_acceptance_record": False,
+    }
+
+
+def test_sdk_license_attribution_requires_regular_source_file(tmp_path: Path) -> None:
+    source, runtime = tmp_path / "sdk", tmp_path / "runtime"
+    source.mkdir()
+
+    with pytest.raises(DecoderBuildError, match="missing a regular"):
+        _copy_sdk_license_attribution(source, runtime, commit="a" * 40)
+
+
+def test_extracted_gradle_launcher_gets_executable_bits(tmp_path: Path) -> None:
+    executable = tmp_path / "gradle"
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o644)
+
+    _make_extracted_executable(executable, kind="Gradle")
+
+    assert executable.stat().st_mode & 0o111 == 0o111
 
 
 def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:

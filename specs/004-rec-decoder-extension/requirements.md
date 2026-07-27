@@ -40,9 +40,14 @@ also means the caller accepts the licence for that call; no acceptance record
 is retained or inherited from a legacy cache.
 
 **FR-061** — Keep SDK source and SDK-derived outputs local and out of project
-distributions. Decoder and generated-schema caches do not copy or independently
-enforce SDK licence or notice files. Package-managed legacy decoder entries are
-not grandfathered; externally managed sidecars are out of scope.
+distributions. During build, copy the exact `Polar_SDK_License.txt` from the
+pinned SDK checkout into the local decoder runtime, record its SHA-256 and SDK
+commit, and label it as attribution rather than acceptance. Its presence never
+replaces fresh per-invocation consent. Generated-schema caches do not copy or
+independently enforce SDK licence files. Externally managed sidecars are out of
+scope. Neither the attribution file nor the compiled decoder may enter PyPI
+artifacts, and users must not redistribute the decoder under the project's
+Apache-2.0 licence alone.
 
 **FR-063** — Each claimed REC category has an explicit project-owned adapter
 contract defining names, units, nullability, numeric treatment, timestamps,

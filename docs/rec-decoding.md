@@ -57,9 +57,17 @@ shared across commits. Activation executes the sidecar `version` and
 `self-test` handshakes and preserves the previously active decoder on failure.
 Use `--offline` only after the toolchain and Gradle dependencies are cached.
 
-Package-managed decoder caches created under the former licence-material
-contract must be rebuilt and are not grandfathered. Manually or externally
-managed sidecars are outside this package's lifecycle and compatibility scope.
+The build copies the exact `Polar_SDK_License.txt` from the pinned local SDK
+checkout into the decoder runtime as attribution material. Its SHA-256 and SDK
+commit are recorded in the decoder manifest. This is not an acceptance record
+and does not replace fresh consent on any later SDK install/download invocation.
+Older package-managed decoder caches without this attribution contract must be
+rebuilt. Manually or externally managed sidecars are outside this package's
+lifecycle and compatibility scope.
+
+> **Redistribution warning:** Do not redistribute the locally compiled decoder
+> under the `polar-ble-tools` Apache-2.0 licence alone. The local build contains
+> or links material governed by the Polar BLE SDK licence.
 
 ## Check status
 
@@ -125,8 +133,8 @@ workspace; it never removes the shared JDK automatically.
 
 Manifests record digests for every runtime file and the JDK executable. The
 project distributes only its Kotlin and Gradle templates. It does not distribute
-Polar SDK source, recordings, generated schemas, JARs, classes, or a decoder
-binary.
+Polar SDK source, `Polar_SDK_License.txt`, recordings, generated schemas, JARs,
+classes, or a decoder binary in PyPI artifacts.
 
 ## Compatibility and limitations
 

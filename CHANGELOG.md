@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Restored executable permissions on the expected Gradle launcher after safe
+  ZIP extraction so a freshly provisioned decoder toolchain can build.
+
 ### Documentation
 
 - Documented device-scoped Loop Gen 2 evidence for advertised recording types
@@ -21,14 +26,19 @@ All notable changes to this project are documented here.
 - Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
   architecture alias normalization, descriptor-bound offline cache reuse, and
   actionable platform mismatch reporting.
+- Decoder builds now copy the pinned SDK's exact licence into the local runtime
+  as attribution-only material and bind its SHA-256 and SDK commit in the
+  manifest. The attribution file and compiled decoder remain excluded from
+  PyPI distributions.
 
 ### Changed
 
+- `doctor` now reports a non-fatal active SDK/decoder commit mismatch and
+  suggests rebuilding the decoder without changing decoder availability.
 - Simplified Polar BLE SDK licence consent to one interactive `y/N` install
   confirmation on every install/download invocation, with `-y`/`--yes` for
-  unattended use. Removed persisted content-bound acceptance and
-  decoder/generated-cache licence-notice gates; legacy managed decoder caches
-  require rebuilding.
+  unattended use. Removed persisted content-bound acceptance and generated-cache
+  licence gates; decoder-local attribution is never treated as acceptance.
 - Decomposed REC decoding into cohesive model, sidecar process, protocol
   validation, and publication modules, and split the JVM template into command,
   SDK parsing, payload adaptation, JSON protocol, and publication modules

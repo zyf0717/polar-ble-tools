@@ -7,6 +7,7 @@ import pytest
 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.cli import main as sdk_main
+from polar_ble_tools.sdk_tools.decoder import DecoderBuildResult
 from polar_ble_tools.sdk_tools.discovery import ProtoDiscoveryError
 from polar_ble_tools.sdk_tools.downloader import (
     PINNED_SDK_COMMIT,
@@ -224,6 +225,22 @@ def test_cli_requests_fresh_consent_when_reusing_an_sdk(
     assert sdk_main(["download"]) == 0
     assert sdk_main(["download"]) == 0
     assert prompts == 2
+
+
+def test_cli_decoder_build_warns_against_apache_only_redistribution(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    result = DecoderBuildResult("c" * 40, tmp_path / "decoder", True)
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.build_decoder", lambda **_kwargs: result)
+
+    assert sdk_main(["decoder", "build"]) == 0
+
+    captured = capsys.readouterr()
+    assert "built REC decoder" in captured.out
+    assert "do not redistribute" in captured.err
+    assert "Apache-2.0 licence alone" in captured.err
 
 
 def test_cli_install_proceeds_when_confirmed(

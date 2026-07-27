@@ -7,6 +7,10 @@
 - transactional activation and rollback;
 - per-invocation SDK licence confirmation, cache-reuse prompting, legacy-state
   removal, and `-y` prompt bypass;
+- exact decoder-local SDK licence attribution copy, manifest commit/digest
+  binding, explicit non-acceptance labeling, and distribution exclusion;
+- non-fatal doctor warning and rebuild remediation for active SDK/decoder
+  commit mismatch;
 - protocol-v1 handshake and invocation compatibility;
 - bounded stdout/stderr, timeout, and process-group cleanup behavior;
 - strict JSONL header/record/summary validation;

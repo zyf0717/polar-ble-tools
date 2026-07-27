@@ -34,6 +34,7 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
     toolchain_descriptor_digest,
 )
 from polar_ble_tools.sdk_tools.downloader import (
+    SDK_LICENSE_FILE,
     SUPPORTED_SDK_COMMIT,
     active_sdk_source,
 )
@@ -52,6 +53,7 @@ class DecoderBuildResult:
 
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_SDK_LICENSE_ATTRIBUTION_PATH = f"attribution/{SDK_LICENSE_FILE}"
 _TOOLCHAIN_MANIFEST = ".polar-rec-toolchain.json"
 _DECODER_PROJECT_FILES = (
     "DecoderMain.kt",
@@ -159,8 +161,14 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderBuildError(f"Decoder distribution has an unsafe entry: {path}")
         relative = path.relative_to(root).as_posix()
-        allowed = relative in _RUNTIME_LAUNCHERS or (
-            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        allowed = (
+            relative in _RUNTIME_LAUNCHERS
+            or relative == _SDK_LICENSE_ATTRIBUTION_PATH
+            or (
+                relative.startswith("lib/")
+                and "/" not in relative[4:]
+                and relative.endswith(".jar")
+            )
         )
         if not allowed:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
@@ -170,6 +178,28 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
             "Decoder distribution is missing its launcher or runtime libraries."
         )
     return files
+
+
+def _copy_sdk_license_attribution(source: Path, runtime: Path, *, commit: str) -> dict[str, object]:
+    """Copy exact SDK licence bytes as attribution, never as consent state."""
+    source_license = source / SDK_LICENSE_FILE
+    if not source_license.is_file() or source_license.is_symlink():
+        raise DecoderBuildError(
+            f"Pinned SDK checkout is missing a regular {SDK_LICENSE_FILE} file."
+        )
+    destination = runtime / _SDK_LICENSE_ATTRIBUTION_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_license, destination)
+    digest = _digest(destination)
+    if digest != _digest(source_license):
+        raise DecoderBuildError("SDK licence attribution copy failed integrity verification.")
+    return {
+        "relative_path": _SDK_LICENSE_ATTRIBUTION_PATH,
+        "sha256": digest,
+        "sdk_commit": commit,
+        "purpose": "attribution",
+        "is_acceptance_record": False,
+    }
 
 
 def _run(
@@ -330,6 +360,13 @@ def _write_tool_entry_manifest(
     )
 
 
+def _make_extracted_executable(path: Path, *, kind: str) -> None:
+    """Restore execute bits only on the expected regular extracted launcher."""
+    if not path.is_file() or path.is_symlink():
+        raise DecoderBuildError(f"Extracted {kind} executable is missing or unsafe.")
+    path.chmod(path.stat().st_mode | 0o111)
+
+
 def _provision_toolchain(
     cache: SdkCache,
     build_root: Path,
@@ -399,6 +436,7 @@ def _provision_toolchain(
                         raise DecoderBuildError("Gradle archive contains an unsafe path.")
                     archive.extract(member, temporary)
             staged_gradle = Path(temporary) / f"gradle-{descriptor.gradle_version}"
+            _make_extracted_executable(staged_gradle / "bin" / "gradle", kind="Gradle")
             _write_tool_entry_manifest(
                 staged_gradle,
                 staged_gradle / "bin" / "gradle",
@@ -530,6 +568,7 @@ def build_decoder(
         staged = Path(temporary) / "decoder"
         shutil.copytree(distribution, staged)
         staged_executable = staged / "bin" / "polar-rec-decoder"
+        sdk_license_attribution = _copy_sdk_license_attribution(source, staged, commit=commit)
         runtime_files = _runtime_file_digests(staged)
         manifest = {
             "manifest_version": 1,
@@ -551,6 +590,7 @@ def build_decoder(
             "executable_sha256": _digest(staged_executable),
             "verification_level": "handshake",
             "verified": True,
+            "sdk_license_attribution": sdk_license_attribution,
             "runtime_files": runtime_files,
             "runtime": {
                 "kind": "pinned-jvm",

@@ -61,6 +61,7 @@ executable_relative_path
 executable_sha256
 runtime_files
 runtime
+sdk_license_attribution
 ```
 
 Every relative path resolves inside its applicable configured cache root.
@@ -72,6 +73,11 @@ reverified before decode. A mismatch reports unavailable or verification
 failure with `polar-ble sdk decoder build` as remediation; it never silently
 selects another decoder.
 
+`doctor` reports a non-fatal warning when the active schema SDK commit differs
+from the active decoder's SDK commit. The warning records both commits and
+suggests `polar-ble sdk decoder build`; it does not invalidate an otherwise
+verified decoder.
+
 ## SDK licence confirmation
 
 Every SDK install/download CLI invocation states that proceeding accepts the
@@ -79,15 +85,20 @@ Polar BLE SDK licence and uses a `y/N` confirmation, including cache reuse.
 `-y`/`--yes` proceeds non-interactively. Each explicit Python installation API
 call implies fresh acceptance by the caller.
 
-Acceptance is not persisted or bound to SDK content. Decoder and
-generated-schema cache entries do not copy or validate separate SDK licence or
-notice files. SDK source and SDK-derived outputs remain local and excluded from
-Git, Python distributions, public CI artifacts or caches, container layers, and
-release assets.
+Acceptance is not persisted or bound to SDK content. During build, the exact
+`Polar_SDK_License.txt` from the pinned checkout is copied into the local
+decoder runtime. The manifest records its runtime-relative path, SHA-256, and
+SDK commit with `purpose: attribution` and `is_acceptance_record: false`.
+Runtime verification treats it as digest-bound attribution material, never as
+permission to reuse or reinstall the SDK without fresh consent.
 
-Package-managed decoder entries carrying the former licence-material manifest
-contract are rejected with a rebuild remediation. Externally managed sidecars
-are outside this package's lifecycle and compatibility scope.
+Generated-schema cache entries do not copy or validate a standalone SDK licence
+file. SDK source, the decoder-local attribution file, and SDK-derived outputs
+remain local and excluded from Git, Python distributions, public CI artifacts
+or caches, container layers, and release assets. Users must not redistribute a
+locally compiled decoder under the project's Apache-2.0 licence alone.
+Externally managed sidecars are outside this package's lifecycle and
+compatibility scope.
 
 ## Protocol-v1 invocation
 

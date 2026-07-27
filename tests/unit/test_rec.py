@@ -22,6 +22,7 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
     toolchain_descriptor,
     toolchain_descriptor_digest,
 )
+from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 
 COMMIT = "a" * 40
 
@@ -59,6 +60,9 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         encoding="utf-8",
     )
     executable.chmod(0o755)
+    attribution = root / "attribution" / SDK_LICENSE_FILE
+    attribution.parent.mkdir()
+    attribution.write_text("SDK attribution material\n", encoding="utf-8")
     (root / "manifest.json").write_text(
         json.dumps(
             {
@@ -79,6 +83,14 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "executable_sha256": _digest(executable),
                 "runtime_files": {
                     "bin/polar-rec-decoder": _digest(executable),
+                    f"attribution/{SDK_LICENSE_FILE}": _digest(attribution),
+                },
+                "sdk_license_attribution": {
+                    "relative_path": f"attribution/{SDK_LICENSE_FILE}",
+                    "sha256": _digest(attribution),
+                    "sdk_commit": COMMIT,
+                    "purpose": "attribution",
+                    "is_acceptance_record": False,
                 },
                 "runtime": {
                     "kind": "pinned-jvm",
@@ -237,6 +249,32 @@ def test_status_rejects_legacy_package_managed_decoder_cache(tmp_path: Path) -> 
     assert not status.available
     assert "Legacy package-managed decoder cache is unsupported" in (status.reason or "")
     assert "polar-ble sdk decoder build" in (status.reason or "")
+
+
+def test_status_rejects_license_attribution_labelled_as_acceptance(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    manifest_path = cache.decoder_path(COMMIT) / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["sdk_license_attribution"]["is_acceptance_record"] = True
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "invalid SDK licence attribution" in (status.reason or "")
+
+
+def test_status_rejects_changed_license_attribution_bytes(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    attribution = cache.decoder_path(COMMIT) / "attribution" / SDK_LICENSE_FILE
+    attribution.write_text("changed attribution material\n", encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "runtime files changed" in (status.reason or "")
 
 
 def test_status_reports_actionable_architecture_mismatch(

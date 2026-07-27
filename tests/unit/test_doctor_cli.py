@@ -32,3 +32,23 @@ def test_doctor_reports_core_ready_and_missing_schemas(monkeypatch, capsys) -> N
         "verification_level": None,
         "verified": False,
     }
+    assert output["warnings"] == []
+
+
+def test_doctor_prints_non_fatal_rebuild_warning(monkeypatch, capsys) -> None:
+    warning = "Active SDK differs from active REC decoder SDK; rebuild: polar-ble sdk decoder build"
+    monkeypatch.setattr(
+        "polar_ble_tools.commands.doctor.doctor",
+        lambda: DoctorReport(
+            sdk=SdkStatus(active_commit="a" * 40, installed_commits=("a" * 40,)),
+            schemas=DoctorSchemaStatus(ready=True, active_commit="a" * 40),
+            decoder=DecoderStatus(True, True, "b" * 40, 1, "handshake", None),
+            warnings=(warning,),
+        ),
+    )
+
+    assert doctor_main([]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["decoder"]["available"] is True
+    assert output["warnings"] == [warning]

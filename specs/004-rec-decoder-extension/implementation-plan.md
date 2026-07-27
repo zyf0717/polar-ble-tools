@@ -6,7 +6,9 @@
 2. Add pinned aarch64 JDK provenance and host alias normalization.
 3. Generalize provisioning, manifest, verification, activation, and rollback.
 4. Add per-invocation licence confirmation and `-y` automation bypass.
-5. Add synthetic cross-architecture lifecycle tests.
+5. Bind an exact SDK licence attribution copy to the local decoder manifest
+   without creating reusable acceptance state.
+6. Add synthetic cross-architecture lifecycle tests.
 
 ## Phase 2 — architecture certification
 

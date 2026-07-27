@@ -35,6 +35,33 @@ def test_doctor_returns_structured_unavailable_optional_features(monkeypatch, tm
     assert not report.schemas.ready
     assert report.schemas.remediation == "polar-ble sdk install"
     assert report.to_dict()["decoder"]["reason"] == "not built"
+    assert report.warnings == ()
+
+
+def test_doctor_warns_without_invalidating_mismatched_decoder(monkeypatch, tmp_path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    sdk_commit, decoder_commit = "a" * 40, "b" * 40
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.downloader.sdk_status",
+        lambda *, cache: SdkStatus(sdk_commit, (sdk_commit,)),
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.verify_active_schemas",
+        lambda *, cache: tmp_path / "schemas",
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.rec.decoder_status",
+        lambda *, cache: DecoderStatus(True, True, decoder_commit, 1, "handshake", None),
+    )
+
+    report = doctor(cache=cache)
+
+    assert report.decoder.available
+    assert len(report.warnings) == 1
+    assert sdk_commit in report.warnings[0]
+    assert decoder_commit in report.warnings[0]
+    assert "polar-ble sdk decoder build" in report.warnings[0]
+    assert report.to_dict()["warnings"] == list(report.warnings)
 
 
 def test_apply_ftu_owns_session_and_applies_initial_settings(monkeypatch) -> None:

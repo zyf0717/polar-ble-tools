@@ -59,6 +59,7 @@ class DoctorReport:
     sdk: SdkStatus
     schemas: DoctorSchemaStatus
     decoder: DecoderStatus
+    warnings: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -69,6 +70,7 @@ class DoctorReport:
             },
             "schemas": self.schemas.to_dict(),
             "decoder": asdict(self.decoder),
+            "warnings": list(self.warnings),
         }
 
 
@@ -248,7 +250,19 @@ def doctor(*, cache: SdkCache | None = None) -> DoctorReport:
             schemas = DoctorSchemaStatus(
                 ready=True, active_commit=sdk.active_commit, path=schema_root
             )
-    return DoctorReport(sdk=sdk, schemas=schemas, decoder=decoder_status(cache=cache))
+    decoder = decoder_status(cache=cache)
+    warnings = ()
+    if (
+        sdk.active_commit is not None
+        and decoder.sdk_commit is not None
+        and sdk.active_commit != decoder.sdk_commit
+    ):
+        warnings = (
+            f"Active SDK {sdk.active_commit} differs from active REC decoder SDK "
+            f"{decoder.sdk_commit}. The decoder remains usable; rebuild it against "
+            "the active SDK if that revision is supported: polar-ble sdk decoder build",
+        )
+    return DoctorReport(sdk=sdk, schemas=schemas, decoder=decoder, warnings=warnings)
 
 
 async def apply_ftu(

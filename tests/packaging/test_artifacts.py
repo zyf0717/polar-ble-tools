@@ -25,7 +25,14 @@ SKIPPED_SOURCE_DIRECTORIES = frozenset(
 )
 PRIVATE_PATH_COMPONENTS = frozenset({"private", "captures", "profiles"})
 PROHIBITED_FILENAMES = frozenset(
-    {"devices.yaml", "generation-plan.json", "generated-manifest.json"}
+    {
+        "Polar_SDK_License.txt",
+        "devices.yaml",
+        "generation-plan.json",
+        "generated-manifest.json",
+        "polar-rec-decoder",
+        "polar-rec-decoder.bat",
+    }
 )
 PROHIBITED_SUFFIXES = (
     ".rec",
@@ -195,6 +202,14 @@ def test_prohibited_member_scanner() -> None:
         == "prohibited schema or compiled artifact"
     )
     assert prohibited_member_reason("README.md") is None
+    assert (
+        prohibited_member_reason("polar_ble_tools/attribution/Polar_SDK_License.txt")
+        == "prohibited generated or private file"
+    )
+    assert (
+        prohibited_member_reason("polar_ble_tools/bin/polar-rec-decoder")
+        == "prohibited generated or private file"
+    )
 
 
 def test_source_tree_has_no_prohibited_artifacts() -> None:

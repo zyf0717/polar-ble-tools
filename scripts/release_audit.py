@@ -26,7 +26,15 @@ PROHIBITED_SUFFIXES = (
     ".zip",
 )
 PROHIBITED_NAMES = frozenset(
-    {"devices.yaml", "test_devices.yaml", "generated-manifest.json", "generation-plan.json"}
+    {
+        "devices.yaml",
+        "test_devices.yaml",
+        "generated-manifest.json",
+        "generation-plan.json",
+        "polar_sdk_license.txt",
+        "polar-rec-decoder",
+        "polar-rec-decoder.bat",
+    }
 )
 PRIVATE_COMPONENTS = frozenset({"captures", "credentials", "private", "profiles"})
 PROJECT_OWNED_DECODER_TEMPLATES = frozenset(

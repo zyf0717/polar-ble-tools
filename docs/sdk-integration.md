@@ -70,4 +70,11 @@ decoder: sdk decoder build -> verify -> activate -> rec decode
 separately obtained SDK source but retains a separate local runtime, manifest,
 and activation state. Only sidecars built and managed through this lifecycle are
 supported. Externally managed sidecars are outside the package's verification
-and compatibility scope. See [REC decoding](rec-decoding.md).
+and compatibility scope.
+
+During decoder build only, the exact SDK licence is copied from the pinned
+checkout into the local decoder runtime as attribution material. The decoder
+manifest binds its SHA-256 to the SDK commit and explicitly marks it as not an
+acceptance record. Neither that file nor the compiled decoder is included in
+PyPI distributions. Do not redistribute the locally compiled decoder under
+this project's Apache-2.0 licence alone. See [REC decoding](rec-decoding.md).

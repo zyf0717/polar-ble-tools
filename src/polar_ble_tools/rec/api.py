@@ -47,9 +47,11 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
     java_home as toolchain_java_home,
 )
+from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_SDK_LICENSE_ATTRIBUTION_PATH = f"attribution/{SDK_LICENSE_FILE}"
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _DIGEST_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -155,13 +157,49 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderManifestError(f"Decoder runtime has an unsafe entry: {path.name}")
         relative = path.relative_to(root).as_posix()
-        allowed = relative in _RUNTIME_LAUNCHERS or (
-            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        allowed = (
+            relative in _RUNTIME_LAUNCHERS
+            or relative == _SDK_LICENSE_ATTRIBUTION_PATH
+            or (
+                relative.startswith("lib/")
+                and "/" not in relative[4:]
+                and relative.endswith(".jar")
+            )
         )
         if not allowed:
             raise DecoderManifestError(f"Decoder runtime has an unexpected file: {relative}")
         files[relative] = _digest(path)
     return files
+
+
+def _validate_sdk_license_attribution(
+    manifest: Mapping[str, object],
+    runtime_files: Mapping[str, object],
+    *,
+    commit: str,
+) -> None:
+    attribution = manifest.get("sdk_license_attribution")
+    if (
+        not isinstance(attribution, dict)
+        or set(attribution)
+        != {
+            "relative_path",
+            "sha256",
+            "sdk_commit",
+            "purpose",
+            "is_acceptance_record",
+        }
+        or attribution.get("relative_path") != _SDK_LICENSE_ATTRIBUTION_PATH
+        or attribution.get("sdk_commit") != commit
+        or attribution.get("purpose") != "attribution"
+        or attribution.get("is_acceptance_record") is not False
+        or not _DIGEST_RE.fullmatch(str(attribution.get("sha256")))
+        or runtime_files.get(_SDK_LICENSE_ATTRIBUTION_PATH) != attribution.get("sha256")
+    ):
+        raise DecoderManifestError(
+            "Decoder manifest has invalid SDK licence attribution; rebuild with: "
+            "polar-ble sdk decoder build"
+        )
 
 
 def _recover_interrupted_promotion(cache: SdkCache, commit: str) -> Path:
@@ -246,6 +284,7 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         raise DecoderManifestError(
             "Decoder manifest does not describe a verified protocol-v1 decoder."
         )
+    _validate_sdk_license_attribution(manifest, expected_runtime_files, commit=commit)
     executable = (root / relative).resolve()
     if (
         not _within(executable, root)

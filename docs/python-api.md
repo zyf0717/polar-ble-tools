@@ -53,7 +53,9 @@ Specialized modules are deliberately separate from the top-level facade:
 - SDK and decoder actions are explicit. Importing any API never downloads,
   generates, builds, or activates local material.
 - `doctor()` is non-mutating. Use `DoctorReport.to_dict()` for the same stable
-  representation produced by `polar-ble doctor`.
+  representation produced by `polar-ble doctor`. Its non-fatal `warnings`
+  identify active SDK/decoder commit mismatches and suggest rebuilding the
+  decoder without marking a verified decoder unavailable.
 - REC decoding raises a `RecDecodeError` subclass for unavailable, invalid,
   altered, incompatible, timed-out, or failed sidecars.
 

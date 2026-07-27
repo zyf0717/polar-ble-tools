@@ -19,8 +19,9 @@ OFFICIAL_SDK_URL = "https://github.com/polarofficial/polar-ble-sdk.git"
 SUPPORTED_SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
 MANIFEST_FILE = "download-manifest.json"
+SDK_LICENSE_FILE = "Polar_SDK_License.txt"
 _LEGACY_ACCEPTANCE_FIELDS = frozenset({"license_acceptance", "license_notice_present"})
-_LEGACY_LICENSE_COPY = "Polar_SDK_License.txt"
+_LEGACY_LICENSE_COPY = SDK_LICENSE_FILE
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
