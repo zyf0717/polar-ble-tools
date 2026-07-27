@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from polar_ble_tools.storage_utils import append_json_line, atomic_write_bytes
+from polar_ble_tools.storage_utils import append_json_line, atomic_write_bytes, sha256_file
 
 SCHEMA_VERSION = 1
 DEFAULT_PASSIVE_ROOT = Path(".local/polar-ble-passive")
@@ -178,7 +178,7 @@ class PassiveFileStore:
             path = self.resolve_local_path(entry.local_path)
             if not path.is_file() or path.stat().st_size != device_size:
                 continue
-            if hashlib.sha256(path.read_bytes()).hexdigest() == entry.sha256:
+            if sha256_file(path) == entry.sha256:
                 return entry
         return None
 

@@ -52,8 +52,16 @@ class PassiveFileEntry:
 
 @dataclass(frozen=True)
 class PassiveFileListing:
-    entries: list[PassiveFileEntry]
-    missing: list[str]
+    entries: tuple[PassiveFileEntry, ...]
+    missing: tuple[str, ...]
+
+    def __init__(
+        self,
+        entries: tuple[PassiveFileEntry, ...] | list[PassiveFileEntry],
+        missing: tuple[str, ...] | list[str],
+    ) -> None:
+        object.__setattr__(self, "entries", tuple(entries))
+        object.__setattr__(self, "missing", tuple(missing))
 
 
 class PassiveDataClient:
@@ -129,7 +137,8 @@ class PassiveDataClient:
                 ):
                     missing.append(expected)
         return PassiveFileListing(
-            sorted(entries, key=lambda item: (item.domain.value, item.path)), sorted(set(missing))
+            tuple(sorted(entries, key=lambda item: (item.domain.value, item.path))),
+            tuple(sorted(set(missing))),
         )
 
     async def fetch_raw_file(self, entry: PassiveFileEntry) -> bytes:

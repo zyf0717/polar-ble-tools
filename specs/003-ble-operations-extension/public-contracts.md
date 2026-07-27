@@ -1,5 +1,9 @@
 # Public contracts
 
+Recording-control, retrieval, passive collection, and guarded cleanup contracts
+are normative for SPEC-003. REC decoder and protected compatibility contracts
+are transferred to SPEC-004 and SPEC-005.
+
 ## CLI contract
 
 The consolidated CLI remains canonical:

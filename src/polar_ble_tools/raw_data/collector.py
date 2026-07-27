@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from polar_ble_tools.ble.transport import BleTransportError
 from polar_ble_tools.polar.offline import (
     DeviceDeletionResult,
+    DeviceDeletionStatus,
     OfflineRecordingClient,
     OfflineRecordingControlClient,
     OfflineRecordingEntry,
@@ -20,23 +22,47 @@ from polar_ble_tools.raw_data.storage import (
 )
 
 
+class RawCollectionStatus(StrEnum):
+    FETCHED = "fetched"
+    SKIPPED = "skipped"
+    IGNORED = "ignored"
+    FAILED = "failed"
+
+
 @dataclass(frozen=True)
 class CollectionRecordResult:
     device_path: str
     record_type: str
-    status: str
+    status: RawCollectionStatus
     base_record_type: str | None = None
     local_path: str | None = None
     fetched_size: int | None = None
     sha256: str | None = None
     error: str | None = None
-    delete_status: str | None = None
-    deleted_paths: list[str] | None = None
-    cleaned_directories: list[str] | None = None
+    delete_status: DeviceDeletionStatus | None = None
+    deleted_paths: tuple[str, ...] | None = None
+    cleaned_directories: tuple[str, ...] | None = None
     delete_error: str | None = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "status", RawCollectionStatus(self.status))
+        if self.delete_status is not None:
+            object.__setattr__(self, "delete_status", DeviceDeletionStatus(self.delete_status))
+        if self.deleted_paths is not None:
+            object.__setattr__(self, "deleted_paths", tuple(self.deleted_paths))
+        if self.cleaned_directories is not None:
+            object.__setattr__(self, "cleaned_directories", tuple(self.cleaned_directories))
+
     def to_jsonable(self) -> dict[str, object]:
-        return self.__dict__.copy()
+        return {
+            **self.__dict__,
+            "status": self.status.value,
+            "delete_status": self.delete_status.value if self.delete_status else None,
+            "deleted_paths": list(self.deleted_paths) if self.deleted_paths is not None else None,
+            "cleaned_directories": (
+                list(self.cleaned_directories) if self.cleaned_directories is not None else None
+            ),
+        }
 
     def with_delete_result(self, result: DeviceDeletionResult) -> CollectionRecordResult:
         return CollectionRecordResult(
@@ -59,9 +85,12 @@ class CollectionResult:
     skipped: int
     ignored: int
     failed: int
-    records: list[CollectionRecordResult]
+    records: tuple[CollectionRecordResult, ...]
     deleted: int = 0
     delete_failed: int = 0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "records", tuple(self.records))
 
     @property
     def ok(self) -> bool:
@@ -84,7 +113,10 @@ class CleanupResult:
     dry_run: int
     blocked: int
     failed: int
-    records: list[DeviceDeletionResult]
+    records: tuple[DeviceDeletionResult, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "records", tuple(self.records))
 
     @property
     def ok(self) -> bool:
@@ -117,7 +149,7 @@ class RawRecordingCollector:
             if requested and not any(
                 record_type_matches_filter(entry.record_type, value) for value in requested
             ):
-                results.append(self._result(entry, status="ignored"))
+                results.append(self._result(entry, status=RawCollectionStatus.IGNORED))
                 continue
             existing = self.store.has_existing_record(device_id, entry)
             if existing is not None:
@@ -133,11 +165,15 @@ class RawRecordingCollector:
             except Exception as exc:
                 if isinstance(exc, BleTransportError):
                     raise
-                results.append(self._result(entry, status="failed", error=str(exc)))
+                results.append(
+                    self._result(entry, status=RawCollectionStatus.FAILED, error=str(exc))
+                )
 
         if delete_after_collect:
             eligible = {
-                result.device_path for result in results if result.status in {"fetched", "skipped"}
+                result.device_path
+                for result in results
+                if result.status in {RawCollectionStatus.FETCHED, RawCollectionStatus.SKIPPED}
             }
             deletions = await self._delete_verified_records(
                 device_id,
@@ -151,14 +187,19 @@ class RawRecordingCollector:
             device_id=device_id,
             output_dir=str(self.store.root),
             listed=len(entries),
-            fetched=sum(item.status == "fetched" for item in results),
-            skipped=sum(item.status == "skipped" for item in results),
-            ignored=sum(item.status == "ignored" for item in results),
-            failed=sum(item.status == "failed" for item in results),
-            records=results,
-            deleted=sum(item.delete_status == "deleted" for item in results),
+            fetched=sum(item.status == RawCollectionStatus.FETCHED for item in results),
+            skipped=sum(item.status == RawCollectionStatus.SKIPPED for item in results),
+            ignored=sum(item.status == RawCollectionStatus.IGNORED for item in results),
+            failed=sum(item.status == RawCollectionStatus.FAILED for item in results),
+            records=tuple(results),
+            deleted=sum(item.delete_status == DeviceDeletionStatus.DELETED for item in results),
             delete_failed=sum(
-                item.delete_status in {"blocked_unverified", "blocked_active", "failed"}
+                item.delete_status
+                in {
+                    DeviceDeletionStatus.BLOCKED_UNVERIFIED,
+                    DeviceDeletionStatus.BLOCKED_ACTIVE,
+                    DeviceDeletionStatus.FAILED,
+                }
                 for item in results
             ),
         )
@@ -197,11 +238,18 @@ class RawRecordingCollector:
             output_dir=str(self.store.root),
             listed=len(entries),
             selected=len(selected),
-            deleted=sum(item.status == "deleted" for item in results),
-            dry_run=sum(item.status == "dry_run" for item in results),
-            blocked=sum(item.status.startswith("blocked_") for item in results),
-            failed=sum(item.status == "failed" for item in results),
-            records=results,
+            deleted=sum(item.status == DeviceDeletionStatus.DELETED for item in results),
+            dry_run=sum(item.status == DeviceDeletionStatus.DRY_RUN for item in results),
+            blocked=sum(
+                item.status
+                in {
+                    DeviceDeletionStatus.BLOCKED_UNVERIFIED,
+                    DeviceDeletionStatus.BLOCKED_ACTIVE,
+                }
+                for item in results
+            ),
+            failed=sum(item.status == DeviceDeletionStatus.FAILED for item in results),
+            records=tuple(results),
         )
 
     async def _delete_verified_records(
@@ -221,6 +269,8 @@ class RawRecordingCollector:
             else:
                 try:
                     active_status = await control_client.get_recording_status()
+                except BleTransportError:
+                    raise
                 except Exception as exc:
                     active_error = f"active recording status unavailable: {exc}"
         results: list[DeviceDeletionResult] = []
@@ -234,7 +284,15 @@ class RawRecordingCollector:
                 if isinstance(exc, BleTransportError):
                     raise
                 results.append(
-                    self._audit(device_id, self._deletion(entry, "failed", [entry.path], str(exc)))
+                    self._audit(
+                        device_id,
+                        self._deletion(
+                            entry,
+                            DeviceDeletionStatus.FAILED,
+                            [entry.path],
+                            str(exc),
+                        ),
+                    )
                 )
                 continue
             paths = [item.path for item in family]
@@ -245,7 +303,7 @@ class RawRecordingCollector:
                         device_id,
                         self._deletion(
                             entry,
-                            "blocked_unverified",
+                            DeviceDeletionStatus.BLOCKED_UNVERIFIED,
                             paths,
                             "record family has unselected members",
                         ),
@@ -263,7 +321,7 @@ class RawRecordingCollector:
                         device_id,
                         self._deletion(
                             entry,
-                            "blocked_unverified",
+                            DeviceDeletionStatus.BLOCKED_UNVERIFIED,
                             paths,
                             "local verification failed: " + ", ".join(unverified),
                         ),
@@ -273,7 +331,10 @@ class RawRecordingCollector:
             if active_error:
                 results.append(
                     self._audit(
-                        device_id, self._deletion(entry, "blocked_active", paths, active_error)
+                        device_id,
+                        self._deletion(
+                            entry, DeviceDeletionStatus.BLOCKED_ACTIVE, paths, active_error
+                        ),
                     )
                 )
                 continue
@@ -291,18 +352,22 @@ class RawRecordingCollector:
                         device_id,
                         self._deletion(
                             entry,
-                            "blocked_active",
+                            DeviceDeletionStatus.BLOCKED_ACTIVE,
                             paths,
                             "offline recording is active for types: " + ", ".join(active_types),
                         ),
                     )
                 )
                 continue
-            results.append(
+            try:
+                deletion = await self.offline_client.remove_record(entry, dry_run=dry_run)
+            except BleTransportError as exc:
                 self._audit(
-                    device_id, await self.offline_client.remove_record(entry, dry_run=dry_run)
+                    device_id,
+                    self._deletion(entry, DeviceDeletionStatus.FAILED, paths, str(exc)),
                 )
-            )
+                raise
+            results.append(self._audit(device_id, deletion))
         return results
 
     def _audit(self, device_id: str, result: DeviceDeletionResult) -> DeviceDeletionResult:
@@ -311,7 +376,10 @@ class RawRecordingCollector:
 
     @staticmethod
     def _result(
-        entry: OfflineRecordingEntry, *, status: str, error: str | None = None
+        entry: OfflineRecordingEntry,
+        *,
+        status: RawCollectionStatus,
+        error: str | None = None,
     ) -> CollectionRecordResult:
         return CollectionRecordResult(
             entry.path,
@@ -323,15 +391,18 @@ class RawRecordingCollector:
 
     @staticmethod
     def _deletion(
-        entry: OfflineRecordingEntry, status: str, paths: list[str], error: str | None = None
+        entry: OfflineRecordingEntry,
+        status: DeviceDeletionStatus,
+        paths: list[str],
+        error: str | None = None,
     ) -> DeviceDeletionResult:
         return DeviceDeletionResult(
             entry.path,
             entry.record_type,
             base_record_type_for(entry.record_type),
             status,
-            paths,
-            [],
+            tuple(paths),
+            (),
             error,
         )
 
@@ -340,7 +411,7 @@ class RawRecordingCollector:
         return CollectionRecordResult(
             entry.device_path,
             entry.record_type,
-            "fetched",
+            RawCollectionStatus.FETCHED,
             base_record_type_for(entry.record_type),
             entry.local_path,
             entry.fetched_size,
@@ -352,7 +423,7 @@ class RawRecordingCollector:
         return CollectionRecordResult(
             path,
             entry.record_type,
-            "skipped",
+            RawCollectionStatus.SKIPPED,
             base_record_type_for(entry.record_type),
             entry.local_path,
             entry.fetched_size,

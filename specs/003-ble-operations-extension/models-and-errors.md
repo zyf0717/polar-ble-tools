@@ -1,7 +1,9 @@
 # Models, errors, and workflow semantics
 
-This document defines the stable model and failure boundaries used throughout
-SPEC-003.
+Core BLE workflow and collection models are normative for SPEC-003. REC
+decoder, SDK-lifecycle, protected-fixture, and multi-device certification
+contracts in this document are transferred design inputs for SPEC-004 and
+SPEC-005.
 
 ## Model rules
 

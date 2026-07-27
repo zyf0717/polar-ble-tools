@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from polar_ble_tools.ble.transport import BleConnectionError
 from polar_ble_tools.passive_data.collector import PassiveFileCollector
 from polar_ble_tools.passive_data.storage import PassiveFileStore
 from polar_ble_tools.polar.passive import (
@@ -52,7 +53,7 @@ def test_passive_collector_hash_stores_and_skips_verified_files(tmp_path: Path) 
 
         assert (first.fetched, first.skipped, first.failed) == (1, 0, 0)
         assert (second.fetched, second.skipped, second.failed) == (0, 1, 0)
-        assert second.missing == ["/U/0/20260626/DSUM/DSUM.BPB"]
+        assert second.missing == ("/U/0/20260626/DSUM/DSUM.BPB",)
         assert client.fetches == 1
 
     asyncio.run(run())
@@ -186,5 +187,36 @@ def test_cleanup_dry_run_is_local_and_destructive_cleanup_removes_verified_file(
         assert dry.dry_run == 1
         assert deleted.deleted == 1
         assert client.removed == ["/U/0/20260624/DSUM/DSUM.BPB"]
+
+    asyncio.run(run())
+
+
+def test_cleanup_audits_then_propagates_transport_failure(tmp_path: Path) -> None:
+    class Client:
+        async def remove_file(self, _entry):
+            raise BleConnectionError("link lost")
+
+    async def run() -> None:
+        store = PassiveFileStore(tmp_path)
+        store.persist_file(
+            "AA:BB:CC:DD:EE:FF",
+            domain="daily_summary",
+            device_path="/U/0/20260624/DSUM/DSUM.BPB",
+            device_size=3,
+            payload=b"raw",
+            logical_date="2026-06-24",
+        )
+
+        with pytest.raises(BleConnectionError, match="link lost"):
+            await PassiveFileCollector(Client(), store).cleanup(  # type: ignore[arg-type]
+                "AA:BB:CC:DD:EE:FF",
+                domain=PassiveDomain.DAILY_SUMMARY,
+                delete_through=date(2026, 6, 24),
+                dry_run=False,
+            )
+
+        audit = store.deletion_audit_path("AA:BB:CC:DD:EE:FF").read_text()
+        assert '"status":"failed"' in audit
+        assert '"error":"link lost"' in audit
 
     asyncio.run(run())

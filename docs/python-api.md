@@ -47,6 +47,9 @@ Specialized modules are deliberately separate from the top-level facade:
 
 - Device-facing APIs are `async`; call them with `await` rather than
   `asyncio.run()` inside an existing event loop.
+- Collection and listing results expose tuples rather than mutable internal
+  lists. Raw/passive outcome fields use `StrEnum` models internally and retain
+  their documented string values in `to_jsonable()` output.
 - SDK and decoder actions are explicit. Importing any API never downloads,
   generates, builds, or activates local material.
 - `doctor()` is non-mutating. Use `DoctorReport.to_dict()` for the same stable

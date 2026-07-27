@@ -1,5 +1,9 @@
 # Validation and documentation
 
+Only SDK-free core BLE, packaging, and repository release gates are normative
+for SPEC-003. Sidecar, protected SDK/fixture, and hardware-certification gates
+below are transferred design inputs for SPEC-004 and SPEC-005.
+
 ## Test requirements
 
 ### SDK-free tests

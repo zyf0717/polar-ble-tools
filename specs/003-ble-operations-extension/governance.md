@@ -78,28 +78,18 @@ SPEC-003 is complete when:
 1. all recording-control operations are available through documented CLI and Python APIs;
 2. passive collection supports guarded `delete-after-collect`;
 3. passive cleanup is verified, date-bounded, domain-bounded, dry-runnable, and audited;
-4. the REC sidecar builds and verifies on Linux x86_64 and Linux aarch64;
-5. batch tree and manifest decoding produce deterministic validated outputs and summaries;
-6. controlled secret-protected REC fixtures decode without secret leakage, or the unsupported SDK limitation is explicitly recorded and accepted;
-7. compatibility documentation matches protected evidence for Loop Gen 2 and Verity Sense;
-8. same-device serialization and two-device concurrency are validated;
-9. touched modules conform to the responsibility boundaries in FR-046;
-10. avoidable duplicate orchestration, parsing, storage verification, path safety, digest, JSON publication, and sidecar invocation logic has been removed within scope;
-11. public APIs use typed project-owned models and errors while private module structure remains free to evolve;
-12. tests validate stable contracts without unnecessarily coupling to implementation details;
-13. ordinary, packaging, SDK-contract, private-fixture, and protected hardware gates pass on the integration commit;
-14. release-ready artifacts can be produced from the exact validated commit when a release is selected;
-15. release-facing documentation remains product-focused and contains no
-    comparative migration framing;
-16. generated schemas are locally produced from separately licensed inputs,
-    never manually reconstructed, and remain uncommitted/cache-only;
-17. protected REC decoding uses only the pinned official SDK parser and explicit
-    project-owned payload adapters;
-18. decoder-local licence/notices and SDK acceptance provenance are present,
-    content-bound, hashed, verified, and excluded from public outputs;
-19. public CI, caches, container layers, scans, reports, bundles, Git LFS,
-    distributions, and release assets contain no SDK source, generated SDK
-    artifact, decoder binary, private fixture, payload, device identifier, or
-    secret;
-20. privacy, fixture-retention, evidence-redaction, passive-data, and
-    non-medical-positioning requirements are satisfied.
+4. same-device operations serialize through the shared workflow runner;
+5. touched core modules conform to the responsibility boundaries in FR-046;
+6. shared publication/JSONL mechanics are centralized without merging
+   domain-specific verification or deletion policy;
+7. public APIs use immutable project-owned result models and stable serialized
+   statuses;
+8. typed transport failures abort workflows while per-file protocol failures
+   remain explicit results;
+9. tests validate stable contracts without unnecessary implementation coupling;
+10. ordinary, lint, formatting, packaging, and release-audit gates pass on the
+    integration commit;
+11. release-ready artifacts can be produced from that commit when a version is
+    selected;
+12. release-facing documentation states the supported device and feature
+    boundaries without treating SPEC-004 or SPEC-005 as completed.

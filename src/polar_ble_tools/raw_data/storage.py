@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from polar_ble_tools.polar.offline import DeviceDeletionResult, OfflineRecordingEntry
-from polar_ble_tools.storage_utils import append_json_line, atomic_write_bytes
+from polar_ble_tools.storage_utils import append_json_line, atomic_write_bytes, sha256_file
 
 SCHEMA_VERSION = 1
 DEFAULT_RAW_ROOT = Path(".local/polar-ble-raw")
@@ -181,7 +181,7 @@ class RawRecordingStore:
             local_path = self.resolve_local_path(manifest_entry.local_path)
             if not local_path.exists() or local_path.stat().st_size != entry.size:
                 continue
-            if hashlib.sha256(local_path.read_bytes()).hexdigest() == manifest_entry.sha256:
+            if sha256_file(local_path) == manifest_entry.sha256:
                 return manifest_entry
         return None
 

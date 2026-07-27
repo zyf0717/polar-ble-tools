@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Added
+
+- Added stable typed collection/deletion statuses and immutable public
+  collection results for raw and passive BLE operations.
+
+### Changed
+
+- Consolidated streaming local-file SHA-256 verification across raw and passive
+  stores while retaining their separate eligibility and audit rules.
+- Narrowed SPEC-003 to release-oriented core BLE operations; optional decoder
+  expansion and protected compatibility certification now live in SPEC-004 and
+  SPEC-005.
+
 ## 0.2.1 — 2026-07-27
 
 ### Documentation

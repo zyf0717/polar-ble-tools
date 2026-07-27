@@ -42,9 +42,12 @@ class RawCollectionResult:
     skipped: int
     ignored: int
     failed: int
-    records: list[CollectionRecordResult]
+    records: tuple[CollectionRecordResult, ...]
     deleted: int = 0
     delete_failed: int = 0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "records", tuple(self.records))
 
     @property
     def ok(self) -> bool:
@@ -66,6 +69,7 @@ async def collect_raw_recordings(
     delete_after_collect: bool = False,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> RawCollectionResult:
+    """Collect offline REC files into a verified local store."""
     resolved = resolve_polar_device_target(target)
     effective_id = device_id or resolved.device_id
     if effective_id is None:  # pragma: no cover - normalization invariant
@@ -90,13 +94,17 @@ async def list_raw_recordings(
     target: PolarDeviceTarget | str,
     *,
     transport_factory: Callable[[], BleTransport] | None = None,
-) -> list[OfflineRecordingEntry]:
+) -> tuple[OfflineRecordingEntry, ...]:
+    """List offline REC files without exposing a mutable client collection."""
     resolved = resolve_polar_device_target(target)
 
     async def workflow(device):
         return await device.services.offline.list_recording_files()
 
-    return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)
+    entries = await DeviceWorkflowRunner(transport_factory=transport_factory).run(
+        resolved, workflow
+    )
+    return tuple(entries)
 
 
 async def cleanup_raw_recordings(
@@ -108,6 +116,7 @@ async def cleanup_raw_recordings(
     dry_run: bool = False,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> CleanupResult:
+    """Delete selected REC families only after local-copy verification."""
     resolved = resolve_polar_device_target(target)
     if resolved.device_id is None:  # pragma: no cover - normalization invariant
         raise ValueError("Resolved device target is missing device_id.")
@@ -129,10 +138,11 @@ async def list_passive_files(
     target: PolarDeviceTarget | str,
     *,
     domains: tuple[PassiveDomain, ...],
-    from_date,
-    to_date,
+    from_date: date,
+    to_date: date,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> PassiveFileListing:
+    """List passive BPB files for the inclusive date range."""
     resolved = resolve_polar_device_target(target)
 
     async def workflow(device):
@@ -148,14 +158,15 @@ async def collect_passive_files(
     target: PolarDeviceTarget | str,
     *,
     domains: tuple[PassiveDomain, ...],
-    from_date,
-    to_date,
+    from_date: date,
+    to_date: date,
     root: str | Path,
     device_id: str | None = None,
     existing_file_policy: ExistingFilePolicy | str = ExistingFilePolicy.SKIP,
     delete_after_collect: bool = False,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> PassiveCollectionResult:
+    """Collect passive BPB files with optional guarded source deletion."""
     resolved = resolve_polar_device_target(target)
     effective_id = device_id or resolved.device_id
     if effective_id is None:  # pragma: no cover - normalization invariant
@@ -182,10 +193,11 @@ async def cleanup_passive_files(
     *,
     root: str | Path,
     domain: PassiveDomain | str,
-    delete_through,
+    delete_through: date,
     dry_run: bool = False,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> PassiveCleanupResult:
+    """Delete verified passive files through an exclusive current-day guard."""
     normalized_domain = normalize_passive_domain(domain)
     if delete_through >= date.today():
         raise ValueError("delete_through must be earlier than the current local date.")
@@ -195,7 +207,7 @@ async def cleanup_passive_files(
         raise ValueError("Resolved device target is missing device_id.")
     store = PassiveFileStore(root)
     if dry_run:
-        return await PassiveFileCollector(None, store).cleanup(  # type: ignore[arg-type]
+        return await PassiveFileCollector(None, store).cleanup(
             device_id, domain=normalized_domain, delete_through=delete_through, dry_run=True
         )
 
@@ -222,7 +234,7 @@ def _raw_collection_result(
         skipped=result.skipped,
         ignored=result.ignored,
         failed=result.failed,
-        records=result.records,
+        records=tuple(result.records),
         deleted=result.deleted,
         delete_failed=result.delete_failed,
     )

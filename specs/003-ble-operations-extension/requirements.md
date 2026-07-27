@@ -1,5 +1,12 @@
 # Functional requirements
 
+SPEC-003 normatively owns FR-001–020, FR-046–048, and FR-050–057. Decoder
+expansion requirements FR-021–039, FR-049, and FR-059–063 are transferred to
+[SPEC-004](../004-rec-decoder-extension/README.md). Protected compatibility and
+release-evidence requirements FR-040–045, FR-058, and FR-064–065 are
+transferred to [SPEC-005](../005-protected-compatibility/README.md). Transferred
+text below is retained as design history and is not a SPEC-003 completion gate.
+
 ## Offline-recording control surface
 
 **FR-001** — Add high-level asynchronous Python APIs for:
@@ -153,6 +160,8 @@ manifest fields, existing-file policy, and exact deletion algorithm are defined
 in [Raw and passive operation contracts](operation-contracts.md).
 
 ## REC sidecar platform support
+
+> Deferred to SPEC-004.
 
 **FR-021** — Support decoder build and execution on:
 
@@ -312,6 +321,8 @@ recording identity.
 
 ## Compatibility evidence
 
+> Deferred to SPEC-005.
+
 **FR-040** — Extend the protected compatibility matrix for Loop Gen 2 and Verity Sense.
 
 **FR-041** — Loop Gen 2 validation must cover:
@@ -376,6 +387,9 @@ Command modules must not construct protocol packets, own persistence rules, or d
 
 **FR-049** — Split modules that accumulate unrelated responsibilities. Prefer cohesive modules and explicit dependencies over large command, collector, or sidecar lifecycle files.
 
+> FR-049 is transferred to SPEC-004 because its remaining scope is REC-module
+> decomposition.
+
 **FR-050** — Keep functions narrowly scoped. New or materially changed functions should generally perform one orchestration or validation responsibility and avoid deeply nested control flow.
 
 **FR-051** — Replace repeated stringly typed statuses, modes, and error categories with enums or constrained project-owned models at internal boundaries. Serialize stable string values only at CLI/API boundaries.
@@ -419,7 +433,11 @@ documentation drift
 
 The phase is not complete while new behavior leaves a known avoidable duplication or responsibility leak in the touched subsystem.
 
+> FR-058 is transferred to SPEC-005 as cross-workstream release evidence.
+
 ## SDK provenance, licensing, and protected-data boundaries
+
+> FR-059–063 are deferred to SPEC-004. FR-064–065 are deferred to SPEC-005.
 
 **FR-059** — Protobuf message definitions, field numbers, enum definitions,
 descriptor sets, and generated language bindings must be generated locally from

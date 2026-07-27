@@ -1,5 +1,10 @@
 # Implementation plan
 
+Phases 1–2 are the SPEC-003 implementation plan. Former phases 3–5 are
+transferred to SPEC-004; the protected evidence work in former phase 6 is
+transferred to SPEC-005. The transferred steps remain below as design history,
+not SPEC-003 completion gates.
+
 ## Phase 1 — recording-control API, CLI, and boundary refactor
 
 1. Review ownership across `commands`, `api`, `collection`, `device`, and `polar` before adding commands.
@@ -64,7 +69,7 @@ tests/unit/test_passive_storage.py
 tests/unit/test_passive.py
 ```
 
-## Phase 3 — Linux aarch64 sidecar, SDK lifecycle, and toolchain model refactor
+## Transferred to SPEC-004 — sidecar, SDK lifecycle, and toolchain
 
 1. Make generated-schema provenance explicit: schemas, descriptor sets, and
    bindings are generated only in the user-initiated SDK workflow from the
@@ -102,7 +107,7 @@ docs/rec-decoding.md
 docs/compatibility.md
 ```
 
-## Phase 4 — secret-aware sidecar protocol and invocation refactor
+## Transferred to SPEC-004 — secret-aware sidecar protocol
 
 1. Document v1/v2 negotiation, capabilities, bounded request/status schemas,
    stable error codes, and the official-parser-only boundary.
@@ -135,7 +140,7 @@ docs/rec-decoding.md
 
 Do not create abstraction files that merely move a few constants without establishing a real boundary.
 
-## Phase 5 — batch decoding and REC module decomposition
+## Transferred to SPEC-004 — batch decoding and REC decomposition
 
 1. Decompose REC input discovery, sidecar invocation, output validation, and publication into cohesive internal boundaries.
 2. Implement non-symlink deterministic input discovery and strict
@@ -169,7 +174,7 @@ docs/python-api.md
 docs/rec-decoding.md
 ```
 
-## Phase 6 — protected validation, maintenance review, and release readiness
+## Transferred to SPEC-005 — protected validation and certification
 
 1. Run ordinary tests, SDK-free public tests, private SDK contracts, private
    fixture contracts, hardware validation, and the release/workflow artifact
