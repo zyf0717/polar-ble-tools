@@ -6,18 +6,18 @@ implementation, contract tests, and required documentation are complete.
 
 ## Phase 1 — recording-control API, CLI, and boundary refactor
 
-- [ ] **FR-001** — Provide the high-level async raw-recording APIs.
-- [ ] **FR-002** — Export and document the public APIs, including the top-level facade where appropriate.
-- [ ] **FR-003** — Provide the `polar-ble raw` CLI operations.
-- [ ] **FR-004** — Reuse the established clients, workflow runner, and project-owned models; do not construct PMD packets in commands.
-- [ ] **FR-005** — Validate measurement types and settings before device-session acquisition where possible.
-- [ ] **FR-006** — Make `raw stop` wait for bounded inactive status.
-- [ ] **FR-007** — Reject unsupported PPI exercise-start triggers.
-- [ ] **FR-008** — Implement grammar-validated, atomic, no-alias/no-clobber single-file raw fetch with size and SHA-256 metadata.
-- [ ] **FR-009** — Serialize all device-facing work by normalized device identity through `DeviceWorkflowRunner`.
-- [ ] **FR-010** — Emit stable machine-readable JSON from CLI operations.
-- [ ] **FR-046** — Keep each responsibility in its owning layer and preserve command-module boundaries.
-- [ ] **FR-047** — Consolidate repeated device-session wrappers used by at least two operations without weakening typed returns.
+- [x] **FR-001** — Provide the high-level async raw-recording APIs.
+- [x] **FR-002** — Export and document the public APIs, including the top-level facade where appropriate.
+- [x] **FR-003** — Provide the `polar-ble raw` CLI operations.
+- [x] **FR-004** — Reuse the established clients, workflow runner, and project-owned models; do not construct PMD packets in commands.
+- [x] **FR-005** — Validate measurement types and settings before device-session acquisition where possible.
+- [x] **FR-006** — Make `raw stop` wait for bounded inactive status.
+- [x] **FR-007** — Reject unsupported PPI exercise-start triggers.
+- [x] **FR-008** — Implement grammar-validated, atomic, no-alias/no-clobber single-file raw fetch with size and SHA-256 metadata.
+- [x] **FR-009** — Serialize all device-facing work by normalized device identity through `DeviceWorkflowRunner`.
+- [x] **FR-010** — Emit stable machine-readable JSON from CLI operations.
+- [x] **FR-046** — Keep each responsibility in its owning layer and preserve command-module boundaries.
+- [x] **FR-047** — Consolidate repeated device-session wrappers used by at least two operations without weakening typed returns.
 - [ ] **FR-050** — Keep new or materially changed functions narrow and shallowly nested.
 - [ ] **FR-051** — Replace repeated stringly typed statuses, modes, and errors with constrained project-owned models.
 - [ ] **FR-052** — Centralize the specified cross-cutting publication, path, hashing, JSON, redaction, subprocess, date, and setting utilities where semantics are shared.

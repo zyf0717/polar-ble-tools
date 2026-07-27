@@ -10,6 +10,15 @@ direct Python API is available.
 | `pair` | Pair, bond, and trust a device | `pair_device()` |
 | `connect` | Connect a paired device | `connect_device()` |
 | `raw list` | List device REC files | `await list_raw_recordings()` |
+| `raw types` | List supported offline recording types | `await available_recording_types()` |
+| `raw status` | Read offline recording activity | `await recording_status()` |
+| `raw settings --type TYPE [--full]` | Read offline recording settings | `await recording_settings()` |
+| `raw start --type TYPE [--setting KEY=VALUE ...]` | Start an offline recording | `await start_recording()` |
+| `raw stop --type TYPE` | Stop an offline recording and wait for inactivity | `await stop_recording()` |
+| `raw trigger get` | Read offline trigger configuration | `await offline_trigger()` |
+| `raw trigger set --mode MODE [--type TYPE ...] [--setting KEY=VALUE ...]` | Replace offline trigger configuration | `await update_offline_trigger()` |
+| `raw disk-space` | Read device PFTP disk-space counters | `await device_disk_space()` |
+| `raw fetch --path DEVICE_PATH --output LOCAL_PATH` | Atomically fetch one REC file | `await fetch_raw_recording()` |
 | `raw collect` | Retrieve/hash-store REC files | `await collect_raw_recordings()` |
 | `raw cleanup` | Safely remove verified device files | `await cleanup_raw_recordings()` |
 | `passive list` | List passive BPB files | `await list_passive_files()` |

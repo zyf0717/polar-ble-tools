@@ -136,8 +136,8 @@ def parse_offline_recording_path(path: str, *, size: int) -> OfflineRecordingEnt
         raise ValueError(f"Not a Polar offline recording path: {path}")
     try:
         started_at = datetime.strptime(match.group("date") + match.group("time"), "%Y%m%d%H%M%S")
-    except ValueError:
-        started_at = None
+    except ValueError as exc:
+        raise ValueError(f"Offline recording path has an invalid date or time: {path}") from exc
     return OfflineRecordingEntry(
         path=path,
         size=size,

@@ -9,6 +9,13 @@ pass a `transport_factory` in tests or custom integrations.
 | `discover_devices` | sync | Scan BLE advertisements. |
 | `pair_device`, `connect_device`, `release_device_connection` | sync | BlueZ pairing and connection lifecycle. |
 | `list_raw_recordings` | async | List device REC entries. |
+| `available_recording_types` | async | Return supported offline recording types. |
+| `recording_status` | async | Return offline recording activity by type. |
+| `recording_settings` | async | Return current or full offline settings. |
+| `start_recording`, `stop_recording` | async | Control one offline recording. |
+| `offline_trigger`, `update_offline_trigger` | async | Read or replace offline trigger configuration. |
+| `device_disk_space` | async | Return validated PFTP disk-space counters. |
+| `fetch_raw_recording` | async | Atomically fetch one validated device REC path. |
 | `collect_raw_recordings` | async | Retrieve and hash-store raw REC files. |
 | `cleanup_raw_recordings` | async | Delete only verified raw recordings. |
 | `PassiveDomain` | enum | Select passive BPB domains for listing and collection. |

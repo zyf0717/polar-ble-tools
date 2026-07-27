@@ -66,3 +66,58 @@ def test_raw_list_delegates_to_collection_api(monkeypatch, tmp_path: Path, capsy
     )
     assert status == 0
     assert json.loads(capsys.readouterr().out)["listed"] == 1
+
+
+def test_raw_start_parses_settings_and_emits_stable_json(monkeypatch, capsys) -> None:
+    class Result:
+        def to_jsonable(self):
+            return {"active": True, "operation": "start", "recording_type": "ACC"}
+
+    async def fake_start(*args, **kwargs):
+        assert args == ("AA:BB:CC:DD:EE:FF", "ACC", {"SAMPLE_RATE": 25})
+        assert kwargs == {}
+        return Result()
+
+    monkeypatch.setattr("polar_ble_tools.commands.raw.start_recording", fake_start)
+
+    status = raw_main(
+        [
+            "--mac-address",
+            "AA:BB:CC:DD:EE:FF",
+            "start",
+            "--type",
+            "ACC",
+            "--setting",
+            "sample-rate=0x19",
+        ]
+    )
+
+    assert status == 0
+    assert json.loads(capsys.readouterr().out)["recording_type"] == "ACC"
+
+
+def test_raw_trigger_rejects_duplicate_settings_before_api_call(monkeypatch, capsys) -> None:
+    async def fail_update(*_args, **_kwargs):
+        raise AssertionError("duplicate validation must happen before the API call")
+
+    monkeypatch.setattr("polar_ble_tools.commands.raw.update_offline_trigger", fail_update)
+
+    status = raw_main(
+        [
+            "--mac-address",
+            "AA:BB:CC:DD:EE:FF",
+            "trigger",
+            "set",
+            "--mode",
+            "system-start",
+            "--type",
+            "ACC",
+            "--setting",
+            "sample-rate=25",
+            "--setting",
+            "SAMPLE_RATE=50",
+        ]
+    )
+
+    assert status == 1
+    assert "Duplicate recording setting" in capsys.readouterr().err
