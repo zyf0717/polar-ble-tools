@@ -11,6 +11,7 @@ from polar_ble_tools.rec import DecoderManifestError, DecoderVerificationError, 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
     DecoderBuildError,
+    SdkLifecycleError,
     activate_decoder,
     build_decoder,
     remove_decoder,
@@ -198,6 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         DecoderBuildError,
         DecoderManifestError,
         DecoderVerificationError,
+        SdkLifecycleError,
         JSONDecodeError,
         OSError,
         subprocess.SubprocessError,

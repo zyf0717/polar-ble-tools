@@ -59,6 +59,13 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         encoding="utf-8",
     )
     executable.chmod(0o755)
+    license_path = root / "licenses" / "Polar_SDK_License.txt"
+    notice_path = root / "notices" / "ThirdPartySoftwareListing.txt"
+    license_path.parent.mkdir()
+    notice_path.parent.mkdir()
+    license_path.write_text("test licence\n", encoding="utf-8")
+    notice_path.write_text("test notices\n", encoding="utf-8")
+    source_digest = "1" * 64
     (root / "manifest.json").write_text(
         json.dumps(
             {
@@ -77,7 +84,26 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
                 "executable_relative_path": "bin/polar-rec-decoder",
                 "executable_sha256": _digest(executable),
-                "runtime_files": {"bin/polar-rec-decoder": _digest(executable)},
+                "runtime_files": {
+                    "bin/polar-rec-decoder": _digest(executable),
+                    "licenses/Polar_SDK_License.txt": _digest(license_path),
+                    "notices/ThirdPartySoftwareListing.txt": _digest(notice_path),
+                },
+                "sdk_source_content_sha256": source_digest,
+                "license_material": [
+                    {
+                        "kind": "license",
+                        "cache_relative_path": "licenses/Polar_SDK_License.txt",
+                        "sha256": _digest(license_path),
+                        "source_identity": f"sha256:{source_digest}",
+                    },
+                    {
+                        "kind": "notice",
+                        "cache_relative_path": ("notices/ThirdPartySoftwareListing.txt"),
+                        "sha256": _digest(notice_path),
+                        "source_identity": f"sha256:{source_digest}",
+                    },
+                ],
                 "runtime": {
                     "kind": "pinned-jvm",
                     "platform": "linux",
@@ -198,6 +224,30 @@ def test_decoder_rejects_unmanifested_runtime_file(
 
     with pytest.raises(DecoderVerificationError, match="runtime files changed"):
         decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+def test_status_fails_closed_when_decoder_notice_is_missing(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    (cache.decoder_path(COMMIT) / "notices" / "ThirdPartySoftwareListing.txt").unlink()
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "missing required licence or notice" in (status.reason or "")
+
+
+def test_status_fails_closed_when_decoder_licence_digest_changes(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    (cache.decoder_path(COMMIT) / "licenses" / "Polar_SDK_License.txt").write_text(
+        "changed\n", encoding="utf-8"
+    )
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "digest changed" in (status.reason or "")
 
 
 def test_status_reports_actionable_architecture_mismatch(

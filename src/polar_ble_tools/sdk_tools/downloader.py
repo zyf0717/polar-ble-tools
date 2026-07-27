@@ -19,6 +19,7 @@ OFFICIAL_SDK_URL = "https://github.com/polarofficial/polar-ble-sdk.git"
 SUPPORTED_SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
 SDK_LICENSE_FILE = "Polar_SDK_License.txt"
+SDK_NOTICE_FILES = ("ThirdPartySoftwareListing.txt",)
 MANIFEST_FILE = "download-manifest.json"
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -70,10 +71,12 @@ def _manifest_payload(
     requested_ref: str,
     resolved_commit: str,
     support_tier: str,
-    source_content_sha256: str | None = None,
+    source_content_sha256: str,
+    license_sha256: str,
 ) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "format_version": 4,
+    accepted_at = datetime.now(UTC).isoformat()
+    return {
+        "format_version": 5,
         "vendor": "polar",
         "source_type": source_type,
         "source_repository": OFFICIAL_SDK_URL if source_type == "official" else "user-supplied",
@@ -81,31 +84,51 @@ def _manifest_payload(
         "resolved_commit": resolved_commit,
         "supported_commit": SUPPORTED_SDK_COMMIT,
         "support_tier": support_tier,
-        "installed_at": datetime.now(UTC).isoformat(),
+        "installed_at": accepted_at,
         "license_notice_present": True,
+        "source_content_sha256": source_content_sha256,
+        "license_acceptance": {
+            "accepted_at": accepted_at,
+            "license_filename": SDK_LICENSE_FILE,
+            "license_sha256": license_sha256,
+            "method": "cli_flag",
+            "resolved_commit": resolved_commit,
+            "source_identity": f"sha256:{source_content_sha256}",
+        },
     }
-    if source_content_sha256 is not None:
-        payload["source_content_sha256"] = source_content_sha256
-    return payload
 
 
-def _local_source_identity(source: Path) -> tuple[str, str]:
-    """Return a stable cache revision and full content digest for a local source."""
+def source_content_sha256(source: Path) -> str:
+    """Return a stable digest for an SDK source tree without cache artifacts."""
     digest = hashlib.sha256()
     for root, directories, files in os.walk(source):
-        directories[:] = sorted(name for name in directories if name not in {".git", "__pycache__"})
         root_path = Path(root)
+        retained_directories: list[str] = []
+        for name in sorted(name for name in directories if name not in {".git", "__pycache__"}):
+            if (root_path / name).is_symlink():
+                raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
+            retained_directories.append(name)
+        directories[:] = retained_directories
         for name in sorted(files):
             if name.endswith(".pyc"):
                 continue
             path = root_path / name
+            if path.is_symlink():
+                raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
+            if not path.is_file():
+                raise SdkDownloadError("SDK source contains an unsafe non-regular file.")
             relative = path.relative_to(source).as_posix()
             digest.update(relative.encode("utf-8"))
             digest.update(b"\0")
             with path.open("rb") as current:
                 for block in iter(lambda: current.read(1024 * 1024), b""):
                     digest.update(block)
-    content_sha256 = digest.hexdigest()
+    return digest.hexdigest()
+
+
+def _local_source_identity(source: Path) -> tuple[str, str]:
+    """Return a stable cache revision and full content digest for a local source."""
+    content_sha256 = source_content_sha256(source)
     # Cache paths and activation already use 40-hex revision identifiers. A
     # SHA-256 prefix gives local snapshots immutable addressing without
     # falsely claiming the user supplied a Git commit.
@@ -146,14 +169,17 @@ def _stage_source(
     resolved_commit: str,
     support_tier: str,
     cache: SdkCache,
-    source_content_sha256: str | None = None,
+    source_tree_sha256: str | None = None,
 ) -> SdkInstallResult:
     existing = _existing_result(cache, resolved_commit)
     if existing is not None:
+        _refresh_acceptance(existing)
         return existing
     license_path = source / SDK_LICENSE_FILE
     if not license_path.is_file():
         raise SdkDownloadError(f"SDK source is missing {SDK_LICENSE_FILE}.")
+    content_sha256 = source_tree_sha256 or source_content_sha256(source)
+    license_sha256 = _file_digest(license_path)
     cache.sdk_root.mkdir(parents=True, exist_ok=True)
     destination = cache.sdk_path(resolved_commit)
     with TemporaryDirectory(prefix=f".{resolved_commit[:12]}-", dir=cache.sdk_root) as temporary:
@@ -171,7 +197,8 @@ def _stage_source(
                 requested_ref=requested_ref,
                 resolved_commit=resolved_commit,
                 support_tier=support_tier,
-                source_content_sha256=source_content_sha256,
+                source_content_sha256=content_sha256,
+                license_sha256=license_sha256,
             ),
         )
         try:
@@ -190,6 +217,37 @@ def _stage_source(
         False,
         support_tier,
     )
+
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as current:
+        for block in iter(lambda: current.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _refresh_acceptance(existing: SdkInstallResult) -> None:
+    source = existing.source_path
+    license_path = source / SDK_LICENSE_FILE
+    if not license_path.is_file() or license_path.is_symlink():
+        raise SdkDownloadError(f"SDK source is missing {SDK_LICENSE_FILE}.")
+    try:
+        current = json.loads(existing.manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SdkDownloadError(f"Invalid SDK manifest at {existing.manifest_path}.") from exc
+    content_sha256 = source_content_sha256(source)
+    payload = _manifest_payload(
+        source_type=str(current.get("source_type", "official")),
+        requested_ref=str(current.get("requested_ref", existing.requested_ref)),
+        resolved_commit=existing.resolved_commit,
+        support_tier=existing.support_tier,
+        source_content_sha256=content_sha256,
+        license_sha256=_file_digest(license_path),
+    )
+    root_license = existing.manifest_path.parent / SDK_LICENSE_FILE
+    shutil.copy2(license_path, root_license)
+    _atomic_write_json(existing.manifest_path, payload)
 
 
 def _activate(cache: SdkCache, commit: str) -> None:
@@ -223,7 +281,7 @@ def install_sdk(
             requested_ref=str(source),
             resolved_commit=revision,
             support_tier="override",
-            source_content_sha256=content_sha256,
+            source_tree_sha256=content_sha256,
             cache=cache,
         )
     else:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -70,6 +71,15 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     assert manifest["requested_ref"] == str(source.resolve())
     assert manifest["resolved_commit"] == result.resolved_commit
     assert manifest["source_content_sha256"].startswith(result.resolved_commit)
+    assert manifest["format_version"] == 5
+    assert manifest["license_acceptance"] == {
+        "accepted_at": manifest["installed_at"],
+        "license_filename": "Polar_SDK_License.txt",
+        "license_sha256": hashlib.sha256(b"test licence\n").hexdigest(),
+        "method": "cli_flag",
+        "resolved_commit": result.resolved_commit,
+        "source_identity": f"sha256:{manifest['source_content_sha256']}",
+    }
     assert manifest["supported_commit"] == PINNED_SDK_COMMIT
     assert manifest["support_tier"] == "override"
     assert sdk_status(cache=cache).active_commit == result.resolved_commit
@@ -79,11 +89,45 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     assert sdk_status(cache=cache).active_commit is None
 
 
+def test_reused_sdk_refreshes_content_bound_licence_acceptance(tmp_path: Path) -> None:
+    source = _make_sdk_source(tmp_path)
+    cache = SdkCache(tmp_path / "cache")
+    installed = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    manifest = json.loads(installed.manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("license_acceptance")
+    manifest["format_version"] = 4
+    installed.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    reused = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+
+    refreshed = json.loads(reused.manifest_path.read_text(encoding="utf-8"))
+    assert reused.reused
+    assert refreshed["format_version"] == 5
+    assert refreshed["license_acceptance"]["resolved_commit"] == reused.resolved_commit
+    assert refreshed["license_acceptance"]["source_identity"] == (
+        f"sha256:{refreshed['source_content_sha256']}"
+    )
+
+
 def test_local_source_requires_licence_file(tmp_path: Path) -> None:
     source = tmp_path / "source-without-licence"
     source.mkdir()
     with pytest.raises(SdkDownloadError, match="missing Polar_SDK_License"):
         install_sdk(accept_license=True, sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+
+def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
+    source = _make_sdk_source(tmp_path)
+    outside = tmp_path / "outside"
+    outside.write_text("private\n", encoding="utf-8")
+    (source / "linked").symlink_to(outside)
+
+    with pytest.raises(SdkDownloadError, match="symbolic link"):
+        install_sdk(
+            accept_license=True,
+            sdk_path=source,
+            cache=SdkCache(tmp_path / "cache"),
+        )
 
 
 def test_local_source_rejects_remote_ref(tmp_path: Path) -> None:

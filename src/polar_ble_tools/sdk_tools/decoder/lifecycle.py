@@ -25,6 +25,12 @@ from polar_ble_tools.rec import (
     verify_active_decoder,
 )
 from polar_ble_tools.schemas.cache import SdkCache
+from polar_ble_tools.sdk_tools.decoder.errors import (
+    LicenseAcceptanceMismatchError,
+    LicenseAcceptanceRequiredError,
+    LicenseNoticeMissingError,
+    SdkLifecycleError,
+)
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
     ToolchainDescriptor,
     java_environment,
@@ -33,7 +39,14 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
     toolchain_descriptor,
     toolchain_descriptor_digest,
 )
-from polar_ble_tools.sdk_tools.downloader import SUPPORTED_SDK_COMMIT, active_sdk_source
+from polar_ble_tools.sdk_tools.downloader import (
+    MANIFEST_FILE,
+    SDK_LICENSE_FILE,
+    SDK_NOTICE_FILES,
+    SUPPORTED_SDK_COMMIT,
+    active_sdk_source,
+    source_content_sha256,
+)
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 
@@ -49,7 +62,18 @@ class DecoderBuildResult:
 
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_LICENSE_RELATIVE_PATH = f"licenses/{SDK_LICENSE_FILE}"
+_NOTICE_RELATIVE_PATHS = {name: f"notices/{name}" for name in SDK_NOTICE_FILES}
 _TOOLCHAIN_MANIFEST = ".polar-rec-toolchain.json"
+
+
+@dataclass(frozen=True)
+class _SdkMaterial:
+    kind: str
+    source_path: Path
+    cache_relative_path: str
+    sha256: str
+    source_identity: str
 
 
 def _digest(path: Path) -> str:
@@ -146,8 +170,15 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderBuildError(f"Decoder distribution has an unsafe entry: {path}")
         relative = path.relative_to(root).as_posix()
-        allowed = relative in _RUNTIME_LAUNCHERS or (
-            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        allowed = (
+            relative in _RUNTIME_LAUNCHERS
+            or relative == _LICENSE_RELATIVE_PATH
+            or relative in _NOTICE_RELATIVE_PATHS.values()
+            or (
+                relative.startswith("lib/")
+                and "/" not in relative[4:]
+                and relative.endswith(".jar")
+            )
         )
         if not allowed:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
@@ -193,6 +224,78 @@ def _decoder_source(source: Path) -> Path:
             "Active SDK revision does not contain the required Android communications source."
         )
     return candidate
+
+
+def _sdk_material(cache: SdkCache, commit: str, source: Path) -> tuple[_SdkMaterial, ...]:
+    sdk_root = cache.sdk_path(commit)
+    expected_source = sdk_root / "source"
+    if source.resolve() != expected_source.resolve():
+        raise LicenseAcceptanceMismatchError(
+            "Decoder build source does not match the staged SDK cache entry."
+        )
+    try:
+        manifest = json.loads((sdk_root / MANIFEST_FILE).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise LicenseAcceptanceRequiredError(
+            "SDK licence acceptance is missing; rerun: polar-ble sdk install --accept-license"
+        ) from exc
+    acceptance = manifest.get("license_acceptance")
+    content_digest = manifest.get("source_content_sha256")
+    if (
+        manifest.get("format_version") != 5
+        or manifest.get("resolved_commit") != commit
+        or not isinstance(content_digest, str)
+        or len(content_digest) != 64
+        or not isinstance(acceptance, dict)
+        or acceptance.get("method") != "cli_flag"
+        or acceptance.get("resolved_commit") != commit
+        or acceptance.get("license_filename") != SDK_LICENSE_FILE
+        or acceptance.get("source_identity") != f"sha256:{content_digest}"
+        or not isinstance(acceptance.get("accepted_at"), str)
+        or not acceptance["accepted_at"]
+        or not isinstance(acceptance.get("license_sha256"), str)
+    ):
+        raise LicenseAcceptanceRequiredError(
+            "SDK licence acceptance is not content-bound; rerun: "
+            "polar-ble sdk install --accept-license"
+        )
+    if source_content_sha256(source) != content_digest:
+        raise LicenseAcceptanceMismatchError(
+            "Staged SDK content changed after licence acceptance; reinstall it explicitly."
+        )
+    license_digest = str(acceptance["license_sha256"])
+    source_license = source / SDK_LICENSE_FILE
+    cached_license = sdk_root / SDK_LICENSE_FILE
+    for path in (source_license, cached_license):
+        if not path.is_file() or path.is_symlink():
+            raise LicenseNoticeMissingError(f"Required local SDK material is missing: {path.name}")
+        if _digest(path) != license_digest:
+            raise LicenseAcceptanceMismatchError(
+                "Staged SDK licence differs from its accepted digest."
+            )
+    identity = str(acceptance["source_identity"])
+    materials = [
+        _SdkMaterial(
+            "license",
+            source_license,
+            _LICENSE_RELATIVE_PATH,
+            license_digest,
+            identity,
+        )
+    ]
+    for name, relative in _NOTICE_RELATIVE_PATHS.items():
+        notice = source / name
+        if not notice.is_file() or notice.is_symlink():
+            raise LicenseNoticeMissingError(f"Required local SDK notice is missing: {name}")
+        materials.append(_SdkMaterial("notice", notice, relative, _digest(notice), identity))
+    return tuple(materials)
+
+
+def _copy_sdk_material(staged: Path, materials: tuple[_SdkMaterial, ...]) -> None:
+    for material in materials:
+        destination = staged / material.cache_relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(material.source_path, destination)
 
 
 def _java_environment(cache: SdkCache, descriptor: ToolchainDescriptor) -> dict[str, str]:
@@ -485,6 +588,7 @@ def build_decoder(
         raise DecoderBuildError(
             f"REC decoding currently supports only the pinned SDK revision {SUPPORTED_SDK_COMMIT}."
         )
+    materials = _sdk_material(cache, commit, source)
     try:
         descriptor = toolchain_descriptor()
     except RuntimeError as exc:
@@ -516,6 +620,7 @@ def build_decoder(
     with TemporaryDirectory(prefix=f".{commit[:12]}-", dir=cache.decoder_root) as temporary:
         staged = Path(temporary) / "decoder"
         shutil.copytree(distribution, staged)
+        _copy_sdk_material(staged, materials)
         staged_executable = staged / "bin" / "polar-rec-decoder"
         runtime_files = _runtime_file_digests(staged)
         manifest = {
@@ -539,6 +644,16 @@ def build_decoder(
             "verification_level": "handshake",
             "verified": True,
             "runtime_files": runtime_files,
+            "sdk_source_content_sha256": materials[0].source_identity.removeprefix("sha256:"),
+            "license_material": [
+                {
+                    "kind": material.kind,
+                    "cache_relative_path": material.cache_relative_path,
+                    "sha256": material.sha256,
+                    "source_identity": material.source_identity,
+                }
+                for material in materials
+            ],
             "runtime": {
                 "kind": "pinned-jvm",
                 "platform": descriptor.platform,
@@ -583,7 +698,7 @@ def activate_decoder(commit: str, *, cache: SdkCache | None = None) -> None:
     _write_json(active_manifest, {"sdk_commit": commit})
     try:
         verify_active_decoder(cache=cache)
-    except (DecoderManifestError, DecoderVerificationError) as exc:
+    except (DecoderManifestError, DecoderVerificationError, SdkLifecycleError) as exc:
         _restore_file(active_manifest, previous_payload)
         raise DecoderVerificationError(str(exc)) from exc
 
