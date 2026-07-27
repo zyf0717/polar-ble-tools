@@ -202,7 +202,7 @@ skip       default; reuse only an exactly reverified local artifact
 overwrite  refetch and atomically replace the local artifact
 ```
 
-`skip` preserves existing `0.2.x` behavior. A local file is skipped only when
+`skip` preserves the pre-`0.3.0` behavior. A local file is skipped only when
 the latest applicable manifest row and the current device listing agree on
 device identity, domain, exact device path, and size, and the local size and
 SHA-256 still verify. Otherwise it is fetched.

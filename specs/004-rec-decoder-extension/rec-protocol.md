@@ -93,7 +93,7 @@ assets, or distributions.
 ## Protocol versions
 
 Protocol v1 remains the unencrypted command-line protocol used by existing
-`0.2.x` sidecars. Protocol v2 is the request-on-stdin protocol and is required
+protocol-v1 sidecars. Protocol v2 is the request-on-stdin protocol and is required
 for secret-bearing operations.
 
 The Python caller chooses a protocol only after a verified `version` handshake:

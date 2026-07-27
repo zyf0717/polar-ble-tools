@@ -7,6 +7,10 @@ retrieval remains independent of it. The sidecar accepts only unencrypted
 recordings in the compatibility matrix; encrypted and unvalidated categories
 are unsupported.
 
+`0.3.0` supports only explicit single-file decoding on Linux x86_64. Linux
+aarch64, protected recordings, tree/manifest batch decoding, and expanded
+adapter certification are deferred to SPEC-004 and SPEC-005.
+
 The project uses a local JVM sidecar because Polar's official REC parser is in
 the separately licensed SDK. This keeps SDK classes, source, and binaries out
 of the Python runtime and release artifacts while retaining a versioned,

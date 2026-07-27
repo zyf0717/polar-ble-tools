@@ -1,7 +1,7 @@
 # SPEC-004 tracker
 
-All items are deferred. Requirement text must be reviewed and restated in
-SPEC-004 before implementation.
+All items are deferred beyond `0.3.0` and governed by
+[requirements.md](requirements.md).
 
 ## Phase 1 — platform and SDK lifecycle
 

@@ -1,35 +1,34 @@
 # SPEC-005: Protected compatibility and release evidence
 
-**Status:** Deferred
-**Depends on:** SPEC-003 core BLE tooling; SPEC-004 where decoder evidence is claimed
-
-See the [deferred tracker](tracker.md).
+**Status:** Proposed; ongoing protected validation
+**Depends on:** SPEC-003; SPEC-004 where decoder claims are evaluated
 
 ## Scope
 
-This specification owns protected hardware, fixture, privacy, and release
-evidence deferred from SPEC-003:
+SPEC-005 owns evidence that cannot be established by public unit tests:
 
-- Loop Gen 2 and Verity Sense capability matrices;
-- two-physical-device concurrency and cancellation validation;
-- reconnect and controlled radio-loss testing;
-- protected REC/BPB fixture evidence;
-- private-data retention and evidence-redaction policy;
-- restricted-artifact audits and release-candidate certification.
+- Loop Gen 2 and Verity Sense hardware capability matrices;
+- two-device concurrency, cancellation, reconnect, and radio-loss exercises;
+- protected REC/BPB fixture contracts;
+- private-data retention, consent, deletion, and evidence redaction;
+- restricted-artifact audits and exact-commit release certification.
 
-The normative source requirements are SPEC-003 FR-040 through FR-045, FR-058,
-FR-064, and FR-065 as originally proposed. Existing controlled observations may
-seed the test plan but do not complete this specification.
+Existing controlled observations inform the program but complete only the
+specific rows they exercised.
+
+## Documents
+
+- [Requirements](requirements.md)
+- [Evidence contract](evidence-contract.md)
+- [Implementation plan](implementation-plan.md)
+- [Validation](validation.md)
+- [Governance](governance.md)
+- [Tracker](tracker.md)
 
 ## Boundaries
 
 - Unit tests are not hardware compatibility evidence.
-- Public documentation claims only redacted behaviors exercised on controlled
-  hardware or fixtures.
-- Real device data, identifiers, profiles, decoded payloads, and secrets remain
-  private and are never committed or uploaded.
-
-## Completion
-
-SPEC-005 requires an explicit private test matrix, evidence schema, retention
-policy, and release approval record.
+- Public claims contain only approved redacted evidence.
+- Device data, identifiers, profiles, decoded payloads, and secrets remain
+  private and never enter Git or public artifacts.
+- Absence of evidence is documented as unsupported or unvalidated.

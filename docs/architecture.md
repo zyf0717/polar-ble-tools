@@ -42,11 +42,19 @@ device files. Raw `.REC` retrieval does not require generated schemas. Passive
 verified active local schema cache.
 
 Stores write payloads atomically, append manifests with size and SHA-256
-metadata, constrain stored paths to their configured roots, and tolerate a
-truncated final JSONL record. Device cleanup uses exact paths selected from the
-device listing. A file is eligible for deletion only when its recording is
-inactive and its local copy matches the recorded size and digest. Dry runs and
-deterministic deletion logs are preserved.
+metadata, verify local files with a shared streaming SHA-256 helper, constrain
+stored paths to their configured roots, and tolerate a truncated final JSONL
+record. Raw and passive stores share these low-level mechanics but retain
+separate manifests, eligibility, and audit policy. Device cleanup uses exact
+paths selected from the device listing. A file is eligible for deletion only
+when its recording is inactive where applicable and its local copy matches the
+recorded size and digest. Dry runs and deterministic deletion logs are
+preserved.
+
+Public collection results are frozen models with tuple-valued record
+collections. Internal outcome enums serialize to stable strings at JSON/CLI
+boundaries. Per-file protocol failures may produce failed records; BLE
+transport failures abort the workflow.
 
 Structured REC decoding is a separate Python-to-JVM process boundary. Python
 validates the active decoder manifest, runtime-file digests, pinned JDK digest,

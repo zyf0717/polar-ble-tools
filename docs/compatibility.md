@@ -1,9 +1,13 @@
 # Compatibility
 
-## Confirmed device
+## Supported devices
 
-Polar Loop Gen 2 was validated on Linux with BlueZ on 2026-07-25. The controlled
-checks covered:
+`0.3.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+the controlled capability boundaries below.
+
+## Polar Loop Gen 2
+
+Controlled checks covered:
 
 - discovery, pairing, bonding, trust, connection handoff, and reconnect;
 - PMD availability, status, and accelerometer recording start/stop;
@@ -24,7 +28,7 @@ transport failure. Passive PFTP collection can remain available in this state.
 Recording-control callers can inspect `PmdResponseError.response_code` to
 distinguish this condition.
 
-## Verity Sense
+## Polar Verity Sense
 
 Controlled Linux/BlueZ validation confirmed PMD availability and inactive
 status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
@@ -52,6 +56,8 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
+- Batch and protected REC decoding are not `0.3.0` capabilities.
+- The optional REC decoder is currently limited to Linux x86_64.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.
 - Forced Bluetooth/radio-loss recovery is not validated.

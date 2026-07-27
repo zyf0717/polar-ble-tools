@@ -1,100 +1,55 @@
-# SPEC-003: Extended offline BLE operations and maintainability
+# SPEC-003: Core BLE operations
 
-**Status:** Core implementation complete; release handoff pending
-**Milestone:** Release-ready BLE recording, retrieval, and guarded cleanup
+**Status:** Implemented; `0.3.0` release candidate
+**Milestone:** `0.3.0`
 **Repository:** `zyf0717/polar-ble-tools`
-**Baseline:** current branch head
-**Suggested branch:** `feat/spec-003-extended-operations`
-**Date:** 2026-07-27
 
-## Contents
+## Scope
 
-- [Functional requirements](requirements.md)
-- [Raw and passive operation contracts](operation-contracts.md)
-- [Models, errors, and workflow semantics](models-and-errors.md)
+SPEC-003 defines the package’s core Linux/BlueZ BLE tooling:
+
+- offline-recording capability, settings, status, start, stop, and triggers;
+- device disk-space inspection and exact raw REC retrieval;
+- raw REC listing, verified local persistence, and guarded cleanup;
+- passive BPB listing, persistence, delete-after-collect, and cleanup;
+- per-device workflow serialization and BLE/PFTP lifecycle ownership;
+- immutable public result collections and stable serialized statuses;
+- shared atomic publication, JSONL append, and streaming SHA-256 verification.
+
+Structured REC decoder expansion is specified in
+[SPEC-004](../004-rec-decoder-extension/README.md). Protected hardware,
+fixture, privacy, and certification evidence is specified in
+[SPEC-005](../005-protected-compatibility/README.md).
+
+## Documents
+
+- [Requirements](requirements.md)
+- [Operation contracts](operation-contracts.md)
+- [Models and errors](models-and-errors.md)
 - [Public contracts](public-contracts.md)
 - [Implementation plan](implementation-plan.md)
-- [Validation and documentation](validation.md)
-- [Execution rules and completion](governance.md)
+- [Validation](validation.md)
+- [Governance and completion](governance.md)
+- [Tracker](tracker.md)
 
-## Context
+## Boundaries
 
-This specification defines the core BLE recording, retrieval, and guarded
-cleanup surface. Optional REC decoder expansion and protected certification are
-separate follow-on programs.
+- BLE, PMD, PFTP, workflow, collection, storage, and verification remain
+  project-owned Python.
+- Raw and passive retrieval do not require schemas, Java, Gradle, or a decoder.
+- Installation and import perform no download, generation, build, activation,
+  or device mutation.
+- Destructive operations require exact local verification and an audit record.
+- Device data and identifiers remain outside Git and public release artifacts.
+- Support claims do not exceed `docs/compatibility.md`.
+- Higher-level application orchestration remains outside this repository.
 
-## Decision summary
+## User outcomes
 
-Continue expanding `polar-ble-tools` as the maintained public implementation by:
-
-1. exposing the existing PMD offline-recording controls through stable CLI and Python APIs;
-2. adding guarded passive-file deletion and `delete-after-collect`;
-3. refactoring affected subsystems so the new behavior reduces duplication,
-   clarifies ownership, and remains maintainable.
-
-Deferred work is tracked by
-[SPEC-004](../004-rec-decoder-extension/README.md) for optional REC decoder
-extensions and [SPEC-005](../005-protected-compatibility/README.md) for protected
-hardware and release evidence.
-
-The core implementation must preserve the current architecture:
-
-- BLE, PMD, PFTP, collection, storage, verification, and orchestration remain project-owned Python;
-- raw and passive retrieval remain independent of optional decoders;
-- destructive operations remain verified, bounded, and audited;
-- device payloads and identifiers remain outside Git and public artifacts.
-
-## Goals
-
-1. Continue developing the offline BLE workflow surface without coupling work
-   to a one-time migration target.
-2. Make offline-recording control usable without navigating internal service objects.
-3. Make passive deletion as guarded and auditable as raw REC deletion.
-4. Improve module boundaries, naming, result models, error handling, and
-   testability while implementing the work.
-5. Keep release-facing documentation focused only on `polar-ble-tools`, its
-   capabilities, and its verified limitations.
-
-## Non-goals
-
-- Preserving undocumented command names or output formatting.
-- Adding legacy executables such as `polar-raw`, `polar-passive`, or `polar-bpb`.
-- Vendoring the Polar BLE SDK or generated schemas.
-- Shipping a prebuilt REC decoder, JDK, Gradle distribution, SDK class, or SDK-derived binary.
-- Translating Polar’s Kotlin or Swift REC decoder into Python.
-- Moving S3 sync, ETL, databases, APIs, dashboards, or fleet scheduling into this package.
-- Making `devices.yaml` mandatory for general library use.
-- Adding Windows, macOS, or mobile BLE support.
-- Guaranteeing support for devices not validated in the compatibility matrix.
-
-## User stories
-
-### US-1: Recording control
-
-As an operator, I can inspect available offline-recording types and settings, start or stop recordings, inspect active status and trigger configuration, and read device disk space through `polar-ble` or stable Python functions.
-
-### US-2: Targeted retrieval
-
-As an operator, I can fetch one known REC path without running a whole-device collection.
-
-### US-3: Guarded passive cleanup
-
-As an operator, I can delete only passive BPB files whose local copies still pass manifest, size, and SHA-256 verification.
-
-### US-4: Collect then delete
-
-As an operator, I can request passive collection with deletion after successful persistence, while failed or unverified files remain on-device.
-
-## Architectural invariants
-
-1. Existing `0.2.x` public APIs and CLI commands remain compatible unless a defect requires a documented correction.
-2. The base package remains importable without SDK material, Java, Gradle, or a decoder.
-3. Package installation and import perform no network access, generation, provisioning, build, or activation.
-4. Raw and passive retrieval remain usable without structured decoding.
-5. Every destructive operation requires a verified local copy and appends an audit record.
-6. Dry-run operations perform no device mutation.
-7. Public APIs and serialized output use project-owned names and models.
-8. No support claim exceeds recorded fixture and hardware evidence.
-9. Real-device data, identifiers, profiles, and secrets remain protected. The
-   package is not diagnostic, clinical, medical-device, life-supporting, or
-   life-critical software.
+1. An operator can inspect and control supported offline recordings through
+   stable CLI or Python APIs.
+2. An operator can retrieve one exact REC or collect verified raw recordings.
+3. An operator can collect passive BPB files within a complete sync lifecycle.
+4. An operator can preview or perform only locally verified device cleanup.
+5. An integrator receives immutable results with stable JSON representations
+   and typed transport/protocol failure boundaries.

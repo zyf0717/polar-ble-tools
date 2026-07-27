@@ -1,7 +1,7 @@
 # SPEC-005 tracker
 
-All items are deferred. Existing observations may inform this program but do
-not complete it.
+Existing observations may satisfy individual rows only when they conform to
+[the evidence contract](evidence-contract.md).
 
 ## Phase 1 — evidence contract
 
