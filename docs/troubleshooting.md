@@ -11,9 +11,11 @@ polar-ble discover --scan-seconds 30 --name Polar
 
 ## Pairing does not complete
 
-Remove only the exact stale BlueZ record, return the device to its pairing
-window, and retry. Inspect current-boot logs without copying device identifiers
-into public reports:
+For `org.bluez.Error.ConnectionAttemptFailed`, wait a few seconds and retry
+once. If it persists, ensure no phone or other host owns the connection, then
+return the device to its pairing window. Remove only the exact stale BlueZ
+record if necessary. Inspect current-boot logs without copying device
+identifiers into public reports:
 
 ```bash
 bluetoothctl info AA:BB:CC:DD:EE:FF
