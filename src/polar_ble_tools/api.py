@@ -233,9 +233,7 @@ def doctor(*, cache: SdkCache | None = None) -> DoctorReport:
     cache = cache or SdkCache.default()
     sdk = sdk_status(cache=cache)
     if sdk.active_commit is None:
-        schemas = DoctorSchemaStatus(
-            ready=False, remediation="polar-ble sdk install --accept-license"
-        )
+        schemas = DoctorSchemaStatus(ready=False, remediation="polar-ble sdk install")
     else:
         try:
             schema_root = verify_active_schemas(cache=cache)

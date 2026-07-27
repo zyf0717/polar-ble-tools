@@ -40,7 +40,7 @@ def test_known_bpb_reports_actionable_missing_schema_without_crashing(
     path.write_bytes(b"raw")
 
     def unavailable(*modules: str):
-        raise SchemaUnavailableError("run: polar-ble sdk install --accept-license")
+        raise SchemaUnavailableError("run: polar-ble sdk install")
 
     monkeypatch.setattr("polar_ble_tools.bpb_decode.schemas.require_modules", unavailable)
 
@@ -48,7 +48,7 @@ def test_known_bpb_reports_actionable_missing_schema_without_crashing(
 
     assert result.status == FAILED_STATUS
     assert result.schema_id == "daily_summary"
-    assert "polar-ble sdk install --accept-license" in str(result.error)
+    assert "polar-ble sdk install" in str(result.error)
 
 
 def test_bpb_cli_decodes_unknown_payload_without_schema_cache(tmp_path: Path, capsys) -> None:

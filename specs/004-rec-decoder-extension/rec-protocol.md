@@ -62,36 +62,17 @@ reverified before decode. A mismatch reports unavailable or verification
 failure with `polar-ble sdk decoder build` as remediation; it never silently
 selects another decoder.
 
-## SDK licence and notice material
+## SDK licence confirmation
 
-Decoder build copies the exact `Polar_SDK_License.txt` from the resolved SDK
-source into the staged decoder cache entry. It also copies every upstream
-third-party notice required by the compiled SDK source subset. The build records
-each file as a manifest item:
+The SDK install/download CLI states that proceeding accepts the Polar BLE SDK
+licence and uses a `y/N` confirmation. `-y`/`--yes` proceeds non-interactively.
+The explicit Python installation API implies acceptance by the caller.
 
-```text
-kind                 license | notice
-cache_relative_path
-sha256
-source_identity
-```
-
-The licence and notice paths are fixed, specifically named allowlist entries.
-They must be regular, non-symlink files that resolve inside the staged decoder
-cache. The runtime allowlist otherwise contains only approved launchers and
-JARs. The manifest contains the SHA-256 of every copied licence/notice file and
-the exact resolved SDK source identity used to obtain it.
-
-Activation, verification, and status fail closed when `Polar_SDK_License.txt`
-is absent, a required notice is absent, a recorded digest differs, a recorded
-path escapes the cache, or an unexpected replacement notice file appears. A
-failed build or activation preserves the last verified active decoder. Removing
-a decoder cache entry removes its decoder-local licence and notice copies with
-that entry.
-
-These files are local decoder-cache material. They are not copied into Git, the
-Python wheel or sdist, public CI artifacts or caches, container layers, release
-assets, or distributions.
+Acceptance is not persisted or bound to SDK content. Decoder and
+generated-schema cache entries do not copy or validate separate SDK licence or
+notice files. SDK source and SDK-derived outputs remain local and excluded from
+Git, Python distributions, public CI artifacts or caches, container layers, and
+release assets.
 
 ## Protocol versions
 
@@ -244,8 +225,6 @@ secret_strategy_unsupported
 recording_security_unsupported
 decode_failed
 timeout
-license_notice_missing
-license_notice_mismatch
 sdk_output_contract_mismatch
 ```
 

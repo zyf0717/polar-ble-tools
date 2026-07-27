@@ -94,13 +94,14 @@ dependencies.
 inputs only. Generated material remains cache-local and unavailable when
 generation cannot be performed; there is no transcribed fallback.
 
-**FR-060** — Bind licence acceptance to exact staged SDK content and licence
-digest, recording SDK commit, source identity, filename, digest, UTC acceptance
-time, and project-owned method without personal or host identity.
+**FR-060** — Before CLI installation, state that proceeding accepts the Polar
+BLE SDK licence and require a `y/N` confirmation. Support `-y`/`--yes` for
+unattended installation. Calling the explicit Python installation API also
+means the caller accepts the licence; no acceptance record is required.
 
-**FR-061** — Include and verify the exact SDK licence and required notices in
-each decoder cache entry. Manifest paths are cache-relative and digest-bound;
-missing, altered, escaping, or substituted notices fail closed.
+**FR-061** — Keep SDK source and SDK-derived outputs local and out of project
+distributions. Decoder and generated-schema caches do not copy or independently
+enforce SDK licence or notice files.
 
 **FR-062** — Protected REC decoding constructs the SDK security model inside
 the JVM sidecar and invokes only the pinned official parser. No project-authored

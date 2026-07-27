@@ -18,11 +18,12 @@ All notable changes to this project are documented here.
 - Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
   architecture alias normalization, descriptor-bound offline cache reuse, and
   actionable platform mismatch reporting.
-- Added content-bound SDK licence acceptance plus decoder-local, digest-verified
-  licence and third-party notice material.
 
 ### Changed
 
+- Simplified Polar BLE SDK licence consent to one interactive `y/N` install
+  confirmation, with `-y`/`--yes` for unattended use. Removed persisted
+  content-bound acceptance and decoder/generated-cache licence-notice gates.
 - Decomposed REC decoding into cohesive model, sidecar process, protocol
   validation, and publication modules, and split the JVM template into command,
   SDK parsing, payload adaptation, JSON protocol, and publication modules

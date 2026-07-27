@@ -12,8 +12,8 @@ All items are deferred beyond `0.3.0` and governed by
 - [x] **FR-025** — Actionable platform/architecture mismatch reporting.
 - [x] **FR-026** — Equivalent archive, digest, boundary, and rollback safety.
 - [x] **FR-059** — Licensed local schema generation only.
-- [x] **FR-060** — Content-bound SDK licence acceptance.
-- [x] **FR-061** — Decoder-local licence/notice verification.
+- [x] **FR-060** — Install-time SDK licence confirmation and `-y` bypass.
+- [x] **FR-061** — Local-only SDK material without cache-level licence gates.
 
 ## Phase 2 — protected sidecar protocol
 

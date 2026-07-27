@@ -59,13 +59,6 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         encoding="utf-8",
     )
     executable.chmod(0o755)
-    license_path = root / "licenses" / "Polar_SDK_License.txt"
-    notice_path = root / "notices" / "ThirdPartySoftwareListing.txt"
-    license_path.parent.mkdir()
-    notice_path.parent.mkdir()
-    license_path.write_text("test licence\n", encoding="utf-8")
-    notice_path.write_text("test notices\n", encoding="utf-8")
-    source_digest = "1" * 64
     (root / "manifest.json").write_text(
         json.dumps(
             {
@@ -86,24 +79,7 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "executable_sha256": _digest(executable),
                 "runtime_files": {
                     "bin/polar-rec-decoder": _digest(executable),
-                    "licenses/Polar_SDK_License.txt": _digest(license_path),
-                    "notices/ThirdPartySoftwareListing.txt": _digest(notice_path),
                 },
-                "sdk_source_content_sha256": source_digest,
-                "license_material": [
-                    {
-                        "kind": "license",
-                        "cache_relative_path": "licenses/Polar_SDK_License.txt",
-                        "sha256": _digest(license_path),
-                        "source_identity": f"sha256:{source_digest}",
-                    },
-                    {
-                        "kind": "notice",
-                        "cache_relative_path": ("notices/ThirdPartySoftwareListing.txt"),
-                        "sha256": _digest(notice_path),
-                        "source_identity": f"sha256:{source_digest}",
-                    },
-                ],
                 "runtime": {
                     "kind": "pinned-jvm",
                     "platform": "linux",
@@ -237,28 +213,26 @@ def test_decoder_rejects_unmanifested_runtime_file(
         decode_recording(source, tmp_path / "decoded.jsonl")
 
 
-def test_status_fails_closed_when_decoder_notice_is_missing(tmp_path: Path) -> None:
+def test_status_accepts_legacy_decoder_cache_text_files(tmp_path: Path) -> None:
     cache = SdkCache(tmp_path / "cache")
     _decoder(cache)
-    (cache.decoder_path(COMMIT) / "notices" / "ThirdPartySoftwareListing.txt").unlink()
-
-    status = decoder_status(cache=cache)
-
-    assert not status.available
-    assert "missing required licence or notice" in (status.reason or "")
-
-
-def test_status_fails_closed_when_decoder_licence_digest_changes(tmp_path: Path) -> None:
-    cache = SdkCache(tmp_path / "cache")
-    _decoder(cache)
-    (cache.decoder_path(COMMIT) / "licenses" / "Polar_SDK_License.txt").write_text(
-        "changed\n", encoding="utf-8"
+    root = cache.decoder_path(COMMIT)
+    legacy_files = (
+        root / "licenses" / "Polar_SDK_License.txt",
+        root / "notices" / "ThirdPartySoftwareListing.txt",
     )
+    for path in legacy_files:
+        path.parent.mkdir()
+        path.write_text("legacy cache material\n", encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["runtime_files"].update(
+        {path.relative_to(root).as_posix(): _digest(path) for path in legacy_files}
+    )
+    manifest["license_material"] = [{"legacy": True}]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    status = decoder_status(cache=cache)
-
-    assert not status.available
-    assert "digest changed" in (status.reason or "")
+    assert decoder_status(cache=cache).available
 
 
 def test_status_reports_actionable_architecture_mismatch(

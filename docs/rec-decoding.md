@@ -31,19 +31,16 @@ Use Linux x86_64, install the SDK extra, and explicitly stage the supported SDK:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
-polar-ble sdk install --accept-license
+polar-ble sdk install
 ```
+
+Proceeding at the install prompt accepts the Polar BLE SDK licence; use `-y`
+for unattended installation. No separate acceptance record is stored.
 
 The first decoder build provisions architecture-specific, checksum-verified
 Temurin JDK 21.0.12+8 and Gradle 9.4.1 in the user cache. Reuse requires a
 descriptor-bound local manifest and unchanged executable digest. Nothing is
 downloaded, built, or activated on import or by `sdk install`.
-
-SDK installation records the exact staged source digest, licence filename and
-digest, resolved revision, acceptance time, and project-owned acceptance method.
-Decoder builds copy the exact SDK licence and required third-party listing into
-the local decoder entry. Activation and status fail closed when either file,
-path, or digest changes.
 
 ## Build and activate the local decoder
 

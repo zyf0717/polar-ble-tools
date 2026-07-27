@@ -33,7 +33,7 @@ def test_doctor_returns_structured_unavailable_optional_features(monkeypatch, tm
     report = doctor(cache=cache)
 
     assert not report.schemas.ready
-    assert report.schemas.remediation == "polar-ble sdk install --accept-license"
+    assert report.schemas.remediation == "polar-ble sdk install"
     assert report.to_dict()["decoder"]["reason"] == "not built"
 
 

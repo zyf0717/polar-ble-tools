@@ -11,7 +11,6 @@ from polar_ble_tools.rec import DecoderManifestError, DecoderVerificationError, 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder import (
     DecoderBuildError,
-    SdkLifecycleError,
     activate_decoder,
     build_decoder,
     remove_decoder,
@@ -42,7 +41,7 @@ from polar_ble_tools.sdk_tools.verifier import (
 _SCHEMA_SETUP_REMEDIATION = (
     "Schema-backed setup and BPB features require:\n"
     '  pip install "polar-ble-tools[sdk]"\n'
-    "  polar-ble sdk install --accept-license"
+    "  polar-ble sdk install"
 )
 
 
@@ -58,8 +57,27 @@ def _add_install_arguments(parser: argparse.ArgumentParser) -> None:
         help="Local SDK source; staged as an unsupported content-addressed override.",
     )
     parser.add_argument(
-        "--accept-license", action="store_true", help="Confirm acceptance of Polar's SDK licence."
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Install without prompting; proceeding accepts the Polar BLE SDK licence.",
     )
+
+
+def _confirm_install(*, assume_yes: bool) -> bool:
+    if assume_yes:
+        return True
+    print(
+        "Installing the Polar BLE SDK means you accept its licence terms. Continue? [y/N] ",
+        end="",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        response = input()
+    except EOFError:
+        return False
+    return response.strip().casefold() in {"y", "yes"}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -125,8 +143,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"REC decoder {args.commit} is not built")
                 return 1
         if args.command == "download":
+            if not _confirm_install(assume_yes=args.yes):
+                print("Polar SDK installation cancelled.", file=sys.stderr)
+                return 1
             result = install_sdk(
-                accept_license=args.accept_license,
                 ref=args.ref,
                 sdk_path=args.sdk_path,
             )
@@ -135,10 +155,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{state} Polar SDK {result.resolved_commit} at {result.source_path}")
             return 0
         if args.command == "install":
+            if not _confirm_install(assume_yes=args.yes):
+                print("Polar SDK installation cancelled.", file=sys.stderr)
+                return 1
             # Keep the current activation untouched until every stage has
             # completed.  The staged revision is safe to retain for diagnosis.
             result = install_sdk(
-                accept_license=args.accept_license,
                 ref=args.ref,
                 sdk_path=args.sdk_path,
                 activate=False,
@@ -199,7 +221,6 @@ def main(argv: list[str] | None = None) -> int:
         DecoderBuildError,
         DecoderManifestError,
         DecoderVerificationError,
-        SdkLifecycleError,
         JSONDecodeError,
         OSError,
         subprocess.SubprocessError,

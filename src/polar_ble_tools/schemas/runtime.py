@@ -37,7 +37,7 @@ class SchemaActivationManager:
             return SimpleNamespace(**imported)
         except (SdkDownloadError, SchemaVerificationError, ImportError, OSError, ValueError) as exc:
             raise SchemaUnavailableError(
-                "Polar protobuf schemas are not installed or are invalid. Run: polar-ble sdk install --accept-license"
+                "Polar protobuf schemas are not installed or are invalid. Run: polar-ble sdk install"
             ) from exc
 
     def _activate(self, commit: str, root: Path) -> None:

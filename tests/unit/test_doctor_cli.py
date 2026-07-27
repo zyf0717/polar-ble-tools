@@ -13,9 +13,7 @@ def test_doctor_reports_core_ready_and_missing_schemas(monkeypatch, capsys) -> N
         "polar_ble_tools.commands.doctor.doctor",
         lambda: DoctorReport(
             sdk=SdkStatus(active_commit=None, installed_commits=()),
-            schemas=DoctorSchemaStatus(
-                ready=False, remediation="polar-ble sdk install --accept-license"
-            ),
+            schemas=DoctorSchemaStatus(ready=False, remediation="polar-ble sdk install"),
             decoder=DecoderStatus(False, False, None, None, None, "decoder unavailable"),
         ),
     )
@@ -25,7 +23,7 @@ def test_doctor_reports_core_ready_and_missing_schemas(monkeypatch, capsys) -> N
     output = json.loads(capsys.readouterr().out)
     assert output["core"] == {"ready": True}
     assert output["schemas"]["ready"] is False
-    assert output["schemas"]["remediation"] == "polar-ble sdk install --accept-license"
+    assert output["schemas"]["remediation"] == "polar-ble sdk install"
     assert output["decoder"] == {
         "available": False,
         "protocol_version": None,

@@ -18,8 +18,6 @@ OFFICIAL_SDK_URL = "https://github.com/polarofficial/polar-ble-sdk.git"
 # not covered by this package's schema or device compatibility evidence.
 SUPPORTED_SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
-SDK_LICENSE_FILE = "Polar_SDK_License.txt"
-SDK_NOTICE_FILES = ("ThirdPartySoftwareListing.txt",)
 MANIFEST_FILE = "download-manifest.json"
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -72,11 +70,9 @@ def _manifest_payload(
     resolved_commit: str,
     support_tier: str,
     source_content_sha256: str,
-    license_sha256: str,
 ) -> dict[str, object]:
-    accepted_at = datetime.now(UTC).isoformat()
     return {
-        "format_version": 5,
+        "format_version": 4,
         "vendor": "polar",
         "source_type": source_type,
         "source_repository": OFFICIAL_SDK_URL if source_type == "official" else "user-supplied",
@@ -84,17 +80,8 @@ def _manifest_payload(
         "resolved_commit": resolved_commit,
         "supported_commit": SUPPORTED_SDK_COMMIT,
         "support_tier": support_tier,
-        "installed_at": accepted_at,
-        "license_notice_present": True,
+        "installed_at": datetime.now(UTC).isoformat(),
         "source_content_sha256": source_content_sha256,
-        "license_acceptance": {
-            "accepted_at": accepted_at,
-            "license_filename": SDK_LICENSE_FILE,
-            "license_sha256": license_sha256,
-            "method": "cli_flag",
-            "resolved_commit": resolved_commit,
-            "source_identity": f"sha256:{source_content_sha256}",
-        },
     }
 
 
@@ -139,7 +126,7 @@ def _existing_result(cache: SdkCache, commit: str) -> SdkInstallResult | None:
     root = cache.sdk_path(commit)
     source = root / "source"
     manifest = root / MANIFEST_FILE
-    if not (source.is_dir() and manifest.is_file() and (root / SDK_LICENSE_FILE).is_file()):
+    if not (source.is_dir() and manifest.is_file()):
         return None
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
@@ -173,13 +160,8 @@ def _stage_source(
 ) -> SdkInstallResult:
     existing = _existing_result(cache, resolved_commit)
     if existing is not None:
-        _refresh_acceptance(existing)
         return existing
-    license_path = source / SDK_LICENSE_FILE
-    if not license_path.is_file():
-        raise SdkDownloadError(f"SDK source is missing {SDK_LICENSE_FILE}.")
     content_sha256 = source_tree_sha256 or source_content_sha256(source)
-    license_sha256 = _file_digest(license_path)
     cache.sdk_root.mkdir(parents=True, exist_ok=True)
     destination = cache.sdk_path(resolved_commit)
     with TemporaryDirectory(prefix=f".{resolved_commit[:12]}-", dir=cache.sdk_root) as temporary:
@@ -188,7 +170,6 @@ def _stage_source(
         shutil.copytree(
             source, staged_source, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc")
         )
-        shutil.copy2(license_path, staged_root / SDK_LICENSE_FILE)
         manifest = staged_root / MANIFEST_FILE
         _atomic_write_json(
             manifest,
@@ -198,7 +179,6 @@ def _stage_source(
                 resolved_commit=resolved_commit,
                 support_tier=support_tier,
                 source_content_sha256=content_sha256,
-                license_sha256=license_sha256,
             ),
         )
         try:
@@ -219,52 +199,22 @@ def _stage_source(
     )
 
 
-def _file_digest(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as current:
-        for block in iter(lambda: current.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def _refresh_acceptance(existing: SdkInstallResult) -> None:
-    source = existing.source_path
-    license_path = source / SDK_LICENSE_FILE
-    if not license_path.is_file() or license_path.is_symlink():
-        raise SdkDownloadError(f"SDK source is missing {SDK_LICENSE_FILE}.")
-    try:
-        current = json.loads(existing.manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SdkDownloadError(f"Invalid SDK manifest at {existing.manifest_path}.") from exc
-    content_sha256 = source_content_sha256(source)
-    payload = _manifest_payload(
-        source_type=str(current.get("source_type", "official")),
-        requested_ref=str(current.get("requested_ref", existing.requested_ref)),
-        resolved_commit=existing.resolved_commit,
-        support_tier=existing.support_tier,
-        source_content_sha256=content_sha256,
-        license_sha256=_file_digest(license_path),
-    )
-    root_license = existing.manifest_path.parent / SDK_LICENSE_FILE
-    shutil.copy2(license_path, root_license)
-    _atomic_write_json(existing.manifest_path, payload)
-
-
 def _activate(cache: SdkCache, commit: str) -> None:
     _atomic_write_json(cache.active_manifest_path, {"resolved_commit": commit})
 
 
 def install_sdk(
     *,
-    accept_license: bool,
     ref: str | None = None,
     sdk_path: Path | None = None,
     cache: SdkCache | None = None,
     activate: bool = True,
 ) -> SdkInstallResult:
-    """Stage the release pin by default or an explicitly requested override."""
-    if not accept_license:
-        raise SdkDownloadError("Pass --accept-license to install the Polar BLE SDK.")
+    """Stage the release pin by default or an explicitly requested override.
+
+    Calling this explicit installation API implies acceptance of the SDK's
+    licence terms. The CLI provides the user-facing confirmation gate.
+    """
     cache = cache or SdkCache.default()
     if sdk_path is not None:
         if ref is not None:
@@ -343,9 +293,7 @@ def active_sdk_source(*, cache: SdkCache | None = None) -> tuple[str, Path]:
     cache = cache or SdkCache.default()
     active_commit = sdk_status(cache=cache).active_commit
     if active_commit is None:
-        raise SdkDownloadError(
-            "No active Polar SDK is installed. Run: polar-ble sdk install --accept-license"
-        )
+        raise SdkDownloadError("No active Polar SDK is installed. Run: polar-ble sdk install")
     source = cache.sdk_path(active_commit) / "source"
     if not source.is_dir():
         raise SdkDownloadError(f"Active Polar SDK source is missing: {source}")

@@ -7,11 +7,6 @@ from importlib import import_module
 __all__ = [
     "DecoderBuildError",
     "DecoderBuildResult",
-    "LicenseAcceptanceMismatchError",
-    "LicenseAcceptanceRequiredError",
-    "LicenseNoticeMismatchError",
-    "LicenseNoticeMissingError",
-    "SdkLifecycleError",
     "activate_decoder",
     "build_decoder",
     "remove_decoder",
@@ -20,14 +15,6 @@ __all__ = [
 
 
 def __getattr__(name: str):
-    if name in {
-        "LicenseAcceptanceMismatchError",
-        "LicenseAcceptanceRequiredError",
-        "LicenseNoticeMismatchError",
-        "LicenseNoticeMissingError",
-        "SdkLifecycleError",
-    }:
-        return getattr(import_module("polar_ble_tools.sdk_tools.decoder.errors"), name)
     if name in __all__ or name.startswith("_"):
         return getattr(import_module("polar_ble_tools.sdk_tools.decoder.lifecycle"), name)
     raise AttributeError(name)

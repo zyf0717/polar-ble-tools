@@ -64,8 +64,11 @@ decoding:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
-polar-ble sdk install --accept-license
+polar-ble sdk install
 ```
+
+The installer asks for a simple `y/N` confirmation that proceeding accepts the
+Polar BLE SDK licence. Use `-y` for non-interactive installation.
 
 ## Quick start
 

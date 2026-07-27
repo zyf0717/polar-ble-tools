@@ -5,7 +5,7 @@
 - architecture selection and host alias normalization;
 - checksum, archive traversal, symlink, and platform mismatch rejection;
 - transactional activation and rollback;
-- licence/notice path and digest verification;
+- interactive SDK licence confirmation and `-y` prompt bypass;
 - protocol-v1 compatibility and protocol-v2 negotiation;
 - secret canaries absent from argv, environment, output, errors, logs,
   manifests, summaries, and filenames;

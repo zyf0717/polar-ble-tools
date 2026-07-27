@@ -143,10 +143,6 @@ def generate_schemas(
                 },
                 "descriptor_sha256": _sha256(staged_root / "descriptor.desc"),
             }
-            shutil.copy2(
-                cache.sdk_path(commit) / "Polar_SDK_License.txt",
-                staged_root / "Polar_SDK_License.txt",
-            )
             (staged_root / GENERATED_MANIFEST).write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )

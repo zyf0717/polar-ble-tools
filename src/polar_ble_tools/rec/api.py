@@ -37,11 +37,6 @@ from polar_ble_tools.rec.validation import (
     validated_rows,
 )
 from polar_ble_tools.schemas.cache import SdkCache
-from polar_ble_tools.sdk_tools.decoder.errors import (
-    LicenseNoticeMismatchError,
-    LicenseNoticeMissingError,
-    SdkLifecycleError,
-)
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
     java_environment,
     normalized_architecture,
@@ -52,12 +47,16 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
     java_home as toolchain_java_home,
 )
-from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE, SDK_NOTICE_FILES
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
-_LICENSE_RELATIVE_PATH = f"licenses/{SDK_LICENSE_FILE}"
-_NOTICE_RELATIVE_PATHS = {name: f"notices/{name}" for name in SDK_NOTICE_FILES}
+# Accepted only so decoder caches built by older releases remain usable.
+_LEGACY_SDK_TEXT_FILES = frozenset(
+    {
+        "licenses/Polar_SDK_License.txt",
+        "notices/ThirdPartySoftwareListing.txt",
+    }
+)
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _DIGEST_RE = re.compile(r"[0-9a-f]{64}")
 
@@ -165,8 +164,7 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         relative = path.relative_to(root).as_posix()
         allowed = (
             relative in _RUNTIME_LAUNCHERS
-            or relative == _LICENSE_RELATIVE_PATH
-            or relative in _NOTICE_RELATIVE_PATHS.values()
+            or relative in _LEGACY_SDK_TEXT_FILES
             or (
                 relative.startswith("lib/")
                 and "/" not in relative[4:]
@@ -198,65 +196,6 @@ def _recover_interrupted_promotion(cache: SdkCache, commit: str) -> Path:
     if backups:
         raise DecoderManifestError("Interrupted decoder promotion has ambiguous recovery entries.")
     return root
-
-
-def _verify_license_material(
-    root: Path,
-    manifest: Mapping[str, object],
-    runtime_files: Mapping[str, object],
-) -> None:
-    source_digest = manifest.get("sdk_source_content_sha256")
-    materials = manifest.get("license_material")
-    if (
-        not isinstance(source_digest, str)
-        or not _DIGEST_RE.fullmatch(source_digest)
-        or not isinstance(materials, list)
-    ):
-        raise LicenseNoticeMismatchError("Decoder licence/notice manifest is missing or malformed.")
-    expected = {
-        _LICENSE_RELATIVE_PATH: "license",
-        **{relative: "notice" for relative in _NOTICE_RELATIVE_PATHS.values()},
-    }
-    actual: dict[str, Mapping[str, object]] = {}
-    for item in materials:
-        if not isinstance(item, dict) or set(item) != {
-            "cache_relative_path",
-            "kind",
-            "sha256",
-            "source_identity",
-        }:
-            raise LicenseNoticeMismatchError("Decoder licence/notice manifest is malformed.")
-        relative = item.get("cache_relative_path")
-        if not isinstance(relative, str) or relative in actual:
-            raise LicenseNoticeMismatchError("Decoder licence/notice manifest has an invalid path.")
-        actual[relative] = item
-    if set(actual) != set(expected):
-        raise LicenseNoticeMissingError(
-            "Decoder cache is missing required licence or notice entries."
-        )
-    for relative, kind in expected.items():
-        item = actual[relative]
-        digest = item.get("sha256")
-        if (
-            item.get("kind") != kind
-            or item.get("source_identity") != f"sha256:{source_digest}"
-            or not isinstance(digest, str)
-            or not _DIGEST_RE.fullmatch(digest)
-            or runtime_files.get(relative) != digest
-        ):
-            raise LicenseNoticeMismatchError(
-                "Decoder licence or notice provenance does not match its manifest."
-            )
-        candidate = root / relative
-        path = candidate.resolve()
-        if candidate.is_symlink() or not _within(path, root) or not path.is_file():
-            raise LicenseNoticeMissingError(
-                "Decoder cache is missing required licence or notice material."
-            )
-        if _digest(path) != digest:
-            raise LicenseNoticeMismatchError(
-                "Decoder licence or notice digest changed; rebuild the decoder."
-            )
 
 
 def _load_decoder(cache: SdkCache) -> _Decoder:
@@ -315,7 +254,6 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         raise DecoderManifestError(
             "Decoder manifest does not describe a verified protocol-v1 decoder."
         )
-    _verify_license_material(root, manifest, expected_runtime_files)
     executable = (root / relative).resolve()
     if (
         not _within(executable, root)
@@ -370,7 +308,7 @@ def _verified_decoder(cache: SdkCache, *, self_test: bool) -> _Decoder:
 def decoder_status(*, cache: SdkCache | None = None) -> DecoderStatus:
     try:
         decoder = _verified_decoder(cache or SdkCache.default(), self_test=False)
-    except (RecDecodeError, SdkLifecycleError, OSError, subprocess.SubprocessError) as exc:
+    except (RecDecodeError, OSError, subprocess.SubprocessError) as exc:
         return DecoderStatus(False, False, None, None, None, str(exc))
     manifest = decoder.manifest
     return DecoderStatus(

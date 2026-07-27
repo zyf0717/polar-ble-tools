@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -27,7 +26,6 @@ from polar_ble_tools.sdk_tools.verifier import SchemaVerificationError
 def _make_sdk_source(tmp_path: Path) -> Path:
     source = tmp_path / "sdk-source"
     source.mkdir()
-    (source / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
     (source / "README.md").write_text("user supplied SDK\n", encoding="utf-8")
     return source
 
@@ -36,21 +34,10 @@ def _write_staged_sdk(cache: SdkCache, revision: str) -> Path:
     root = cache.sdk_path(revision)
     source = root / "source"
     source.mkdir(parents=True)
-    (source / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
-    (root / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
     (root / "download-manifest.json").write_text(
         json.dumps({"resolved_commit": revision}), encoding="utf-8"
     )
     return source
-
-
-def test_install_requires_explicit_licence_acceptance(tmp_path: Path) -> None:
-    with pytest.raises(SdkDownloadError, match="--accept-license"):
-        install_sdk(
-            accept_license=False,
-            sdk_path=_make_sdk_source(tmp_path),
-            cache=SdkCache(tmp_path / "cache"),
-        )
 
 
 def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) -> None:
@@ -59,7 +46,7 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     (source / "user.proto").write_text('syntax = "proto3";\n', encoding="utf-8")
     cache = SdkCache(tmp_path / "cache")
 
-    result = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    result = install_sdk(sdk_path=source, cache=cache)
 
     assert len(result.resolved_commit) == 40
     assert result.support_tier == "override"
@@ -71,49 +58,24 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     assert manifest["requested_ref"] == str(source.resolve())
     assert manifest["resolved_commit"] == result.resolved_commit
     assert manifest["source_content_sha256"].startswith(result.resolved_commit)
-    assert manifest["format_version"] == 5
-    assert manifest["license_acceptance"] == {
-        "accepted_at": manifest["installed_at"],
-        "license_filename": "Polar_SDK_License.txt",
-        "license_sha256": hashlib.sha256(b"test licence\n").hexdigest(),
-        "method": "cli_flag",
-        "resolved_commit": result.resolved_commit,
-        "source_identity": f"sha256:{manifest['source_content_sha256']}",
-    }
+    assert manifest["format_version"] == 4
+    assert "license_acceptance" not in manifest
     assert manifest["supported_commit"] == PINNED_SDK_COMMIT
     assert manifest["support_tier"] == "override"
     assert sdk_status(cache=cache).active_commit == result.resolved_commit
 
-    assert install_sdk(accept_license=True, sdk_path=source, cache=cache).reused is True
+    assert install_sdk(sdk_path=source, cache=cache).reused is True
     assert remove_sdk(result.resolved_commit, cache=cache) is True
     assert sdk_status(cache=cache).active_commit is None
 
 
-def test_reused_sdk_refreshes_content_bound_licence_acceptance(tmp_path: Path) -> None:
-    source = _make_sdk_source(tmp_path)
-    cache = SdkCache(tmp_path / "cache")
-    installed = install_sdk(accept_license=True, sdk_path=source, cache=cache)
-    manifest = json.loads(installed.manifest_path.read_text(encoding="utf-8"))
-    manifest.pop("license_acceptance")
-    manifest["format_version"] = 4
-    installed.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-
-    reused = install_sdk(accept_license=True, sdk_path=source, cache=cache)
-
-    refreshed = json.loads(reused.manifest_path.read_text(encoding="utf-8"))
-    assert reused.reused
-    assert refreshed["format_version"] == 5
-    assert refreshed["license_acceptance"]["resolved_commit"] == reused.resolved_commit
-    assert refreshed["license_acceptance"]["source_identity"] == (
-        f"sha256:{refreshed['source_content_sha256']}"
-    )
-
-
-def test_local_source_requires_licence_file(tmp_path: Path) -> None:
+def test_local_source_does_not_require_a_licence_file(tmp_path: Path) -> None:
     source = tmp_path / "source-without-licence"
     source.mkdir()
-    with pytest.raises(SdkDownloadError, match="missing Polar_SDK_License"):
-        install_sdk(accept_license=True, sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+    result = install_sdk(sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+    assert result.source_path.is_dir()
 
 
 def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
@@ -123,17 +85,12 @@ def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
     (source / "linked").symlink_to(outside)
 
     with pytest.raises(SdkDownloadError, match="symbolic link"):
-        install_sdk(
-            accept_license=True,
-            sdk_path=source,
-            cache=SdkCache(tmp_path / "cache"),
-        )
+        install_sdk(sdk_path=source, cache=SdkCache(tmp_path / "cache"))
 
 
 def test_local_source_rejects_remote_ref(tmp_path: Path) -> None:
     with pytest.raises(SdkDownloadError, match="either an official --ref or --sdk-path"):
         install_sdk(
-            accept_license=True,
             ref="preview",
             sdk_path=_make_sdk_source(tmp_path),
             cache=SdkCache(tmp_path / "cache"),
@@ -144,9 +101,9 @@ def test_local_source_change_uses_a_new_cache_revision(tmp_path: Path) -> None:
     source = _make_sdk_source(tmp_path)
     cache = SdkCache(tmp_path / "cache")
 
-    first = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    first = install_sdk(sdk_path=source, cache=cache)
     (source / "README.md").write_text("changed local SDK\n", encoding="utf-8")
-    second = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    second = install_sdk(sdk_path=source, cache=cache)
 
     assert first.resolved_commit != second.resolved_commit
     assert sdk_status(cache=cache).installed_commits == tuple(
@@ -165,7 +122,6 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
         if args[0] == "clone":
             source = Path(args[-1])
             source.mkdir()
-            (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
             return ""
         if args[0] == "checkout":
             checkouts.append(args[-1])
@@ -177,8 +133,8 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
     monkeypatch.setattr(downloader, "_run_git", fake_git)
     cache = SdkCache(tmp_path / "cache")
 
-    pinned = install_sdk(accept_license=True, cache=cache)
-    override = install_sdk(accept_license=True, ref="preview", cache=cache)
+    pinned = install_sdk(cache=cache)
+    override = install_sdk(ref="preview", cache=cache)
 
     assert checkouts == [PINNED_SDK_COMMIT, "preview"]
     assert pinned.support_tier == "pinned"
@@ -193,11 +149,54 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
     assert override.support_tier == "override"
 
 
+def test_cli_install_declines_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("builtins.input", lambda: "")
+
+    def unexpected_install(**_kwargs: object) -> object:
+        raise AssertionError("installation must not start")
+
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.install_sdk", unexpected_install)
+
+    assert sdk_main(["install"]) == 1
+    assert "Continue? [y/N]" in capsys.readouterr().err
+
+
+def test_cli_install_proceeds_when_confirmed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import polar_ble_tools.sdk_tools.cli as cli
+
+    monkeypatch.setattr("builtins.input", lambda: "yes")
+    result = SdkInstallResult(
+        "candidate",
+        "c" * 40,
+        "user-supplied",
+        tmp_path / "source",
+        tmp_path / "manifest",
+        False,
+        "override",
+    )
+    monkeypatch.setattr(cli, "install_sdk", lambda **_kwargs: result)
+    monkeypatch.setattr(cli, "inspect_sdk", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "generate_schemas", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "verify_schemas", lambda **_kwargs: tmp_path / "generated")
+    monkeypatch.setattr(cli, "activate_sdk", lambda _revision: None)
+
+    assert sdk_main(["install"]) == 0
+
+
 def test_cli_warns_for_an_explicit_unsupported_override(
     monkeypatch, capsys, tmp_path: Path
 ) -> None:
     from polar_ble_tools.sdk_tools.downloader import SdkInstallResult
 
+    monkeypatch.setattr(
+        "builtins.input", lambda: (_ for _ in ()).throw(AssertionError("-y must skip the prompt"))
+    )
     monkeypatch.setattr(
         "polar_ble_tools.sdk_tools.cli.install_sdk",
         lambda **_kwargs: SdkInstallResult(
@@ -211,7 +210,7 @@ def test_cli_warns_for_an_explicit_unsupported_override(
         ),
     )
 
-    assert sdk_main(["download", "--ref", "override", "--accept-license"]) == 0
+    assert sdk_main(["download", "--ref", "override", "-y"]) == 0
     assert "warning: SDK revision" in capsys.readouterr().err
 
 
@@ -220,7 +219,7 @@ def test_cli_rejects_combining_remote_ref_and_local_path(tmp_path: Path) -> None
         sdk_main(
             [
                 "download",
-                "--accept-license",
+                "-y",
                 "--ref",
                 "preview",
                 "--sdk-path",
@@ -281,13 +280,13 @@ def test_cli_install_failure_preserves_previously_active_revision(
     monkeypatch.setattr(cli, failed_stage, fail_stage)
 
     with pytest.raises(SystemExit) as exc_info:
-        sdk_main(["install", "--accept-license"])
+        sdk_main(["install", "-y"])
 
     assert exc_info.value.code == 2
     stderr = capsys.readouterr().err
     assert "Traceback" not in stderr
     assert 'pip install "polar-ble-tools[sdk]"' in stderr
-    assert "polar-ble sdk install --accept-license" in stderr
+    assert "polar-ble sdk install" in stderr
     assert activations == []
     assert sdk_status(cache=cache).active_commit == active_revision
     assert active_sdk_source(cache=cache) == (active_revision, active_source)
@@ -325,7 +324,7 @@ def test_cli_normalizes_schema_setup_failures_without_traceback(
     stderr = capsys.readouterr().err
     assert "Traceback" not in stderr
     assert 'pip install "polar-ble-tools[sdk]"' in stderr
-    assert "polar-ble sdk install --accept-license" in stderr
+    assert "polar-ble sdk install" in stderr
 
 
 def test_cli_install_activates_only_after_all_stages_succeed(
@@ -363,7 +362,7 @@ def test_cli_install_activates_only_after_all_stages_succeed(
 
     monkeypatch.setattr(cli, "activate_sdk", activate)
 
-    assert sdk_main(["install", "--accept-license"]) == 0
+    assert sdk_main(["install", "-y"]) == 0
     assert events == ["inspect_sdk", "generate_schemas", "verify_schemas", "activate"]
     assert sdk_status(cache=cache).active_commit == candidate_revision
 

@@ -5,7 +5,7 @@
 1. Introduce architecture-indexed immutable toolchain descriptors.
 2. Add pinned aarch64 JDK provenance and host alias normalization.
 3. Generalize provisioning, manifest, verification, activation, and rollback.
-4. Bind SDK acceptance and decoder-local licence/notices to staged content.
+4. Add one install-time licence confirmation and `-y` automation bypass.
 5. Add synthetic cross-architecture lifecycle tests.
 
 ## Phase 2 — protected sidecar protocol

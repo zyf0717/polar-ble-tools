@@ -19,12 +19,6 @@ diagnostics, exceptions, and provider identity are redacted by construction.
 Required categories include:
 
 ```text
-SdkLifecycleError
-├── LicenseAcceptanceRequiredError
-├── LicenseAcceptanceMismatchError
-├── LicenseNoticeMissingError
-└── LicenseNoticeMismatchError
-
 RecDecodeError
 ├── DecoderUnavailableError
 ├── DecoderManifestError

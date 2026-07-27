@@ -8,7 +8,7 @@
 SPEC-004 owns optional SDK-backed REC decoder expansion:
 
 - verified Linux x86_64 and aarch64 toolchains;
-- content-bound SDK provenance, licence acceptance, and runtime notices;
+- SDK provenance and a lightweight install-time licence confirmation;
 - secret-aware sidecar protocol negotiation and protected REC decoding;
 - deterministic tree and manifest batch decoding (deferred);
 - explicit project-owned REC payload adapters and summaries;

@@ -35,7 +35,6 @@ def _write_cache(
     cache = SdkCache(tmp_path / "cache")
     source = cache.sdk_path(COMMIT) / "source"
     source.mkdir(parents=True)
-    (cache.sdk_path(COMMIT) / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (cache.sdk_path(COMMIT) / "download-manifest.json").write_text(
         json.dumps(
             {
@@ -80,7 +79,6 @@ def _write_cache(
             "python": sys.version.split()[0],
         },
     }
-    (root / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (root / GENERATED_MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
     return cache, root, manifest
 

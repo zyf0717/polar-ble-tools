@@ -62,8 +62,6 @@ def _read_manifest(root: Path, commit: str) -> dict[str, object]:
         raise SchemaVerificationError(
             "Generated schema manifest is incomplete or incompatible with the active SDK."
         )
-    if not (root / "Polar_SDK_License.txt").is_file():
-        raise SchemaVerificationError("Generated schema cache is missing the Polar licence notice.")
     return manifest
 
 

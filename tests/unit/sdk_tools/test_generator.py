@@ -23,8 +23,6 @@ def _write_source(cache: SdkCache) -> Path:
     source = root / "source"
     proto = source / "proto"
     proto.mkdir(parents=True)
-    (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
-    (root / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (root / "download-manifest.json").write_text(
         json.dumps(
             {
@@ -83,7 +81,7 @@ def test_generator_writes_only_the_closure_and_a_complete_manifest(
     assert manifest["descriptor_sha256"]
     assert set(manifest["toolchain"]) == {"grpcio_tools", "protoc", "protobuf", "python"}
     assert sorted(manifest["generated_file_hashes"]) == manifest["generated_files"]
-    assert (root / "Polar_SDK_License.txt").is_file()
+    assert not (root / "Polar_SDK_License.txt").exists()
     assert json.loads((root / GENERATION_PLAN).read_text(encoding="utf-8")) == plan.to_dict()
 
     sys.path.insert(0, str(first.python_path))

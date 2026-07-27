@@ -14,19 +14,13 @@ from polar_ble_tools.sdk_tools.decoder import (
     _replace_incomplete_directory,
     _restore_decoder_directory,
     _safe_jdk_archive_member,
-    _sdk_material,
     _tool_entry_verified,
     _write_tool_entry_manifest,
     _write_workspace,
     activate_decoder,
     remove_decoder,
 )
-from polar_ble_tools.sdk_tools.decoder.errors import (
-    LicenseAcceptanceMismatchError,
-    LicenseNoticeMissingError,
-)
 from polar_ble_tools.sdk_tools.decoder.toolchain import toolchain_descriptor
-from polar_ble_tools.sdk_tools.downloader import install_sdk
 
 
 def test_workspace_contains_all_cohesive_sidecar_modules(tmp_path: Path) -> None:
@@ -106,34 +100,6 @@ def test_cached_tool_entry_is_bound_to_architecture_descriptor(
         kind="jdk",
         archive_sha256=descriptor.jdk_sha256,
     )
-
-
-def test_sdk_material_is_bound_to_accepted_source_content(tmp_path: Path) -> None:
-    source = tmp_path / "sdk"
-    source.mkdir()
-    (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
-    (source / "ThirdPartySoftwareListing.txt").write_text("notices\n", encoding="utf-8")
-    (source / "README.md").write_text("source\n", encoding="utf-8")
-    cache = SdkCache(tmp_path / "cache")
-    installed = install_sdk(accept_license=True, sdk_path=source, cache=cache)
-
-    material = _sdk_material(cache, installed.resolved_commit, installed.source_path)
-
-    assert [item.kind for item in material] == ["license", "notice"]
-    (installed.source_path / "README.md").write_text("changed\n", encoding="utf-8")
-    with pytest.raises(LicenseAcceptanceMismatchError, match="content changed"):
-        _sdk_material(cache, installed.resolved_commit, installed.source_path)
-
-
-def test_sdk_material_requires_fixed_notice(tmp_path: Path) -> None:
-    source = tmp_path / "sdk"
-    source.mkdir()
-    (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
-    cache = SdkCache(tmp_path / "cache")
-    installed = install_sdk(accept_license=True, sdk_path=source, cache=cache)
-
-    with pytest.raises(LicenseNoticeMissingError, match="notice is missing"):
-        _sdk_material(cache, installed.resolved_commit, installed.source_path)
 
 
 def _entry(path: Path, marker: str) -> None:
