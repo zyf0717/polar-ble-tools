@@ -17,6 +17,13 @@ The cleanup check did not delete device data. Reconnect required bounded retries
 after repeated BlueZ activity and completed within the configured operation
 timeout.
 
+On 2026-07-27, a Loop Gen 2 in its charging state rejected offline ACC
+recording start with the PMD typed response
+`ERROR_DEVICE_IN_CHARGER`. This is a valid device-state result, not a BLE
+transport failure: passive PFTP collection remained available and successfully
+retrieved and verified files in the same state. Recording-control callers can
+inspect `PmdResponseError.response_code` to distinguish this condition.
+
 ## Other devices
 
 No other device is currently confirmed. Devices exposing compatible PMD and
