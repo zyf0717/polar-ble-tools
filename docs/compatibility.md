@@ -17,18 +17,28 @@ The cleanup check did not delete device data. Reconnect required bounded retries
 after repeated BlueZ activity and completed within the configured operation
 timeout.
 
-On 2026-07-27, a Loop Gen 2 in its charging state rejected offline ACC
-recording start with the PMD typed response
+When a device is in its charging state, offline recording start may be rejected
+with the PMD typed response
 `ERROR_DEVICE_IN_CHARGER`. This is a valid device-state result, not a BLE
-transport failure: passive PFTP collection remained available and successfully
-retrieved and verified files in the same state. Recording-control callers can
-inspect `PmdResponseError.response_code` to distinguish this condition.
+transport failure. Passive PFTP collection can remain available in this state.
+Recording-control callers can inspect `PmdResponseError.response_code` to
+distinguish this condition.
 
-## Other devices
+## Verity Sense
 
-No other device is currently confirmed. Devices exposing compatible PMD and
-PFTP services are expected to support some operations, but should be treated as
-untested until their capability matrix passes on protected hardware.
+Controlled Linux/BlueZ validation confirmed PMD availability and inactive
+status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
+offline-recording start/stop and exact raw REC retrieval were exercised for
+ACC, GYRO, MAGNETOMETER, PPG, and HR; the resulting files were size- and
+SHA-256-verified locally.
+
+PPI start was observed but did not produce an REC file in this run, so PPI REC
+output is not yet claimed. Passive collection over the canonical domains
+returned no files; Verity Sense passive activity, sleep, wellness, or related
+domain support is not claimed. No destructive deletion was performed.
+
+Other devices exposing compatible PMD and PFTP services should be treated as
+untested until their capability matrix passes on controlled hardware.
 
 ## Structured REC decoding
 
