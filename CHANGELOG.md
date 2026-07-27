@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Documentation
+
+- Documented device-scoped Loop Gen 2 evidence for advertised recording types
+  and raw activity-sample, daily-summary, and skin-temperature BPB retrieval.
+- Clarified that advertised types are not recording evidence, raw BPB retrieval
+  is not decoding evidence, and blocked cleanup candidates do not constitute an
+  eligible cleanup dry-run.
+- Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
+
 ## 0.3.2 — 2026-07-27
 
 ### Fixed

@@ -27,6 +27,20 @@ default and require protected hardware, an ignored `test_devices.yaml`, and
 explicit environment flags. A skipped SDK or live test is not a successful
 validation result.
 
+Record live evidence at the capability level actually exercised:
+
+- an advertised PMD type is not start/stop evidence;
+- a retrieved and hash-verified BPB file is not decoding evidence;
+- `selected > 0`, `dry_run = 0`, and blocked-only cleanup results validate the
+  safety guard, not an eligible cleanup dry-run; and
+- a bounded retry that passes should retain the preceding failure phase and
+  timeout location in the private test record.
+
+An eligible cleanup dry-run requires at least one selected recording with a
+verified local copy in the configured raw root and a resulting `dry_run` status.
+Do not publish the inventory, device path, manifest, payload, or hardware log
+used to establish that evidence.
+
 The REC decoder corpus contract is also opt-in and requires a built active
 decoder plus a local, non-redistributable fixture tree:
 

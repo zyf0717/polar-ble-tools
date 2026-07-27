@@ -10,20 +10,39 @@ the controlled capability boundaries below.
 Controlled checks covered:
 
 - discovery, pairing, bonding, trust, connection handoff, and reconnect;
-- PMD availability, status, and accelerometer recording start/stop;
+- PMD availability and status, plus accelerometer recording start/stop;
 - PFTP raw `.REC` listing, retrieval, size checks, SHA-256 storage, and cleanup
   dry-run;
 - FTU profile application, status, and device settings;
-- passive daily-summary `.BPB` retrieval and hash storage;
+- passive activity-sample, daily-summary, and skin-temperature `.BPB` retrieval
+  and hash storage;
 - daily-summary BPB decoding with a verified local schema cache.
 
 Controlled Linux aarch64/BlueZ validation confirmed discovery, durable pairing
 and bonding, and FTU profile application for Polar Loop Gen 2. This evidence
 does not extend the x86_64-only REC-decoder support claim.
 
+In a controlled 2026-07-27 observation, the target advertised ACC, HR, PPG, PPI,
+and SKIN_TEMPERATURE as available offline-recording types. Availability is not
+evidence that recording start/stop works for every advertised type; ACC remains
+the only Loop Gen 2 type with controlled start/stop evidence.
+
+The same observation retrieved and SHA-256-verified six logical days each of
+activity-sample, daily-summary, and skin-temperature BPB files. Only the
+daily-summary file was decoded. Raw retrieval therefore does not establish
+schema-decoding support for activity samples or skin temperature. No sleep,
+nightly-recharge, or autos file was present in that bounded lookback; absence is
+not evidence that those domains are unsupported.
+
 The cleanup check did not delete device data. Reconnect required bounded retries
 after repeated BlueZ activity and completed within the configured operation
 timeout.
+
+Interpret cleanup outcomes by status rather than the test process exit code. A
+result with selected entries but `dry_run=0` and only blocked entries confirms
+the local-verification guard and non-deletion behavior; it does not exercise an
+eligible cleanup dry-run. Eligible dry-run evidence requires at least one
+verified local copy to reach the `dry_run` status.
 
 When a device is in its charging state, offline recording start may be rejected
 with the PMD typed response

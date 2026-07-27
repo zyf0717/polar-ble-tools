@@ -32,9 +32,13 @@
 
 6. On a private Linux/BlueZ host, run the live single-device matrix. Confirm
    pairing, FTU, PMD, PFTP and raw retrieval; passive BPB retrieval and decoding;
-   and cleanup in dry-run mode. Record the tested commit SHA, device model, and
-   results in a private release checklist. Do not commit device data, profiles,
-   inventories, SDK caches, or hardware logs.
+   and cleanup in dry-run mode. Require at least one verified cleanup candidate
+   to report `dry_run`; a blocked-only result validates the guard but not an
+   eligible cleanup dry-run. Record the tested commit SHA, device model,
+   advertised types, independently proven start/stop types, retrieved passive
+   domains, decoded passive domains, cleanup counters, and results in a private
+   release checklist. Do not commit device data, profiles, inventories, SDK
+   caches, or hardware logs.
 7. Publish a candidate to TestPyPI through the protected `testpypi` environment,
    install it, and verify all CLI groups.
 8. Create the annotated release tag only after candidate and manual hardware checks

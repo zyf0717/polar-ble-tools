@@ -34,6 +34,14 @@ release it before opening an async device session. Allow a bounded settle
 interval after repeated pair/connect activity. Do not run unbounded reconnect
 loops.
 
+A reconnect timeout can occur while BlueZ is processing
+`org.bluez.Device1.Disconnect`, before the next connection attempt begins.
+Confirm that `bluetoothctl info` eventually reports `Connected: no`, retain the
+timeout phase in the private diagnostic record, allow a bounded settle
+interval, and retry the isolated probe. Do not remove a durable paired, bonded,
+and trusted record solely because disconnect teardown exceeded one attempt
+timeout.
+
 ## Schema-backed command fails
 
 Check readiness and verify the active cache:
@@ -54,6 +62,11 @@ revision, or `--all` when intentionally clearing the entire local SDK cache.
 Do not delete the device copy. Preserve the manifest and local file privately,
 collect again, and compare the reported device size. Cleanup remains blocked
 until size and SHA-256 verification succeeds.
+
+If cleanup reports selected entries but `dry_run=0` and only blocked outcomes,
+confirm that collection and cleanup use the same `--root`. This result shows
+that the guard prevented deletion; it is not evidence that an eligible cleanup
+candidate completed a dry run.
 
 ## Recording start is rejected by device state
 
