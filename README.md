@@ -6,6 +6,10 @@
 
 Offline-first Python tools for on-device data collection and local retrieval from supported Polar wearable devices over Bluetooth Low Energy.
 
+Currently supported devices are **Polar Loop Gen 2** and **Polar Verity Sense**.
+Support is limited to the controlled, device-specific behavior documented in
+the compatibility matrix.
+
 `polar-ble-tools` supports workflows in which a wearable records data to its
 own storage and the resulting files are retrieved later over BLE. It provides
 device setup, offline recording control, PFTP file retrieval, integrity
@@ -91,9 +95,9 @@ before performing device mutations.
 
 ## Compatibility
 
-Controlled hardware validation covers Polar Loop Gen 2 on Linux/BlueZ. Other
-devices exposing the required PMD and PFTP services may work but are not
-confirmed for this release. See
+Controlled hardware validation covers Polar Loop Gen 2 and Polar Verity Sense
+on Linux/BlueZ. Other devices exposing the required PMD and PFTP services may
+work but are not confirmed for this release. See
 [compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
 for the verified capability matrix and limitations.
 
