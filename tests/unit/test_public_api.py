@@ -22,6 +22,7 @@ def test_package_public_api_is_project_owned_and_has_no_generated_symbols() -> N
         "PairingStatus",
         "apply_ftu",
         "available_recording_types",
+        "cleanup_passive_files",
         "cleanup_raw_recordings",
         "collect_passive_files",
         "collect_raw_recordings",

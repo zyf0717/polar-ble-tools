@@ -21,6 +21,7 @@ pass a `transport_factory` in tests or custom integrations.
 | `PassiveDomain` | enum | Select passive BPB domains for listing and collection. |
 | `list_passive_files` | async | List device passive BPB entries for a date range and domain set. |
 | `collect_passive_files` | async | Retrieve and hash-store passive BPB files. |
+| `cleanup_passive_files` | async | Delete hash-verified passive files through a date. |
 | `doctor` | sync | Return `DoctorReport` for core, SDK-schema, and REC-decoder readiness. |
 | `apply_ftu` | async | Apply `FtuProfile`, including its optional settings patch. |
 | `ftu_status` | async | Return FTU completion state. |

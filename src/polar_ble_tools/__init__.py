@@ -39,6 +39,7 @@ from polar_ble_tools.ble.bluetoothctl_pairing import (
 )
 from polar_ble_tools.ble.transport import PairingStatus
 from polar_ble_tools.collection import (
+    cleanup_passive_files,
     cleanup_raw_recordings,
     collect_passive_files,
     collect_raw_recordings,
@@ -66,6 +67,7 @@ __all__ = [
     "PairingStatus",
     "apply_ftu",
     "available_recording_types",
+    "cleanup_passive_files",
     "cleanup_raw_recordings",
     "collect_passive_files",
     "collect_raw_recordings",
