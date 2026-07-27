@@ -5,9 +5,9 @@ Existing observations may satisfy individual rows only when they conform to
 
 ## Phase 1 — evidence contract
 
-- [ ] Define the private test matrix and redacted evidence schema.
-- [ ] Define fixture consent, retention, deletion, and access rules.
-- [ ] Define restricted-artifact and release-candidate audit gates.
+- [x] Define the private test matrix and redacted evidence schema.
+- [x] Define fixture consent, retention, deletion, and access rules.
+- [x] Define restricted-artifact and release-candidate audit gates.
 
 ## Phase 2 — device and radio validation
 

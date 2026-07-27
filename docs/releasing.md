@@ -52,3 +52,10 @@ Never upload SDK source, recordings, compiled decoder output, or generated SDK
 data as a CI artifact or public cache.
 Production publication uses short-lived trusted-publishing credentials rather
 than repository API tokens.
+
+Protected certification additionally follows the
+[SPEC-005 evidence contract](../specs/005-protected-compatibility/evidence-contract.md),
+[governance rules](../specs/005-protected-compatibility/governance.md), and
+[release audit gates](../specs/005-protected-compatibility/validation.md).
+Uninspectable public artifacts, caches, reports, scans, bundles, container
+layers, or release assets fail certification rather than being assumed clean.

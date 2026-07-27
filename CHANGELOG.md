@@ -12,6 +12,9 @@ All notable changes to this project are documented here.
   is not decoding evidence, and blocked cleanup candidates do not constitute an
   eligible cleanup dry-run.
 - Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
+- Defined the protected private-matrix/public-evidence schemas, fixture consent
+  and retention lifecycle, and fail-closed release-candidate audit gates.
+- Added explicit sensitive-data handling and non-medical positioning.
 
 ### Added
 
