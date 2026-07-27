@@ -22,7 +22,7 @@ direct Python API is available.
 | `raw collect` | Retrieve/hash-store REC files | `await collect_raw_recordings()` |
 | `raw cleanup` | Safely remove verified device files | `await cleanup_raw_recordings()` |
 | `passive list` | List passive BPB files | `await list_passive_files()` |
-| `passive collect` | Retrieve/hash-store passive files | `await collect_passive_files()` |
+| `passive collect [--existing-file-policy skip\|overwrite]` | Retrieve/hash-store passive files | `await collect_passive_files()` |
 | `bpb decode` | Decode one local BPB file | `decode_bpb_file()` |
 | `bpb decode-manifest` | Decode BPB files named by a manifest | `decode_bpb_manifest()` |
 | `ftu dry-run` | Validate an FTU profile without a device | `FtuProfile.from_json_file()` |

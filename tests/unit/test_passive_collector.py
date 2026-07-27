@@ -54,3 +54,28 @@ def test_passive_collector_hash_stores_and_skips_verified_files(tmp_path: Path) 
         assert client.fetches == 1
 
     asyncio.run(run())
+
+
+def test_passive_collector_overwrites_verified_files_when_requested(tmp_path: Path) -> None:
+    async def run() -> None:
+        client = FakePassiveClient()
+        collector = PassiveFileCollector(client, PassiveFileStore(tmp_path))  # type: ignore[arg-type]
+        await collector.collect(
+            "AA:BB:CC:DD:EE:FF",
+            (PassiveDomain.DAILY_SUMMARY,),
+            from_date=date(2026, 6, 25),
+            to_date=date(2026, 6, 25),
+        )
+        second = await collector.collect(
+            "AA:BB:CC:DD:EE:FF",
+            (PassiveDomain.DAILY_SUMMARY,),
+            from_date=date(2026, 6, 25),
+            to_date=date(2026, 6, 25),
+            existing_file_policy="overwrite",
+        )
+
+        assert (second.fetched, second.skipped, second.failed) == (1, 0, 0)
+        assert client.fetches == 2
+        assert len(PassiveFileStore(tmp_path).read_manifest("AA:BB:CC:DD:EE:FF")) == 2
+
+    asyncio.run(run())

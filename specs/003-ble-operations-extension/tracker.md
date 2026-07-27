@@ -1,4 +1,4 @@
-# SPEC-003 implementation progress
+# SPEC-003 implementation tracker
 
 Track implementation against [Functional requirements](requirements.md) and
 [Implementation plan](implementation-plan.md). Check an item only when its

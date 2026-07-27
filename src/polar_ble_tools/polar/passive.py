@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
@@ -60,6 +61,27 @@ class PassiveDataClient:
 
     def __init__(self, pftp_client: PftpClient) -> None:
         self.pftp_client = pftp_client
+
+    @asynccontextmanager
+    async def sync_session(self):
+        """Own one complete PFTP passive-data synchronization lifecycle."""
+        await self.pftp_client.send_initialization_and_start_sync_notifications()
+        completed = False
+        body_failed = False
+        try:
+            yield self
+            completed = True
+        except BaseException:
+            body_failed = True
+            raise
+        finally:
+            try:
+                await self.pftp_client.send_terminate_and_stop_sync_notifications(
+                    completed=completed
+                )
+            except BaseException:
+                if not body_failed:
+                    raise
 
     async def list_files(
         self, domains: tuple[PassiveDomain, ...], *, from_date: date, to_date: date

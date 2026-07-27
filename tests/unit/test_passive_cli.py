@@ -68,3 +68,33 @@ def test_passive_cli_rejects_unauthorized_device(tmp_path: Path, capsys) -> None
         == 2
     )
     assert "not authorized" in capsys.readouterr().err
+
+
+def test_passive_collect_passes_existing_file_policy(monkeypatch, capsys) -> None:
+    class Result:
+        ok = True
+
+        def to_jsonable(self):
+            return {"fetched": 1}
+
+    async def fake_collect(*_args, **kwargs):
+        assert kwargs["existing_file_policy"] == "overwrite"
+        return Result()
+
+    monkeypatch.setattr("polar_ble_tools.commands.passive.collect_passive_files", fake_collect)
+
+    assert (
+        passive_main(
+            [
+                "--mac-address",
+                "AA:BB:CC:DD:EE:FF",
+                "--from-date",
+                "2026-06-25",
+                "collect",
+                "--existing-file-policy",
+                "overwrite",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == {"fetched": 1}

@@ -35,7 +35,13 @@ def build_passive_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List passive files without retrieving them.")
-    commands.add_parser("collect", help="Fetch and hash-store passive files.")
+    collect = commands.add_parser("collect", help="Fetch and hash-store passive files.")
+    collect.add_argument(
+        "--existing-file-policy",
+        choices=["skip", "overwrite"],
+        default="skip",
+        help="Reuse verified local files or refetch them. Default: %(default)s.",
+    )
     return parser
 
 
@@ -84,6 +90,7 @@ async def _collect(
         from_date=from_date,
         to_date=to_date,
         root=args.root,
+        existing_file_policy=args.existing_file_policy,
     )
     print_json(result.to_jsonable())
     return 0 if result.ok else 1

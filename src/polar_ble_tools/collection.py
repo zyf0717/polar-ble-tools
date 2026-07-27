@@ -7,8 +7,10 @@ from pathlib import Path
 from polar_ble_tools.ble.transport import BleTransport
 from polar_ble_tools.device import PolarDeviceTarget, resolve_polar_device_target
 from polar_ble_tools.passive_data.collector import (
+    ExistingFilePolicy,
     PassiveCollectionResult,
     PassiveFileCollector,
+    normalize_existing_file_policy,
 )
 from polar_ble_tools.passive_data.storage import PassiveFileStore
 from polar_ble_tools.polar.offline import OfflineRecordingEntry
@@ -131,9 +133,10 @@ async def list_passive_files(
     resolved = resolve_polar_device_target(target)
 
     async def workflow(device):
-        return await device.services.passive.list_files(
-            domains, from_date=from_date, to_date=to_date
-        )
+        async with device.services.passive.sync_session():
+            return await device.services.passive.list_files(
+                domains, from_date=from_date, to_date=to_date
+            )
 
     return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)
 
@@ -146,18 +149,25 @@ async def collect_passive_files(
     to_date,
     root: str | Path,
     device_id: str | None = None,
+    existing_file_policy: ExistingFilePolicy | str = ExistingFilePolicy.SKIP,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> PassiveCollectionResult:
     resolved = resolve_polar_device_target(target)
     effective_id = device_id or resolved.device_id
     if effective_id is None:  # pragma: no cover - normalization invariant
         raise ValueError("Resolved device target is missing device_id.")
+    policy = normalize_existing_file_policy(existing_file_policy)
     store = PassiveFileStore(root)
 
     async def workflow(device):
-        return await PassiveFileCollector(device.services.passive, store).collect(
-            effective_id, domains, from_date=from_date, to_date=to_date
-        )
+        async with device.services.passive.sync_session():
+            return await PassiveFileCollector(device.services.passive, store).collect(
+                effective_id,
+                domains,
+                from_date=from_date,
+                to_date=to_date,
+                existing_file_policy=policy,
+            )
 
     return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)
 
