@@ -3,10 +3,12 @@ from pathlib import Path
 from polar_ble_tools.ble.bluetoothctl_pairing import (
     BluetoothDevice,
     PairingError,
+    PairingStatus,
     _pairing_failure_message,
     connect_device,
     discover_devices,
     pair_device,
+    pair_main,
     parse_devices,
     parse_info,
     parse_live_scan_devices,
@@ -193,6 +195,8 @@ def test_pair_device_skips_pair_and_trust_when_already_bonded(
     monkeypatch: object,
 ) -> None:
     commands: list[str] = []
+    scans: list[float] = []
+    connected = False
 
     class FakeBluetoothctlSession:
         def __init__(self, executable: str = "bluetoothctl") -> None:
@@ -211,29 +215,28 @@ def test_pair_device_skips_pair_and_trust_when_already_bonded(
             idle_timeout: float = 0.4,
             total_timeout: float = 10.0,
         ) -> str:
+            nonlocal connected
             del idle_timeout, total_timeout
             commands.append(command)
-            if command == "info AA:BB:CC:DD:EE:FF" and commands.count(command) == 1:
-                return (
-                    "Device AA:BB:CC:DD:EE:FF\n"
-                    "\tPaired: yes\n"
-                    "\tBonded: yes\n"
-                    "\tTrusted: yes\n"
-                    "\tConnected: no\n"
-                )
+            if command == "connect AA:BB:CC:DD:EE:FF":
+                connected = True
+                return ""
+            if command == "disconnect AA:BB:CC:DD:EE:FF":
+                connected = False
+                return ""
             if command == "info AA:BB:CC:DD:EE:FF":
                 return (
                     "Device AA:BB:CC:DD:EE:FF\n"
                     "\tPaired: yes\n"
                     "\tBonded: yes\n"
                     "\tTrusted: yes\n"
-                    "\tConnected: yes\n"
+                    f"\tConnected: {'yes' if connected else 'no'}\n"
                 )
             return ""
 
         def scan(self, duration_seconds: float) -> str:
-            del duration_seconds
-            return "[NEW] Device AA:BB:CC:DD:EE:FF Polar Loop Gen 2\n"
+            scans.append(duration_seconds)
+            return ""
 
     monkeypatch.setattr(
         "polar_ble_tools.ble.bluetoothctl_pairing.BluetoothctlSession",
@@ -246,10 +249,30 @@ def test_pair_device_skips_pair_and_trust_when_already_bonded(
         scan_seconds=0.1,
     )
 
-    assert status.ready is True
+    assert status.can_skip_pairing is True
+    assert status.connected is False
+    assert status.ready_for_other_actions is True
     assert "pair AA:BB:CC:DD:EE:FF" not in commands
     assert "trust AA:BB:CC:DD:EE:FF" not in commands
     assert commands.count("connect AA:BB:CC:DD:EE:FF") == 1
+    assert commands.count("disconnect AA:BB:CC:DD:EE:FF") == 1
+    assert scans == [0.1]
+
+
+def test_pair_main_reports_ready_for_other_actions(monkeypatch: object, capsys) -> None:
+    status = PairingStatus(
+        mac_address="AA:BB:CC:DD:EE:FF",
+        paired=True,
+        bonded=True,
+        trusted=True,
+        connected=False,
+        raw_info="",
+    )
+    monkeypatch.setattr("polar_ble_tools.ble.bluetoothctl_pairing.pair_device", lambda **_: status)
+
+    assert pair_main(["--mac-address", "AA:BB:CC:DD:EE:FF"]) == 0
+
+    assert "Ready for other actions: yes" in capsys.readouterr().out
 
 
 def test_pair_device_accepts_bond_when_device_disconnects_after_connect(

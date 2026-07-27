@@ -28,9 +28,11 @@ after pairing is normal.
 
 ## Bleak cannot reconnect
 
-Release any BlueZ connection created by pairing before opening the async device
-session. Allow a bounded settle interval after repeated pair/connect activity.
-Do not run unbounded reconnect loops.
+`polar-ble pair` releases its temporary BlueZ connection after verification. If
+an explicit `polar-ble connect` or `connect_device()` call owns a connection,
+release it before opening an async device session. Allow a bounded settle
+interval after repeated pair/connect activity. Do not run unbounded reconnect
+loops.
 
 ## Schema-backed command fails
 
@@ -69,7 +71,7 @@ exact full commit SHA.
 
 ## REC decode fails
 
-The `0.3.1` decoder does not support encrypted recordings or batch decoding.
+The `0.3.2` decoder does not support encrypted recordings or batch decoding.
 Check that a renamed file
 still has a supported recording name, retain the original privately, and inspect
 bounded stderr diagnostics. A null timestamp can be intentional when the SDK

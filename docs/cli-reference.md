@@ -7,7 +7,7 @@ direct Python API is available.
 | Command | Operation | Direct Python entry point |
 | --- | --- | --- |
 | `discover` | Scan BLE advertisements | `discover_devices()` |
-| `pair` | Pair, bond, and trust a device | `pair_device()` |
+| `pair` | Pair, bond, trust, verify connectivity, and disconnect | `pair_device()` |
 | `connect` | Connect a paired device | `connect_device()` |
 | `raw list` | List device REC files | `await list_raw_recordings()` |
 | `raw types` | List supported offline recording types | `await available_recording_types()` |
