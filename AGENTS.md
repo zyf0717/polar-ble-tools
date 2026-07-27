@@ -33,6 +33,12 @@ python -m pip install -e ".[dev,sdk]"
 * Hardware and SDK contract tests are opt-in. A skipped test is not evidence that the behaviour passed.
 * Do not run live device mutations unless explicitly authorized against the private device inventory.
 
+## Release branches and pull requests
+
+* When creating a release branch or pull request, keep `specs/` and `AGENTS.md`
+  out of scope: do not stage, commit, or include changes to either in the
+  release diff.
+
 ## Required checks
 
 ```bash
