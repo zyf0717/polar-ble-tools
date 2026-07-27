@@ -28,14 +28,12 @@ distinguish this condition.
 
 Controlled Linux/BlueZ validation confirmed PMD availability and inactive
 status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
-offline-recording start/stop and exact raw REC retrieval were exercised for
-ACC, GYRO, MAGNETOMETER, PPG, and HR; the resulting files were size- and
-SHA-256-verified locally.
+offline-recording start/stop and exact raw REC retrieval were exercised for all
+six types; the resulting files were size- and SHA-256-verified locally.
 
-PPI start was observed but did not produce an REC file in this run, so PPI REC
-output is not yet claimed. Passive collection over the canonical domains
-returned no files; Verity Sense passive activity, sleep, wellness, or related
-domain support is not claimed. No destructive deletion was performed.
+Passive collection over the canonical domains returned no files; Verity Sense
+passive activity, sleep, wellness, or related domain support is not claimed.
+No destructive deletion was performed.
 
 Other devices exposing compatible PMD and PFTP services should be treated as
 untested until their capability matrix passes on controlled hardware.
