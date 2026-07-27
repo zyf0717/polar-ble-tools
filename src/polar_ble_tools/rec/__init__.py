@@ -11,13 +11,24 @@ from polar_ble_tools.rec.api import (
     RecDecodeError,
     RecordingDecodeError,
     RecRecord,
+    UnsupportedRecordingError,
     decode_recording,
     decoder_status,
     iter_decoded_records,
     verify_active_decoder,
 )
+from polar_ble_tools.rec.batch import (
+    BatchDecodeReport,
+    BatchDecodeStatus,
+    BatchFileResult,
+    decode_recording_manifest,
+    decode_recording_tree,
+)
 
 __all__ = [
+    "BatchDecodeReport",
+    "BatchDecodeStatus",
+    "BatchFileResult",
     "DecodeReport",
     "DecoderManifestError",
     "DecoderProtocolError",
@@ -28,7 +39,10 @@ __all__ = [
     "RecDecodeError",
     "RecRecord",
     "RecordingDecodeError",
+    "UnsupportedRecordingError",
     "decode_recording",
+    "decode_recording_manifest",
+    "decode_recording_tree",
     "decoder_status",
     "iter_decoded_records",
     "verify_active_decoder",

@@ -75,6 +75,10 @@ class RecordingDecodeError(RecDecodeError):
     """The local decoder could not decode the recording."""
 
 
+class UnsupportedRecordingError(RecDecodeError):
+    """The official SDK parser does not support the selected recording."""
+
+
 @dataclass(frozen=True)
 class DecoderStatus:
     available: bool
@@ -617,6 +621,13 @@ def decode_recording(
         raise RecordingDecodeError(
             f"Output already exists: {destination_path}; pass overwrite=True to replace it."
         )
+    if destination_path.exists() and overwrite:
+        try:
+            _validated_rows(destination_path, None)
+        except DecoderProtocolError as exc:
+            raise RecordingDecodeError(
+                "Overwrite requires an existing project-owned decoded JSONL output."
+            ) from exc
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     if not destination_path.parent.is_dir():
         raise RecordingDecodeError("Output parent is not a directory.")
@@ -655,6 +666,10 @@ def decode_recording(
         if returncode:
             if status.get("status") != "error":
                 raise DecoderProtocolError("REC decoder failed without an error status object.")
+            if status.get("error_code") == "unsupported_recording":
+                raise UnsupportedRecordingError(
+                    "The active official SDK parser does not support this recording."
+                )
             raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(stderr)}")
         header, summary = _validated_rows(temporary, source_digest)
         if status.get("status") != "ok" or status.get("record_count") != summary["record_count"]:
@@ -705,6 +720,7 @@ __all__ = [
     "RecDecodeError",
     "RecRecord",
     "RecordingDecodeError",
+    "UnsupportedRecordingError",
     "decode_recording",
     "decoder_status",
     "iter_decoded_records",

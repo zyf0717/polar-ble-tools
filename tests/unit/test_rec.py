@@ -182,6 +182,17 @@ def test_decode_rejects_hardlinked_source_and_output(tmp_path: Path) -> None:
     assert output.read_bytes() == original
 
 
+def test_decode_overwrite_rejects_unrelated_existing_file(tmp_path: Path) -> None:
+    source, output = tmp_path / "PPI0.REC", tmp_path / "decoded.jsonl"
+    source.write_bytes(b"recording bytes")
+    output.write_text("unrelated\n", encoding="utf-8")
+
+    with pytest.raises(RecordingDecodeError, match="project-owned"):
+        decode_recording(source, output, overwrite=True)
+
+    assert output.read_text(encoding="utf-8") == "unrelated\n"
+
+
 def test_decode_recording_validates_and_iterates(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
