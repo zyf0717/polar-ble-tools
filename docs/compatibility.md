@@ -17,6 +17,10 @@ Controlled checks covered:
 - passive daily-summary `.BPB` retrieval and hash storage;
 - daily-summary BPB decoding with a verified local schema cache.
 
+Controlled Linux aarch64/BlueZ validation confirmed discovery, durable pairing
+and bonding, and FTU profile application for Polar Loop Gen 2. This evidence
+does not extend the x86_64-only REC-decoder support claim.
+
 The cleanup check did not delete device data. Reconnect required bounded retries
 after repeated BlueZ activity and completed within the configured operation
 timeout.
