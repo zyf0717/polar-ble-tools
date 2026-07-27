@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from polar_ble_tools.ble.transport import BleTransport
 from polar_ble_tools.device import PolarDeviceTarget, resolve_polar_device_target
 from polar_ble_tools.passive_data.collector import (
     ExistingFilePolicy,
+    PassiveCleanupResult,
     PassiveCollectionResult,
     PassiveFileCollector,
     normalize_existing_file_policy,
@@ -17,6 +19,7 @@ from polar_ble_tools.polar.offline import OfflineRecordingEntry
 from polar_ble_tools.polar.passive import (
     PassiveDomain,
     PassiveFileListing,
+    normalize_passive_domain,
 )
 from polar_ble_tools.raw_data.collector import (
     CleanupResult,
@@ -169,6 +172,37 @@ async def collect_passive_files(
                 to_date=to_date,
                 existing_file_policy=policy,
                 delete_after_collect=delete_after_collect,
+            )
+
+    return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)
+
+
+async def cleanup_passive_files(
+    target: PolarDeviceTarget | str,
+    *,
+    root: str | Path,
+    domain: PassiveDomain | str,
+    delete_through,
+    dry_run: bool = False,
+    transport_factory: Callable[[], BleTransport] | None = None,
+) -> PassiveCleanupResult:
+    normalized_domain = normalize_passive_domain(domain)
+    if delete_through >= date.today():
+        raise ValueError("delete_through must be earlier than the current local date.")
+    resolved = resolve_polar_device_target(target)
+    device_id = resolved.device_id
+    if device_id is None:  # pragma: no cover
+        raise ValueError("Resolved device target is missing device_id.")
+    store = PassiveFileStore(root)
+    if dry_run:
+        return await PassiveFileCollector(None, store).cleanup(  # type: ignore[arg-type]
+            device_id, domain=normalized_domain, delete_through=delete_through, dry_run=True
+        )
+
+    async def workflow(device):
+        async with device.services.passive.sync_session():
+            return await PassiveFileCollector(device.services.passive, store).cleanup(
+                device_id, domain=normalized_domain, delete_through=delete_through, dry_run=False
             )
 
     return await DeviceWorkflowRunner(transport_factory=transport_factory).run(resolved, workflow)

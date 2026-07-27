@@ -63,6 +63,25 @@ class PassiveCollectionResult:
         return {**self.__dict__, "records": [record.to_jsonable() for record in self.records]}
 
 
+@dataclass(frozen=True)
+class PassiveCleanupResult:
+    device_id: str
+    domain: str
+    selected: int
+    deleted: int
+    dry_run: int
+    blocked: int
+    failed: int
+    records: list[PassiveCollectionRecordResult]
+
+    @property
+    def ok(self) -> bool:
+        return self.blocked == 0 and self.failed == 0
+
+    def to_jsonable(self) -> dict[str, object]:
+        return {**self.__dict__, "records": [record.to_jsonable() for record in self.records]}
+
+
 class PassiveFileCollector:
     def __init__(self, client: PassiveDataClient, store: PassiveFileStore) -> None:
         self.client = client
@@ -190,6 +209,93 @@ class PassiveFileCollector:
             )
             for record in records
         ]
+
+    async def cleanup(
+        self,
+        device_id: str,
+        *,
+        domain: PassiveDomain,
+        delete_through: date,
+        dry_run: bool,
+    ) -> PassiveCleanupResult:
+        latest = {
+            entry.device_path: entry
+            for entry in self.store.read_manifest(device_id)
+            if entry.domain == domain.value
+        }
+        selected = sorted(
+            (
+                entry
+                for entry in latest.values()
+                if entry.logical_date is not None
+                and entry.logical_date <= delete_through.isoformat()
+            ),
+            key=lambda entry: (entry.logical_date or "", entry.device_path),
+        )
+        operation_id = str(uuid4())
+        records: list[PassiveCollectionRecordResult] = []
+        for manifest in selected:
+            entry = PassiveFileEntry(
+                domain,
+                manifest.device_path,
+                manifest.device_size,
+                date.fromisoformat(manifest.logical_date),
+            )
+            verified = self.store.verify_existing_file(
+                device_id,
+                device_path=entry.path,
+                device_size=entry.size,
+                domain=domain.value,
+            )
+            if verified is None:
+                status, error, deleted_paths = "blocked_unverified", "local verification failed", ()
+            elif dry_run:
+                status, error, deleted_paths = "dry_run", None, ()
+            else:
+                try:
+                    await self.client.remove_file(entry)
+                except Exception as exc:
+                    if isinstance(exc, BleTransportError):
+                        raise
+                    status, error, deleted_paths = "failed", str(exc), ()
+                else:
+                    status, error, deleted_paths = "deleted", None, (entry.path,)
+            self.store.append_deletion_audit(
+                device_id,
+                operation_id=operation_id,
+                domain=domain.value,
+                logical_date=manifest.logical_date,
+                device_path=entry.path,
+                local_path=manifest.local_path,
+                local_sha256=manifest.sha256,
+                status=status,
+                deleted_paths=deleted_paths,
+                error=error,
+                dry_run=dry_run,
+            )
+            records.append(
+                PassiveCollectionRecordResult(
+                    entry.path,
+                    domain.value,
+                    "skipped",
+                    manifest.local_path,
+                    manifest.fetched_size,
+                    manifest.sha256,
+                    logical_date=manifest.logical_date,
+                    delete_status=status,
+                    delete_error=error,
+                )
+            )
+        return PassiveCleanupResult(
+            device_id,
+            domain.value,
+            len(selected),
+            sum(record.delete_status == "deleted" for record in records),
+            sum(record.delete_status == "dry_run" for record in records),
+            sum(record.delete_status == "blocked_unverified" for record in records),
+            sum(record.delete_status == "failed" for record in records),
+            records,
+        )
 
 
 def _stored_result(

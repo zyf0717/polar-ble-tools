@@ -125,3 +125,42 @@ def test_delete_after_collect_retains_latest_date_and_audits_deletion(tmp_path: 
         assert '"status":"deleted"' in store.deletion_audit_path("AA:BB:CC:DD:EE:FF").read_text()
 
     asyncio.run(run())
+
+
+def test_cleanup_dry_run_is_local_and_destructive_cleanup_removes_verified_file(
+    tmp_path: Path,
+) -> None:
+    class Client:
+        removed: list[str] = []
+
+        async def remove_file(self, entry):
+            self.removed.append(entry.path)
+
+    async def run() -> None:
+        store = PassiveFileStore(tmp_path)
+        store.persist_file(
+            "AA:BB:CC:DD:EE:FF",
+            domain="daily_summary",
+            device_path="/U/0/20260624/DSUM/DSUM.BPB",
+            device_size=3,
+            payload=b"raw",
+            logical_date="2026-06-24",
+        )
+        dry = await PassiveFileCollector(None, store).cleanup(  # type: ignore[arg-type]
+            "AA:BB:CC:DD:EE:FF",
+            domain=PassiveDomain.DAILY_SUMMARY,
+            delete_through=date(2026, 6, 24),
+            dry_run=True,
+        )
+        client = Client()
+        deleted = await PassiveFileCollector(client, store).cleanup(  # type: ignore[arg-type]
+            "AA:BB:CC:DD:EE:FF",
+            domain=PassiveDomain.DAILY_SUMMARY,
+            delete_through=date(2026, 6, 24),
+            dry_run=False,
+        )
+        assert dry.dry_run == 1
+        assert deleted.deleted == 1
+        assert client.removed == ["/U/0/20260624/DSUM/DSUM.BPB"]
+
+    asyncio.run(run())
