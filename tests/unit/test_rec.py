@@ -18,6 +18,10 @@ from polar_ble_tools.rec import (
     iter_decoded_records,
 )
 from polar_ble_tools.schemas.cache import SdkCache
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    toolchain_descriptor,
+    toolchain_descriptor_digest,
+)
 
 COMMIT = "a" * 40
 
@@ -27,6 +31,7 @@ def _digest(path: Path) -> str:
 
 
 def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -> Path:
+    descriptor = toolchain_descriptor("linux", "x86_64")
     root = cache.decoder_path(COMMIT)
     executable = root / "bin" / "polar-rec-decoder"
     executable.parent.mkdir(parents=True)
@@ -61,6 +66,15 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "decoder_protocol_version": 1,
                 "sdk_commit": COMMIT,
                 "decoder_version": "test",
+                "polar_ble_tools_version": "test",
+                "platform": descriptor.platform,
+                "architecture": descriptor.architecture,
+                "java_version": descriptor.jdk_version,
+                "java_archive_sha256": descriptor.jdk_sha256,
+                "gradle_version": descriptor.gradle_version,
+                "gradle_archive_sha256": descriptor.gradle_sha256,
+                "adapter_source_sha256": "0" * 64,
+                "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
                 "executable_relative_path": "bin/polar-rec-decoder",
                 "executable_sha256": _digest(executable),
                 "runtime_files": {"bin/polar-rec-decoder": _digest(executable)},
@@ -68,9 +82,13 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                     "kind": "pinned-jvm",
                     "platform": "linux",
                     "architecture": "x86_64",
-                    "java_version": "21.0.12+8",
-                    "java_relative_cache_path": "toolchains/rec-jvm/linux/x86_64/jdk-21.0.12+8",
+                    "java_version": descriptor.jdk_version,
+                    "java_relative_cache_path": (
+                        f"toolchains/rec-jvm/linux/x86_64/jdk-{descriptor.jdk_version}"
+                    ),
+                    "java_relative_path": descriptor.java_relative_path,
                     "java_executable_sha256": "",
+                    "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
                 },
                 "verification_level": "handshake",
                 "verified": True,
@@ -81,7 +99,10 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
     cache.active_decoder_manifest_path.write_text(
         json.dumps({"sdk_commit": COMMIT}), encoding="utf-8"
     )
-    java = cache.rec_jvm_java_home("linux", "x86_64", "21.0.12+8") / "bin" / "java"
+    java = (
+        cache.rec_jvm_java_home("linux", "x86_64", descriptor.jdk_version)
+        / descriptor.java_relative_path
+    )
     java.parent.mkdir(parents=True)
     java.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     java.chmod(0o755)
@@ -177,6 +198,19 @@ def test_decoder_rejects_unmanifested_runtime_file(
 
     with pytest.raises(DecoderVerificationError, match="runtime files changed"):
         decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+def test_status_reports_actionable_architecture_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    monkeypatch.setattr("polar_ble_tools.rec.api.platform.machine", lambda: "aarch64")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "polar-ble sdk decoder build" in (status.reason or "")
 
 
 def test_decode_timeout_terminates_child_and_removes_temporary_output(

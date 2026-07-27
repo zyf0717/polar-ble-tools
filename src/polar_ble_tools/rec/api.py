@@ -17,7 +17,16 @@ from threading import Thread
 from typing import Any
 
 from polar_ble_tools.schemas.cache import SdkCache
-from polar_ble_tools.sdk_tools.decoder.toolchain import java_environment
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    java_environment,
+    normalized_architecture,
+    normalized_platform,
+    toolchain_descriptor,
+    toolchain_descriptor_digest,
+)
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    java_home as toolchain_java_home,
+)
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 _PROTOCOL_VERSION = 1
@@ -104,15 +113,39 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
     architecture = runtime.get("architecture")
     version = runtime.get("java_version")
     relative = runtime.get("java_relative_cache_path")
+    java_relative_path = runtime.get("java_relative_path")
     expected_digest = runtime.get("java_executable_sha256")
-    expected_platform = platform.system().lower()
-    expected_architecture = platform.machine().lower().replace("amd64", "x86_64")
+    descriptor_digest = runtime.get("toolchain_descriptor_sha256")
+    expected_platform = normalized_platform(platform.system())
+    expected_architecture = normalized_architecture(platform.machine())
     if platform_name != expected_platform or architecture != expected_architecture:
         raise DecoderUnavailableError(
-            "Active REC decoder was built for a different platform or architecture."
+            "Active REC decoder was built for a different platform or architecture; "
+            "rebuild with: polar-ble sdk decoder build"
         )
-    if not all(isinstance(value, str) for value in (version, relative, expected_digest)):
+    try:
+        descriptor = toolchain_descriptor(expected_platform, expected_architecture)
+    except RuntimeError as exc:
+        raise DecoderUnavailableError(str(exc)) from exc
+    if not all(
+        isinstance(value, str)
+        for value in (
+            version,
+            relative,
+            java_relative_path,
+            expected_digest,
+            descriptor_digest,
+        )
+    ):
         raise DecoderManifestError("Decoder runtime descriptor is malformed.")
+    if (
+        version != descriptor.jdk_version
+        or java_relative_path != descriptor.java_relative_path
+        or descriptor_digest != toolchain_descriptor_digest(descriptor)
+    ):
+        raise DecoderVerificationError(
+            "Decoder toolchain descriptor changed; rebuild with: polar-ble sdk decoder build"
+        )
     if len(expected_digest) != 64 or any(
         character not in "0123456789abcdef" for character in expected_digest
     ):
@@ -121,12 +154,12 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
         java_home = require_within(cache.root / relative, cache.root)
     except ValueError as exc:
         raise DecoderManifestError("Decoder runtime descriptor escapes the cache root.") from exc
-    expected_home = cache.rec_jvm_java_home(platform_name, architecture, version).resolve()
+    expected_home = toolchain_java_home(cache, descriptor).resolve()
     if java_home != expected_home:
         raise DecoderManifestError(
             "Decoder runtime descriptor does not name the pinned JDK location."
         )
-    executable = java_home / "bin" / "java"
+    executable = java_home / java_relative_path
     if not executable.is_file() or executable.is_symlink() or not os.access(executable, os.X_OK):
         raise DecoderUnavailableError(
             "Decoder JDK is missing or not executable; rebuild the active REC decoder."
@@ -136,7 +169,7 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
             "Decoder JDK changed; rebuild and verify the active REC decoder."
         )
     try:
-        return java_environment(java_home)
+        return java_environment(java_home, java_relative_path=java_relative_path)
     except RuntimeError as exc:
         raise DecoderUnavailableError(str(exc)) from exc
 
@@ -225,6 +258,20 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         or manifest.get("sdk_commit") != commit
         or manifest.get("decoder_protocol_version") != _PROTOCOL_VERSION
         or manifest.get("verified") is not True
+        or manifest.get("platform") != runtime.get("platform")
+        or manifest.get("architecture") != runtime.get("architecture")
+        or manifest.get("java_version") != runtime.get("java_version")
+        or manifest.get("toolchain_descriptor_sha256") != runtime.get("toolchain_descriptor_sha256")
+        or not isinstance(manifest.get("gradle_version"), str)
+        or not isinstance(manifest.get("polar_ble_tools_version"), str)
+        or not isinstance(manifest.get("adapter_source_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("adapter_source_sha256")))
+        or not isinstance(manifest.get("java_archive_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("java_archive_sha256")))
+        or not isinstance(manifest.get("gradle_archive_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("gradle_archive_sha256")))
+        or not isinstance(manifest.get("toolchain_descriptor_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("toolchain_descriptor_sha256")))
         or not isinstance(relative, str)
         or not isinstance(expected_digest, str)
         or not isinstance(expected_runtime_files, dict)

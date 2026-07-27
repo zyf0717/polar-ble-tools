@@ -14,9 +14,12 @@ from polar_ble_tools.sdk_tools.decoder import (
     _replace_incomplete_directory,
     _restore_decoder_directory,
     _safe_jdk_archive_member,
+    _tool_entry_verified,
+    _write_tool_entry_manifest,
     activate_decoder,
     remove_decoder,
 )
+from polar_ble_tools.sdk_tools.decoder.toolchain import toolchain_descriptor
 
 
 def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:
@@ -44,6 +47,42 @@ def test_toolchain_promotion_replaces_incomplete_regular_directory(tmp_path: Pat
 
     assert (target / "marker").read_text(encoding="utf-8") == "replacement"
     assert not staged.exists()
+
+
+@pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
+def test_cached_tool_entry_is_bound_to_architecture_descriptor(
+    tmp_path: Path, architecture: str
+) -> None:
+    descriptor = toolchain_descriptor("linux", architecture)
+    root = tmp_path / architecture
+    executable = root / descriptor.java_relative_path
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+
+    _write_tool_entry_manifest(
+        root,
+        executable,
+        descriptor,
+        kind="jdk",
+        archive_sha256=descriptor.jdk_sha256,
+    )
+
+    assert _tool_entry_verified(
+        root,
+        executable,
+        descriptor,
+        kind="jdk",
+        archive_sha256=descriptor.jdk_sha256,
+    )
+    executable.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    assert not _tool_entry_verified(
+        root,
+        executable,
+        descriptor,
+        kind="jdk",
+        archive_sha256=descriptor.jdk_sha256,
+    )
 
 
 def _entry(path: Path, marker: str) -> None:
