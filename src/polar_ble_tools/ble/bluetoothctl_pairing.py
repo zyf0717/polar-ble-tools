@@ -344,7 +344,7 @@ def pair_device(
     executable: str = "bluetoothctl",
     lifecycle: BleLifecycle | None = None,
 ) -> PairingStatus:
-    """Discover and pair one device, returning its resulting BlueZ state.
+    """Discover, pair, verify connectivity, and release one device.
 
     Supply ``mac_address`` for deterministic pairing. ``name_substring`` is
     only used when selecting a unique discovered device without a MAC address.
@@ -363,21 +363,51 @@ def pair_device(
             session.command("power on")
             session.command("agent on")
             session.command("default-agent")
+            device: BluetoothDevice | None = None
+            existing_status: PairingStatus | None = None
+            if mac_address:
+                target = mac_address.upper()
+                if allowed_mac_addresses is not None and target not in allowed_mac_addresses:
+                    raise PairingError(f"Target device {target} is not authorized in devices.yaml.")
+                existing_info_output = session.command(
+                    f"info {target}",
+                    idle_timeout=0.8,
+                    total_timeout=10.0,
+                )
+                existing_status = parse_info_or_none(target, existing_info_output)
+                if existing_status and existing_status.can_skip_pairing:
+                    device = BluetoothDevice(mac_address=target, name="")
+
             _log_lifecycle(lifecycle, BleLifecycleEvent.START_SCAN, logger=logger)
             devices = _scan_discovered_devices(session, scan_seconds)
-            device = select_device(
-                devices,
-                mac_address=mac_address,
-                name_substring=name_substring,
-                allowed_mac_addresses=allowed_mac_addresses,
-            )
+            if mac_address and device is not None:
+                live_device = next(
+                    (
+                        candidate
+                        for candidate in devices
+                        if candidate.mac_address == device.mac_address
+                    ),
+                    None,
+                )
+                if live_device is not None:
+                    device = live_device
+            else:
+                device = select_device(
+                    devices,
+                    mac_address=mac_address,
+                    name_substring=name_substring,
+                    allowed_mac_addresses=allowed_mac_addresses,
+                )
+
+            if existing_status is None:
+                existing_info_output = session.command(
+                    f"info {device.mac_address}",
+                    idle_timeout=0.8,
+                    total_timeout=10.0,
+                )
+                existing_status = parse_info_or_none(device.mac_address, existing_info_output)
+
             log_event(logger, "selected_device", mac=device.mac_address, name=device.name)
-            existing_info_output = session.command(
-                f"info {device.mac_address}",
-                idle_timeout=0.8,
-                total_timeout=10.0,
-            )
-            existing_status = parse_info_or_none(device.mac_address, existing_info_output)
             if existing_status:
                 log_status(logger, "pre_pair_check", existing_status)
             else:
@@ -450,6 +480,15 @@ def pair_device(
             f"Pairing completed with an invalid final state for {device.mac_address}.\n"
             f"{status.raw_info}"
         )
+    if status.connected:
+        log_event(logger, "pair_connection_release_start", mac=device.mac_address)
+        _log_lifecycle(lifecycle, BleLifecycleEvent.START_DISCONNECT, logger=logger)
+        status = release_device_connection(
+            mac_address=device.mac_address,
+            log_dir=log_dir,
+            executable=executable,
+        )
+        _log_lifecycle(lifecycle, BleLifecycleEvent.DISCONNECTED, logger=logger)
     log_status(logger, "pair_complete", status)
     return status
 
@@ -555,8 +594,8 @@ def release_device_connection(
 ) -> PairingStatus:
     """Release a BlueZ connection while preserving the bond.
 
-    Pairing intentionally makes a best-effort connection. Call this before a
-    separate Bleak client takes ownership of the same peripheral.
+    Call this after an explicit ``connect_device`` request before a separate
+    Bleak client takes ownership of the same peripheral.
     """
     allowed = _load_allowed_or_pairing_error(devices_file) if devices_file is not None else None
     target = resolve_target_mac_address(mac_address, allowed)
@@ -584,7 +623,7 @@ def release_device_connection(
 def build_pair_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Pair, bond, trust, and best-effort connect a Polar BLE device via BlueZ bluetoothctl."
+            "Pair, bond, trust, verify connectivity, and disconnect a Polar BLE device via BlueZ."
         )
     )
     parser.add_argument(
@@ -669,6 +708,7 @@ def pair_main(argv: list[str] | None = None) -> int:
     print(f"Bonded: {'yes' if status.bonded else 'no'}")
     print(f"Trusted: {'yes' if status.trusted else 'no'}")
     print(f"Connected: {'yes' if status.connected else 'no'}")
+    print(f"Ready for other actions: {'yes' if status.ready_for_other_actions else 'no'}")
     return 0
 
 

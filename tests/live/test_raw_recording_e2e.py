@@ -17,7 +17,6 @@ import pytest
 
 from polar_ble_tools.ble.bluetoothctl_pairing import (
     pair_device,
-    release_device_connection,
 )
 from polar_ble_tools.device import open_polar_device
 from polar_ble_tools.inventory import InventoryError, load_allowed_mac_addresses
@@ -80,11 +79,6 @@ def test_live_pair_ftu_record_and_fetch_raw() -> None:
         log_dir=config.output_root / "pairing-logs",
     )
     assert pairing.can_skip_pairing
-    release_device_connection(
-        mac_address=config.mac_address,
-        log_dir=config.output_root / "pairing-logs",
-    )
-
     result = asyncio.run(_run_e2e(config))
     assert result["fetched_size"] == result["device_size"]
     assert result["manifest_verified"] is True

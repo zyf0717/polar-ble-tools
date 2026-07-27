@@ -45,6 +45,11 @@ class PairingStatus:
     def can_skip_pairing(self) -> bool:
         return self.paired and self.bonded and self.trusted
 
+    @property
+    def ready_for_other_actions(self) -> bool:
+        """Whether another command can safely take connection ownership."""
+        return self.can_skip_pairing and not self.connected
+
 
 class BleSession(Protocol):
     @property

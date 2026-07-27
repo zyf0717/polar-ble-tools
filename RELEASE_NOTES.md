@@ -1,14 +1,15 @@
-# polar-ble-tools 0.3.1
+# polar-ble-tools 0.3.2
 
-`0.3.1` is an urgent Linux/BlueZ discovery-correctness release.
+`0.3.2` is an urgent Linux/BlueZ pairing and connection-ownership release.
 
 ## Fixed
 
-- `polar-ble discover` now reports only device observations received during its
-  active scan. Cached BlueZ device records are excluded, preventing stale
-  paired devices from being reported as currently discoverable.
-- BlueZ connection-attempt failures now provide concise bounded-retry and
-  troubleshooting guidance.
+- `polar-ble pair` always uses live scan observations while retaining an
+  existing explicit BlueZ bond as a fallback for direct connection
+  verification when a device is not observed during the scan.
+- Pairing now releases its temporary verification connection before returning.
+  The final status explicitly reports when the device is ready for another
+  action to own the connection.
 
 ## Compatibility and boundaries
 

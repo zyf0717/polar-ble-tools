@@ -18,6 +18,10 @@ Pairing and connection accept `--mac-address`. Commands that support
 `--devices-file` reject a target not present in that explicitly supplied local
 inventory.
 
+Pairing always performs a live discovery scan. For an explicit MAC address
+that BlueZ already reports as paired, bonded, and trusted, a missing live
+observation falls back to that cached bond for direct connection verification.
+
 An inventory uses labels followed by MAC addresses:
 
 ```yaml
@@ -33,7 +37,7 @@ in logs, fixtures, or support requests.
 | Command | Purpose |
 | --- | --- |
 | `polar-ble discover` | List nearby BLE advertisements. |
-| `polar-ble pair` | Pair, bond, trust, and best-effort connect through BlueZ. |
+| `polar-ble pair` | Pair, bond, trust, verify a BlueZ connection, then disconnect. |
 | `polar-ble connect` | Connect a previously paired and trusted device. |
 | `polar-ble raw` | List, collect, and safely clean raw `.REC` files. |
 | `polar-ble passive` | List and collect passive `.BPB` files without schemas. |
@@ -81,7 +85,7 @@ passive = await collect_passive_files(
 
 The package does not read an inventory unless the caller supplies its path.
 
-The `0.3.1` facade also exposes structured local readiness and the live FTU
+The `0.3.2` facade also exposes structured local readiness and the live FTU
 workflow without constructing CLI argument lists:
 
 ```python

@@ -17,8 +17,8 @@ bluetoothctl info AA:BB:CC:DD:EE:FF
 ```
 
 Proceed only when BlueZ reports `Paired: yes`, `Bonded: yes`, and
-`Trusted: yes`. `Connected` is transient and may be `no` after a successful
-pairing.
+`Trusted: yes`, followed by `Ready for other actions: yes`. `Connected` is
+transient and is `no` after a successful pairing.
 
 ## Prepare FTU
 
@@ -47,6 +47,9 @@ polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
 polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
 polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF diagnose
 ```
+
+`polar-ble pair` releases its temporary BlueZ connection after it verifies the
+bond. FTU therefore opens and closes only its own async BLE session.
 
 If application is interrupted, reconnect and inspect `status` and `diagnose`
 before deciding whether to apply the same reviewed profile again. Avoid

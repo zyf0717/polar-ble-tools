@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.2 — 2026-07-27
+
+### Fixed
+
+- Pairing now releases its temporary BlueZ verification connection before
+  returning, so follow-up async device sessions do not require a handoff.
+- Pairing combines live scan observations with an explicit existing-bond
+  fallback for direct connection verification.
+
+### Changed
+
+- Pairing now reports whether the device is ready for other actions.
+
 ## 0.3.1 — 2026-07-27
 
 ### Changed
@@ -10,6 +23,8 @@ All notable changes to this project are documented here.
   bounded retry and troubleshooting guidance.
 - Discovery now excludes cached BlueZ device records and reports only devices
   observed during the active scan.
+- Documented controlled Linux aarch64/BlueZ validation of Polar Loop Gen 2
+  discovery, durable pairing and bonding, and FTU profile application.
 
 ## 0.3.0 — 2026-07-27
 
