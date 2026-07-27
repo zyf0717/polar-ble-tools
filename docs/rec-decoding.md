@@ -10,8 +10,9 @@ are unsupported.
 The public compatibility claim remains explicit unprotected decoding on Linux
 x86_64. The lifecycle implementation now has pinned Linux aarch64 descriptors
 and equivalent synthetic safety contracts, but a real aarch64 build/run remains
-a protected validation gate. Protected recordings and expanded adapter
-certification remain deferred to SPEC-004 and SPEC-005.
+a protected validation gate. Protected recordings remain deferred to SPEC-006.
+Explicit adapter implementation remains open in SPEC-004 and its certification
+is governed by SPEC-005. Batch decoding is deferred to SPEC-007.
 
 The project uses a local JVM sidecar because Polar's official REC parser is in
 the separately licensed SDK. This keeps SDK classes, source, and binaries out

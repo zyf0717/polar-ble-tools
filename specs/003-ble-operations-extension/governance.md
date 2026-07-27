@@ -28,5 +28,5 @@ SPEC-003 is complete when:
 9. release documentation describes only evidence-backed support;
 10. version and release notes identify the `0.3.0` contract.
 
-SPEC-004 and SPEC-005 are independent follow-on programs and are not SPEC-003
-completion gates.
+SPEC-004 through SPEC-007 are independent follow-on programs and are not
+SPEC-003 completion gates.

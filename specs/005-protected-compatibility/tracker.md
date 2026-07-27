@@ -3,6 +3,15 @@
 Existing observations may satisfy individual rows only when they conform to
 [the evidence contract](evidence-contract.md).
 
+## Existing foundations
+
+- [x] Capability-scoped compatibility observations are documented.
+- [x] Opt-in primary-device and limited two-device live probes exist.
+- [x] Repository/history restricted-material audit exists.
+
+These checks are partial infrastructure and do not complete FR-040 through
+FR-065.
+
 ## Phase 1 — evidence contract (deferred)
 
 Policy defaults and reviewer ownership require explicit maintainer or
@@ -12,7 +21,7 @@ organizational approval before implementation.
 - [ ] Define fixture consent, retention, deletion, and access rules.
 - [ ] Define restricted-artifact and release-candidate audit gates.
 
-## Phase 2 — device and radio validation
+## Phase 2 — device and radio validation (deferred)
 
 - [ ] **FR-040** — Loop Gen 2 and Verity Sense compatibility matrix.
 - [ ] **FR-041** — Controlled Loop Gen 2 coverage.
@@ -21,7 +30,7 @@ organizational approval before implementation.
 - [ ] **FR-044** — Controlled reconnect and radio-loss behavior.
 - [ ] **FR-045** — Claims backed only by controlled evidence.
 
-## Phase 3 — certification
+## Phase 3 — certification (deferred)
 
 - [ ] **FR-058** — Cross-workstream maintainability review.
 - [ ] **FR-064** — Restricted-material exclusion audit.

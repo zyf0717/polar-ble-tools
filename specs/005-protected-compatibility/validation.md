@@ -1,6 +1,17 @@
 # Validation
 
-## Hardware
+## Implemented test foundations
+
+The repository has opt-in probes for a primary device, selected reconnect/PMD
+operations, one passive daily-summary retrieval/decode, cleanup dry-run, and an
+optional two-device read-only concurrency check. These probes do not implement
+the complete requirements below and a skipped probe is not evidence.
+
+`scripts/release_audit.py` scans repository paths and history. Packaging tests
+inspect wheel/sdist contents. External workflow, cache, report, container, and
+release-asset inspection remains deferred.
+
+## Deferred hardware matrix
 
 Use controlled, disposable recordings for destructive tests. Exercise:
 
@@ -11,7 +22,7 @@ Use controlled, disposable recordings for destructive tests. Exercise:
 - passive domains only where device behavior provides evidence;
 - two-device concurrency/cancellation and controlled radio loss.
 
-## Protected fixtures
+## Deferred protected fixtures
 
 For each claimed decoder/schema category:
 
@@ -22,7 +33,7 @@ For each claimed decoder/schema category:
   uploads;
 - record private retention and deletion.
 
-## Release artifact audit
+## Deferred certification audit
 
 Inspect repository state, history, workflow configuration, wheel, sdist,
 artifacts, caches, container layers, reports, scans, bundles, and release assets

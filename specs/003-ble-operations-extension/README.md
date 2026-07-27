@@ -1,6 +1,6 @@
 # SPEC-003: Core BLE operations
 
-**Status:** Implemented; `0.3.0` release candidate
+**Status:** Implemented; released in `0.3.0`
 **Milestone:** `0.3.0`
 **Repository:** `zyf0717/polar-ble-tools`
 
@@ -16,9 +16,11 @@ SPEC-003 defines the package’s core Linux/BlueZ BLE tooling:
 - immutable public result collections and stable serialized statuses;
 - shared atomic publication, JSONL append, and streaming SHA-256 verification.
 
-Structured REC decoder expansion is specified in
-[SPEC-004](../004-rec-decoder-extension/README.md). Protected hardware,
-fixture, privacy, and certification evidence is specified in
+Single-file structured REC decoding is specified in
+[SPEC-004](../004-rec-decoder-extension/README.md), with protected REC and batch
+extensions deferred to [SPEC-006](../006-protected-rec-decoding/README.md) and
+[SPEC-007](../007-rec-batch-decoding/README.md). Protected hardware, fixture,
+privacy, and certification evidence is specified in
 [SPEC-005](../005-protected-compatibility/README.md).
 
 ## Documents

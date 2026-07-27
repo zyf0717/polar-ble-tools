@@ -1,7 +1,7 @@
 # SPEC-004 tracker
 
-All items are deferred beyond `0.3.0` and governed by
-[requirements.md](requirements.md).
+Implemented checks describe current code. Unchecked items remain required before
+the corresponding public compatibility claim.
 
 ## Phase 1 — platform and SDK lifecycle
 
@@ -15,27 +15,13 @@ All items are deferred beyond `0.3.0` and governed by
 - [x] **FR-060** — Fresh per-invocation SDK licence confirmation and `-y`.
 - [x] **FR-061** — Local-only SDK material without cache-level licence gates.
 
-## Phase 2 — protected sidecar protocol
+## Phase 2 — implementation structure
 
-- [ ] **FR-027** — Compatible non-argv secret transport.
-- [ ] **FR-028** — Private file/stdin secret sources and leakage prevention.
-- [ ] **FR-029** — Validated, redacted project-owned secret models.
-- [ ] **FR-030** — Evidence-backed secret strategies only.
-- [ ] **FR-031** — Protocol negotiation before secret transfer.
-- [ ] **FR-032** — Stable redacted security error categories.
-- [ ] **FR-062** — Official SDK parser only; no fallback parser/decryptor.
-
-## Phase 3 — batch decoding and adapters (deferred)
-
-Batch CLI/API work is deferred until the single-file decoder is certified
-against the protected corpus and the feature is approved as a product priority.
-
-- [ ] **FR-033** — Tree and manifest batch CLI.
-- [ ] **FR-034** — Corresponding public Python APIs.
-- [ ] **FR-035** — Deterministic, symlink-safe, atomic tree decoding.
-- [ ] **FR-036** — Strict schema-versioned manifest validation.
-- [ ] **FR-037** — Destination preflight and constrained overwrite.
-- [ ] **FR-038** — Versioned batch summaries.
-- [ ] **FR-039** — Secure once-per-source secret resolution.
 - [x] **FR-049** — Cohesive REC-module decomposition.
+
+## Phase 3 — adapter certification
+
 - [ ] **FR-063** — Explicit stable payload adapter contracts.
+
+Deferred protected requirements are tracked by SPEC-006. Deferred batch
+requirements are tracked by SPEC-007.

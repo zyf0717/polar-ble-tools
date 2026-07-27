@@ -3,6 +3,10 @@
 The detailed private matrix and redacted public schema are deferred pending
 maintainer or organizational approval.
 
+Current prose observations in `docs/compatibility.md` are historical,
+capability-scoped inputs. They are not formal rows under this deferred schema
+and do not satisfy exact-commit certification by themselves.
+
 ## Public evidence
 
 Public compatibility evidence is limited to:

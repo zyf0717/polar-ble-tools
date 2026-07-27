@@ -1,6 +1,6 @@
 # SPEC-003 implementation tracker
 
-**Status:** Complete — implemented SPEC-003 code contract.
+**Status:** Implemented — complete SPEC-003 code contract.
 
 ## Phase 1 — recording control and retrieval
 
@@ -29,5 +29,5 @@
 - [ ] Re-run the private hardware smoke matrix for the exact release commit.
 - [ ] Publish through the approved TestPyPI/PyPI workflow.
 
-SPEC-004 and SPEC-005 have separate trackers and do not block completion of the
-implemented SPEC-003 code contract.
+SPEC-004 through SPEC-007 have separate trackers and do not block completion of
+the implemented SPEC-003 code contract.

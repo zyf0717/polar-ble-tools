@@ -1,8 +1,10 @@
 # Functional requirements
 
 SPEC-003 owns the release-ready BLE recording, retrieval, persistence, and
-guarded-cleanup surface. Optional structured REC decoding is owned by SPEC-004.
-Protected hardware certification and private evidence are owned by SPEC-005.
+guarded-cleanup surface. Single-file structured REC decoding is owned by
+SPEC-004, protected REC decoding by SPEC-006, and batch REC decoding by
+SPEC-007. Protected hardware certification and private evidence are owned by
+SPEC-005.
 
 ## Recording-control surface
 

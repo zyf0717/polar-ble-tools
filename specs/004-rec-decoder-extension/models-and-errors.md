@@ -2,17 +2,11 @@
 
 ## Models
 
-Decoder status records availability, verification, SDK commit, decoder and
-protocol versions, platform, architecture, verification level, capabilities,
-reason, and remediation.
+The current `DecoderStatus` records availability, verification, SDK commit,
+protocol version, verification level, and an unavailable reason.
 
-Single-file results record source/destination paths and digests, provenance,
-record counts/types, and ordered project-owned warnings. Batch results add
-schema version, deterministic per-file outcomes, totals, and environment
-metadata.
-
-Secret values are immutable byte-oriented models whose representation,
-diagnostics, exceptions, and provider identity are redacted by construction.
+Single-file results record source/destination paths and digests, SDK and decoder
+provenance, record counts/types, and ordered project-owned warnings.
 
 ## Errors
 
@@ -25,11 +19,11 @@ RecDecodeError
 ├── DecoderVerificationError
 ├── DecoderProtocolError
 ├── DecoderTimeoutError
-├── RecordingSecurityError
 ├── UnsupportedRecordingError
 └── RecordingDecodeError
 ```
 
-Stable errors expose category, code, message, operation, and retryability
-without SDK class names, private paths, or secrets. Cancellation terminates the
-complete process group and is re-raised.
+Python exposes project-owned exception classes and the sidecar emits
+project-owned status codes. Bounded stderr remains diagnostic text, not a stable
+automation contract. Protected secret models/errors moved to SPEC-006; batch
+models moved to SPEC-007.

@@ -12,6 +12,9 @@ All notable changes to this project are documented here.
   is not decoding evidence, and blocked cleanup candidates do not constitute an
   eligible cleanup dry-run.
 - Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
+- Split implemented single-file REC decoder tracking from deferred protected
+  and batch decoding specifications, and aligned protected-evidence tracking
+  with its current test and audit foundations.
 
 ### Added
 

@@ -38,7 +38,9 @@ Use these lifecycle states:
 2. **Accepted** — boundaries and acceptance criteria are approved.
 3. **Implementing** — code, tests, and documentation are in progress.
 4. **Implemented** — validation and definition-of-done requirements are met.
-5. **Superseded** — a referenced successor owns the active contract.
+5. **Deferred** — intentionally paused pending an explicit prerequisite or
+   product decision; it is not an active implementation commitment.
+6. **Superseded** — a referenced successor owns the active contract.
 
 Specification changes remain on `dev`.
 
@@ -47,5 +49,7 @@ Specification changes remain on `dev`.
 | Specification | Status | Scope |
 | --- | --- | --- |
 | [SPEC-003](003-ble-operations-extension/README.md) | Implemented | Core BLE operations |
-| [SPEC-004](004-rec-decoder-extension/README.md) | Proposed | Optional structured REC decoding |
-| [SPEC-005](005-protected-compatibility/README.md) | Proposed | Protected compatibility certification |
+| [SPEC-004](004-rec-decoder-extension/README.md) | Implementing | Single-file structured REC decoding |
+| [SPEC-005](005-protected-compatibility/README.md) | Deferred | Protected compatibility certification |
+| [SPEC-006](006-protected-rec-decoding/README.md) | Deferred | Protected REC decoding |
+| [SPEC-007](007-rec-batch-decoding/README.md) | Deferred | REC batch decoding |

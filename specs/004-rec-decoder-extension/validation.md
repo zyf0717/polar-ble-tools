@@ -7,22 +7,21 @@
 - transactional activation and rollback;
 - per-invocation SDK licence confirmation, cache-reuse prompting, legacy-state
   removal, and `-y` prompt bypass;
-- protocol-v1 compatibility and protocol-v2 negotiation;
-- secret canaries absent from argv, environment, output, errors, logs,
-  manifests, summaries, and filenames;
-- request/response size, encoding, duplicate-key, timeout, and process-group
-  cleanup behavior;
-- deterministic tree/manifest discovery and destination preflight;
+- protocol-v1 handshake and invocation compatibility;
+- bounded stdout/stderr, timeout, and process-group cleanup behavior;
 - strict JSONL header/record/summary validation;
-- explicit adapter mappings unaffected by reflection order or new SDK fields.
+- source/output alias rejection and constrained overwrite;
+- decoder runtime allowlist and digest verification.
 
 ## Protected local contracts
 
 - build and self-test each claimed architecture;
 - prove invocation of the pinned official SDK parser;
 - decode every claimed private fixture category;
-- validate protected fixtures separately;
 - verify source/output digests, counts, types, and adapter contracts;
-- upload or retain no SDK source, classes, recordings, decoded data, or secrets.
+- upload or retain no SDK source, classes, recordings, or decoded data.
 
 Protected contracts never run in public CI.
+
+Protected protocol validation moved to SPEC-006. Batch validation moved to
+SPEC-007.

@@ -1,32 +1,25 @@
 # Implementation plan
 
-## Phase 1 — toolchain and provenance
+## Phase 1 — toolchain and provenance (implemented)
 
 1. Introduce architecture-indexed immutable toolchain descriptors.
 2. Add pinned aarch64 JDK provenance and host alias normalization.
 3. Generalize provisioning, manifest, verification, activation, and rollback.
-4. Add one install-time licence confirmation and `-y` automation bypass.
+4. Add per-invocation licence confirmation and `-y` automation bypass.
 5. Add synthetic cross-architecture lifecycle tests.
 
-## Phase 2 — protected sidecar protocol
+## Phase 2 — architecture certification
 
-1. Finalize protocol-v2 negotiation and bounded request/status schemas.
-2. Add owner-private secret sources and redacted secret/provider models.
-3. Implement stdin request transport and bounded concurrent stream draining.
-4. Construct the pinned SDK security model only in the sidecar.
-5. Preserve v1 unprotected behavior.
-6. Add canary leakage, timeout, malformed-output, and process cleanup tests.
+1. Build, self-test, and decode the approved private corpus on Linux x86_64.
+2. Build and self-test the package-managed decoder on Linux aarch64.
+3. Retain only redacted compatibility conclusions in public documentation.
 
-## Phase 3 — batch decoding and adapters (deferred)
+## Phase 3 — explicit adapters
 
-This phase has no public CLI or Python API implementation. Resume it only after
-single-file decoder contracts are certified against the protected corpus and
-batch decoding is approved as a product priority.
+1. Define stable project-owned fields, units, nullability, and timestamp policy
+   for each claimed REC category.
+2. Replace reflection-derived public payload structure with explicit mappings.
+3. Reject or ignore unknown SDK properties without opportunistic output.
+4. Validate each adapter against the protected corpus.
 
-1. Separate discovery, manifest validation, invocation, adaptation, and output
-   publication.
-2. Implement deterministic tree discovery and strict manifest preflight.
-3. Define explicit adapter contracts for every claimed category.
-4. Add atomic output and constrained overwrite handling.
-5. Add immutable batch summaries and thin CLI/API wrappers.
-6. Validate every claimed category against the protected corpus.
+Protected protocol work moved to SPEC-006. Batch work moved to SPEC-007.
