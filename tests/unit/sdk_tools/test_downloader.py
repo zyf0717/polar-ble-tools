@@ -459,8 +459,89 @@ def test_remove_all_sdk_cache_removes_sdk_generated_and_active_state(tmp_path: P
     assert not cache.active_manifest_path.exists()
 
 
-def test_remove_all_cli_dispatches_explicit_cleanup(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.remove_all_sdk_cache", lambda: True)
+def test_remove_all_cli_requires_confirmation_before_cleanup(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+    monkeypatch.setattr("builtins.input", lambda: "")
 
-    assert sdk_main(["remove", "--all"]) == 0
-    assert "removed all Polar SDK and generated-schema cache entries" in capsys.readouterr().out
+    assert sdk_main(["remove", "--all"]) == 1
+    assert cache.sdk_path(commit).is_dir()
+    assert "Continue? [y/N]" in capsys.readouterr().err
+
+
+def test_remove_cli_accepts_many_commits_and_optional_decoders(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commits = ("a" * 40, "b" * 40)
+    for commit in commits:
+        cache.sdk_path(commit).mkdir(parents=True)
+        cache.decoder_path(commit).mkdir(parents=True)
+        cache.decoder_build_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    assert (
+        sdk_main(
+            [
+                "remove",
+                "--commit",
+                commits[0],
+                "--commit",
+                commits[1],
+                "--include-decoders",
+                "--yes",
+            ]
+        )
+        == 0
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["include_decoders"] is True
+    assert [record["commit"] for record in output["records"]] == list(commits)
+    assert all(record["decoder_runtime"] == "removed" for record in output["records"])
+
+
+def test_remove_one_commit_retains_decoder_without_prompt(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    cache.decoder_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    def unexpected_prompt() -> str:
+        raise AssertionError("one exact revision must preserve non-interactive behavior")
+
+    monkeypatch.setattr("builtins.input", unexpected_prompt)
+
+    assert sdk_main(["remove", "--commit", commit]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["records"][0]["sdk_source"] == "removed"
+    assert output["records"][0]["decoder_runtime"] == "retained"
+    assert not cache.sdk_path(commit).exists()
+    assert cache.decoder_path(commit).is_dir()
+
+
+def test_remove_cli_dry_run_never_prompts_or_mutates(monkeypatch, capsys, tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    def unexpected_prompt() -> str:
+        raise AssertionError("dry-run must not prompt")
+
+    monkeypatch.setattr("builtins.input", unexpected_prompt)
+
+    assert sdk_main(["remove", "--all", "--dry-run"]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["dry_run"] is True
+    assert output["records"][0]["sdk_source"] == "would_remove"
+    assert cache.sdk_path(commit).is_dir()

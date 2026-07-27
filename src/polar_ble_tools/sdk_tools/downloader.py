@@ -349,16 +349,16 @@ def remove_sdk(commit: str, *, cache: SdkCache | None = None) -> bool:
 
 
 def remove_all_sdk_cache(*, cache: SdkCache | None = None) -> bool:
-    from polar_ble_tools.schemas.runtime import schema_activation_manager
-
     cache = cache or SdkCache.default()
-    schema_activation_manager(cache).ensure_removable(None)
-    removed = False
-    for target in (cache.sdk_root, cache.generated_root):
-        if target.is_dir():
-            shutil.rmtree(target)
-            removed = True
-    if cache.active_manifest_path.exists():
-        cache.active_manifest_path.unlink()
-        removed = True
-    return removed
+    from polar_ble_tools.sdk_tools.removal import (
+        RemovalArtifactStatus,
+        remove_sdk_artifacts,
+    )
+
+    result = remove_sdk_artifacts(remove_all=True, cache=cache)
+    return any(
+        record.sdk_source is RemovalArtifactStatus.REMOVED
+        or record.generated_schemas is RemovalArtifactStatus.REMOVED
+        or record.active_sdk
+        for record in result.records
+    )

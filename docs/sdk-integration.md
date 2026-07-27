@@ -46,12 +46,31 @@ for diagnostic evaluation. These overrides are content-addressed or revision
 recorded but are not confirmed for this release.
 
 Package installation, import, `doctor`, and ordinary device commands never
-download or generate SDK material. Remove local cache data explicitly:
+download or generate SDK material. Removal accepts one or more exact full
+commit SHAs, or every SDK/schema entry:
 
 ```bash
 polar-ble sdk remove --commit FULL_REVISION
+polar-ble sdk remove --commit FULL_REVISION --commit ANOTHER_FULL_REVISION
 polar-ble sdk remove --all
 ```
+
+Add `--dry-run` to inspect deterministic per-commit outcomes without mutation.
+Bulk removal prompts for confirmation; use `--yes` for unattended execution.
+SDK removal retains matching decoder runtimes and workspaces unless
+`--include-decoders` is supplied:
+
+```bash
+polar-ble sdk remove --commit FULL_REVISION --include-decoders --dry-run
+polar-ble sdk remove --all --include-decoders --yes
+```
+
+Removing a selected active SDK or decoder clears its activation pointer.
+Already-absent exact targets are successful idempotent outcomes. Every target
+is preflighted before deletion begins, and paths must remain exact regular
+directories under their configured roots. The shared JDK is never removed by
+`sdk remove`; a selected decoder workspace, including its per-commit Gradle
+files and dependency cache, is removed when decoder inclusion is requested.
 
 This project does not grant rights to the Polar BLE SDK. The user's SDK copy,
 schema source, generated modules, and descriptor sets remain governed by the

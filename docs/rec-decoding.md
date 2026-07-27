@@ -129,6 +129,12 @@ Decoder commands accept only a full lowercase 40-character SDK commit SHA.
 Removal is constrained to the decoder cache and also removes that commit's
 workspace; it never removes the shared JDK automatically.
 
+`polar-ble sdk remove` retains decoders by default. Use repeated `--commit`
+arguments or `--all` together with `--include-decoders` to remove corresponding
+decoder runtimes and workspaces in the same guarded plan. Add `--dry-run` to
+inspect the plan first. The shared JDK remains untouched; per-commit Gradle
+files are removed with the selected workspace.
+
 ## Security and distribution boundary
 
 Manifests record digests for every runtime file and the JDK executable. The

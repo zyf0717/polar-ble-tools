@@ -26,6 +26,9 @@ All notable changes to this project are documented here.
 - Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
   architecture alias normalization, descriptor-bound offline cache reuse, and
   actionable platform mismatch reporting.
+- SDK removal now accepts repeated exact commit SHAs or all revisions, supports
+  deterministic dry runs and bulk confirmation, and can explicitly include
+  corresponding decoder runtimes/workspaces while retaining the shared JDK.
 - Decoder builds now copy the pinned SDK's exact licence into the local runtime
   as attribution-only material and bind its SHA-256 and SDK commit in the
   manifest. The attribution file and compiled decoder remain excluded from

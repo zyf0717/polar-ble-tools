@@ -100,6 +100,20 @@ locally compiled decoder under the project's Apache-2.0 licence alone.
 Externally managed sidecars are outside this package's lifecycle and
 compatibility scope.
 
+## Cache removal
+
+Removal selects repeated exact full SDK commit SHAs or all locally cached
+revisions. SDK source and generated schemas are selected by default. Matching
+decoder runtimes and build workspaces are selected only with
+`--include-decoders`. The shared JDK is never implicit; per-commit Gradle files
+are part of the selected build workspace.
+
+Dry runs and executions return deterministic per-commit statuses for SDK
+source, generated schemas, decoder runtime, and decoder workspace. All selected
+paths and loaded-schema guards are preflighted before deletion begins. Bulk
+execution prompts unless `--yes` is supplied. Removing selected active entries
+clears their activation pointers; already-absent entries remain idempotent.
+
 ## Protocol-v1 invocation
 
 The Python caller verifies `version` before decoding and invokes:

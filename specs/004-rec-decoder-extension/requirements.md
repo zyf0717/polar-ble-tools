@@ -54,5 +54,13 @@ contract defining names, units, nullability, numeric treatment, timestamps,
 binary encoding, and stable record type. Reflection cannot define the public
 schema automatically.
 
+**FR-066** — SDK removal accepts one or more exact full commit SHAs or all
+cached revisions, supports deterministic dry-run results, and optionally
+includes matching decoder runtime/workspace entries. Bulk execution requires
+confirmation or `--yes`. All selected paths are preflighted before deletion;
+already-absent targets are idempotent success. Decoder inclusion never removes
+the shared JDK; the selected per-commit Gradle cache is part of the decoder
+workspace.
+
 FR-027 through FR-032 and FR-062 moved to SPEC-006. FR-033 through FR-039 moved
 to SPEC-007. Requirement identifiers remain stable.

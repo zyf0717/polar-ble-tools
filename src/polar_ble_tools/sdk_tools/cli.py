@@ -21,8 +21,6 @@ from polar_ble_tools.sdk_tools.downloader import (
     SdkDownloadError,
     activate_sdk,
     install_sdk,
-    remove_all_sdk_cache,
-    remove_sdk,
     sdk_status,
 )
 from polar_ble_tools.sdk_tools.generator import (
@@ -32,6 +30,7 @@ from polar_ble_tools.sdk_tools.generator import (
 )
 from polar_ble_tools.sdk_tools.inspection import inspect_active_sdk, inspect_sdk
 from polar_ble_tools.sdk_tools.proto_reader import ProtoReaderError
+from polar_ble_tools.sdk_tools.removal import SdkRemovalError, remove_sdk_artifacts
 from polar_ble_tools.sdk_tools.verifier import (
     SchemaVerificationError,
     verify_active_schemas,
@@ -80,6 +79,23 @@ def _confirm_install(*, assume_yes: bool) -> bool:
     return response.strip().casefold() in {"y", "yes"}
 
 
+def _confirm_bulk_removal(*, count: int, include_decoders: bool, assume_yes: bool) -> bool:
+    if assume_yes:
+        return True
+    decoder_text = " and corresponding decoders" if include_decoders else ""
+    print(
+        f"Remove {count} SDK revision(s){decoder_text}? Continue? [y/N] ",
+        end="",
+        file=sys.stderr,
+        flush=True,
+    )
+    try:
+        response = input()
+    except EOFError:
+        return False
+    return response.strip().casefold() in {"y", "yes"}
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="polar-ble sdk", description="Manage the local Polar SDK cache."
@@ -105,11 +121,31 @@ def _build_parser() -> argparse.ArgumentParser:
     decoder_remove.add_argument("--commit", required=True)
     remove = commands.add_parser("remove")
     removal_target = remove.add_mutually_exclusive_group(required=True)
-    removal_target.add_argument("--commit", help="Full resolved SDK revision identifier.")
+    removal_target.add_argument(
+        "--commit",
+        action="append",
+        help="Full resolved SDK revision identifier; repeat to remove several.",
+    )
     removal_target.add_argument(
         "--all",
         action="store_true",
         help="Remove every cached SDK revision and generated schema artifact.",
+    )
+    remove.add_argument(
+        "--include-decoders",
+        action="store_true",
+        help="Also remove matching decoder runtimes and build workspaces.",
+    )
+    remove.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report exact removal outcomes without changing the cache.",
+    )
+    remove.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Confirm bulk removal without prompting.",
     )
     return parser
 
@@ -207,23 +243,38 @@ def main(argv: list[str] | None = None) -> int:
             print(f"verified schemas: {verify_active_schemas()}")
             return 0
         if args.command == "remove":
-            if args.all:
-                if remove_all_sdk_cache():
-                    print("removed all Polar SDK and generated-schema cache entries")
-                    return 0
-                print("Polar SDK cache is already empty")
-                return 1
-            if remove_sdk(args.commit):
-                print(f"removed Polar SDK {args.commit} and generated schemas")
+            commits = tuple(args.commit or ())
+            preview = remove_sdk_artifacts(
+                commits,
+                remove_all=args.all,
+                include_decoders=args.include_decoders,
+                dry_run=True,
+            )
+            if args.dry_run:
+                print(json.dumps(preview.to_jsonable(), sort_keys=True))
                 return 0
-            print(f"Polar SDK {args.commit} is not installed")
-            return 1
+            is_bulk = args.all or len(preview.records) > 1
+            if is_bulk and not _confirm_bulk_removal(
+                count=len(preview.records),
+                include_decoders=args.include_decoders,
+                assume_yes=args.yes,
+            ):
+                print("Polar SDK removal cancelled.", file=sys.stderr)
+                return 1
+            result = remove_sdk_artifacts(
+                commits,
+                remove_all=args.all,
+                include_decoders=args.include_decoders,
+            )
+            print(json.dumps(result.to_jsonable(), sort_keys=True))
+            return 0
     except (
         SdkDownloadError,
         ProtoDiscoveryError,
         ProtoReaderError,
         SchemaGenerationError,
         SchemaVerificationError,
+        SdkRemovalError,
         DecoderBuildError,
         DecoderManifestError,
         DecoderVerificationError,

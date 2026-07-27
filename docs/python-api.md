@@ -37,7 +37,7 @@ Specialized modules are deliberately separate from the top-level facade:
 | `polar_ble_tools.collection` | Lower-level raw/passive collection APIs and result models. |
 | `polar_ble_tools.bpb_decode` | `decode_bpb_file`, `decode_bpb_manifest`, path/schema helpers. |
 | `polar_ble_tools.rec` | `decoder_status`, `verify_active_decoder`, `decode_recording`, `iter_decoded_records`, result models, and typed decode exceptions. |
-| `polar_ble_tools.sdk_tools` | SDK staging/status/inspection/removal. |
+| `polar_ble_tools.sdk_tools` | SDK staging/status/inspection and guarded exact, multi-commit, or all-revision removal through `remove_sdk_artifacts()`. |
 | `polar_ble_tools.sdk_tools.generator` / `verifier` | Explicit schema generation and verification. |
 | `polar_ble_tools.sdk_tools.decoder` | `build_decoder`, `verify_decoder`, `activate_decoder`, `remove_decoder`. |
 | `polar_ble_tools.polar.setup` | FTU data models, validation, and lower-level `PolarSetupClient`. |
@@ -52,6 +52,10 @@ Specialized modules are deliberately separate from the top-level facade:
   their documented string values in `to_jsonable()` output.
 - SDK and decoder actions are explicit. Importing any API never downloads,
   generates, builds, or activates local material.
+- `remove_sdk_artifacts()` requires full commit SHAs or `remove_all=True`;
+  `include_decoders=True` also removes matching runtime/workspace entries but
+  never the shared JDK. The per-commit Gradle cache is part of the selected
+  decoder workspace.
 - `doctor()` is non-mutating. Use `DoctorReport.to_dict()` for the same stable
   representation produced by `polar-ble doctor`. Its non-fatal `warnings`
   identify active SDK/decoder commit mismatches and suggest rebuilding the

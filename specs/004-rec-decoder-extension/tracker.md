@@ -14,6 +14,7 @@ the corresponding public compatibility claim.
 - [x] **FR-059** — Licensed local schema generation only.
 - [x] **FR-060** — Fresh per-invocation SDK licence confirmation and `-y`.
 - [x] **FR-061** — Local-only SDK material without cache-level licence gates.
+- [x] **FR-066** — Guarded multi-revision SDK and optional decoder removal.
 
 ## Phase 2 — implementation structure
 

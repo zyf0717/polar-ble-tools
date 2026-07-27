@@ -8,7 +8,9 @@
 4. Add per-invocation licence confirmation and `-y` automation bypass.
 5. Bind an exact SDK licence attribution copy to the local decoder manifest
    without creating reusable acceptance state.
-6. Add synthetic cross-architecture lifecycle tests.
+6. Add guarded exact, multi-commit, and all-revision SDK cleanup with optional
+   corresponding decoder removal.
+7. Add synthetic cross-architecture lifecycle tests.
 
 ## Phase 2 — architecture certification
 

@@ -74,3 +74,9 @@ accessing a property never downloads or generates schemas.
 The decoder cache separates per-commit workspaces and installed runtimes from a
 shared pinned JDK. Installed manifests use relative cache paths and digests, so
 they are portable within a user cache but reject altered runtimes.
+
+SDK cleanup is planned per full commit SHA across SDK source and generated
+schemas. Matching decoder runtimes and workspaces remain independent and are
+included only by explicit request. Multi-revision and all-revision cleanup
+preflights every exact cache path before deletion and never implicitly removes
+the shared decoder JDK.

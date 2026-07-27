@@ -11,6 +11,10 @@
   binding, explicit non-acceptance labeling, and distribution exclusion;
 - non-fatal doctor warning and rebuild remediation for active SDK/decoder
   commit mismatch;
+- exact and repeated commit removal, all-revision selection, deterministic
+  dry-run, bulk confirmation, optional decoder inclusion, loaded-schema guard,
+  unsafe-path rejection, active-pointer cleanup, idempotence, and shared
+  JDK retention;
 - protocol-v1 handshake and invocation compatibility;
 - bounded stdout/stderr, timeout, and process-group cleanup behavior;
 - strict JSONL header/record/summary validation;

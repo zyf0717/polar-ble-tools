@@ -39,7 +39,8 @@ direct Python API is available.
 | `sdk inspect` | Inspect active SDK descriptors | `inspect_active_sdk()` |
 | `sdk generate` | Generate schemas for active SDK | `generate_active_schemas()` |
 | `sdk verify` | Verify active schemas | `verify_active_schemas()` |
-| `sdk remove` | Remove one/all SDK cache entries | `remove_sdk()` / `remove_all_sdk_cache()` |
+| `sdk remove --commit SHA [--commit SHA ...] [--include-decoders] [--dry-run]` | Remove exact SDK/schema revisions and optionally matching decoders | `remove_sdk_artifacts()` |
+| `sdk remove --all [--include-decoders] [--dry-run] [--yes]` | Remove every selected cache revision with bulk confirmation | `remove_sdk_artifacts()` |
 | `sdk decoder build` | Build optional REC sidecar | `build_decoder()` |
 | `sdk decoder verify` | Execute sidecar handshakes | `verify_decoder()` |
 | `sdk decoder status` | Check sidecar availability | `decoder_status()` |
