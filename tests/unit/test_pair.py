@@ -3,11 +3,13 @@ from pathlib import Path
 from polar_ble_tools.ble.bluetoothctl_pairing import (
     BluetoothDevice,
     PairingError,
+    _pairing_failure_message,
     connect_device,
     discover_devices,
     pair_device,
     parse_devices,
     parse_info,
+    parse_live_scan_devices,
     release_device_connection,
     select_device,
 )
@@ -33,6 +35,22 @@ def test_parse_devices_keeps_name_and_captures_rssi_updates() -> None:
     devices = parse_devices(
         "[NEW] Device AA:BB:CC:DD:EE:FF Polar Loop Gen 2\n"
         "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -47\n"
+    )
+
+    assert devices == [
+        BluetoothDevice(
+            mac_address="AA:BB:CC:DD:EE:FF",
+            name="Polar Loop Gen 2",
+            rssi=-47,
+        )
+    ]
+
+
+def test_parse_live_scan_devices_excludes_cached_device_records() -> None:
+    devices = parse_live_scan_devices(
+        "[NEW] Device AA:BB:CC:DD:EE:FF Polar Loop Gen 2\n"
+        "[CHG] Device AA:BB:CC:DD:EE:FF RSSI: -47\n"
+        "Device 11:22:33:44:55:66 Cached Polar device\n"
     )
 
     assert devices == [
@@ -80,6 +98,16 @@ def test_parse_info_requires_all_success_flags() -> None:
 
     assert status.ready is True
     assert status.mac_address == "AA:BB:CC:DD:EE:FF"
+
+
+def test_connection_attempt_failure_includes_bounded_remediation() -> None:
+    message = _pairing_failure_message(
+        "AA:BB:CC:DD:EE:FF",
+        "org.bluez.Error.ConnectionAttemptFailed",
+    )
+
+    assert "Retry once after a few seconds." in message
+    assert "disconnect other hosts" in message
 
 
 def test_load_allowed_mac_addresses_reads_inventory_file(tmp_path: Path) -> None:

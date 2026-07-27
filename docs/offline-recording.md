@@ -1,6 +1,6 @@
 # Offline recording
 
-`0.3.0` exposes offline-recording control through high-level one-operation APIs
+`0.3.1` exposes offline-recording control through high-level one-operation APIs
 and matching `polar-ble raw` commands.
 
 ## Inspect capabilities

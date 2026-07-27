@@ -23,6 +23,7 @@ DEVICE_LINE_RE = re.compile(
     r"^\s*(?:\[[A-Z]+\]\s+)?Device (?P<mac>(?:[0-9A-F]{2}:){5}[0-9A-F]{2}) (?P<name>.+)$",
     re.MULTILINE,
 )
+LIVE_DEVICE_LINE_RE = re.compile(r"^\s*\[(?:NEW|CHG)\]\s+Device .+$", re.MULTILINE)
 RSSI_UPDATE_RE = re.compile(r"^RSSI:\s*(?P<rssi>-?\d+)\s*$", re.IGNORECASE)
 INFO_FLAG_RE = re.compile(
     r"^\s*(?P<key>Paired|Bonded|Trusted|Connected):\s+(?P<value>yes|no)\s*$",
@@ -30,6 +31,17 @@ INFO_FLAG_RE = re.compile(
 )
 PAIRING_SUCCESS_RE = re.compile(r"Pairing successful", re.IGNORECASE)
 PAIRING_FAILURE_RE = re.compile(r"Failed to pair:\s*(?P<reason>.+)", re.IGNORECASE)
+CONNECTION_ATTEMPT_FAILED = "org.bluez.Error.ConnectionAttemptFailed"
+
+
+def _pairing_failure_message(mac_address: str, reason: str) -> str:
+    message = f"BlueZ pairing failed for {mac_address}: {reason}"
+    if CONNECTION_ATTEMPT_FAILED not in reason:
+        return message
+    return (
+        f"{message}\n"
+        "Retry once after a few seconds. If it persists, disconnect other hosts and check BlueZ logs."
+    )
 
 
 class PairingError(RuntimeError):
@@ -101,6 +113,11 @@ def parse_devices(output: str) -> list[BluetoothDevice]:
             rssi=previous.rssi if previous else None,
         )
     return list(devices.values())
+
+
+def parse_live_scan_devices(output: str) -> list[BluetoothDevice]:
+    """Parse only device observations emitted while ``bluetoothctl`` scans."""
+    return parse_devices("\n".join(LIVE_DEVICE_LINE_RE.findall(output)))
 
 
 def select_device(
@@ -250,7 +267,6 @@ class BluetoothctlSession:
                 )
             )
         collected.append(self.command("scan off", idle_timeout=0.8, total_timeout=5.0))
-        collected.append(self.command("devices", idle_timeout=0.6, total_timeout=5.0))
         return "".join(collected)
 
     def pair(self, mac_address: str, *, timeout_seconds: float = 45.0) -> str:
@@ -269,7 +285,7 @@ class BluetoothctlSession:
             failure = PAIRING_FAILURE_RE.search(output)
             if failure:
                 raise PairingError(
-                    f"BlueZ pairing failed for {mac_address}: {failure.group('reason').strip()}"
+                    _pairing_failure_message(mac_address, failure.group("reason").strip())
                 )
             if PAIRING_SUCCESS_RE.search(output):
                 return output
@@ -315,7 +331,7 @@ def _scan_discovered_devices(
     scan_seconds: float,
 ) -> list[BluetoothDevice]:
     """Use the shared BlueZ discovery path for discovery and pairing."""
-    return parse_devices(session.scan(scan_seconds))
+    return parse_live_scan_devices(session.scan(scan_seconds))
 
 
 def pair_device(
