@@ -68,3 +68,67 @@ def test_passive_cli_rejects_unauthorized_device(tmp_path: Path, capsys) -> None
         == 2
     )
     assert "not authorized" in capsys.readouterr().err
+
+
+def test_passive_collect_passes_existing_file_policy(monkeypatch, capsys) -> None:
+    class Result:
+        ok = True
+
+        def to_jsonable(self):
+            return {"fetched": 1}
+
+    async def fake_collect(*_args, **kwargs):
+        assert kwargs["existing_file_policy"] == "overwrite"
+        return Result()
+
+    monkeypatch.setattr("polar_ble_tools.commands.passive.collect_passive_files", fake_collect)
+
+    assert (
+        passive_main(
+            [
+                "--mac-address",
+                "AA:BB:CC:DD:EE:FF",
+                "--from-date",
+                "2026-06-25",
+                "collect",
+                "--existing-file-policy",
+                "overwrite",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == {"fetched": 1}
+
+
+def test_passive_cleanup_dry_run_does_not_require_collection_dates(monkeypatch, capsys) -> None:
+    class Result:
+        ok = True
+
+        def to_jsonable(self):
+            return {"dry_run": 1}
+
+    async def fake_cleanup(*args, **kwargs):
+        assert args == ("AA:BB:CC:DD:EE:FF",)
+        assert kwargs["domain"] == "daily_summary"
+        assert kwargs["dry_run"] is True
+        assert kwargs["delete_through"] == date(2026, 6, 25)
+        return Result()
+
+    monkeypatch.setattr("polar_ble_tools.commands.passive.cleanup_passive_files", fake_cleanup)
+
+    assert (
+        passive_main(
+            [
+                "--mac-address",
+                "AA:BB:CC:DD:EE:FF",
+                "cleanup",
+                "--domain",
+                "daily_summary",
+                "--delete-through",
+                "2026-06-25",
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == {"dry_run": 1}

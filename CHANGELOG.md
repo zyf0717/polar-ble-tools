@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here.
 
+## 0.3.0 — 2026-07-27
+
+### Added
+
+- Added high-level recording capability, settings, status, start, stop,
+  trigger, disk-space, and exact raw-fetch APIs and CLI operations.
+- Added complete passive PFTP sync collection, guarded delete-after-collect,
+  and date/domain-bounded cleanup with local-only dry-run.
+- Added stable typed collection/deletion statuses and immutable public
+  collection results for raw and passive BLE operations.
+
+### Changed
+
+- Consolidated streaming local-file SHA-256 verification across raw and passive
+  stores while retaining their separate eligibility and audit rules.
+- Preserved deletion-attempt audit records while propagating BLE transport
+  failures.
+- Defined Polar Loop Gen 2 and Polar Verity Sense as the currently supported
+  devices, limited by the documented compatibility matrix.
+- Split completed core BLE requirements into SPEC-003, optional decoder
+  expansion into SPEC-004, and protected compatibility certification into
+  SPEC-005.
+
+### Compatibility
+
+- Collection/listing result collections now use tuples rather than mutable
+  lists. Status fields use `StrEnum` models while retaining their existing
+  string comparison and JSON representations.
+
 ## 0.2.1 — 2026-07-27
 
 ### Documentation

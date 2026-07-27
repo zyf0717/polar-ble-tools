@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+import pytest
+
+from polar_ble_tools.ble.transport import BleConnectionError
 from polar_ble_tools.polar.offline import (
     DeviceDeletionResult,
     OfflineRecord,
@@ -133,5 +136,21 @@ def test_cleanup_dry_run_never_removes_device_files(tmp_path: Path) -> None:
         result = await collector.cleanup("AA:BB:CC:DD:EE:FF", record_types={"ACC"}, dry_run=True)
         assert result.dry_run == 1
         assert client.removed == []
+
+    asyncio.run(run())
+
+
+def test_cleanup_propagates_transport_failure_from_status_check(tmp_path: Path) -> None:
+    async def run() -> None:
+        client = FakeOfflineClient()
+        collector = RawRecordingCollector(client, RawRecordingStore(tmp_path / "raw"))  # type: ignore[arg-type]
+        await collector.collect("AA:BB:CC:DD:EE:FF", record_types={"ACC"})
+
+        with pytest.raises(BleConnectionError, match="link lost"):
+            await collector.cleanup(
+                "AA:BB:CC:DD:EE:FF",
+                record_types={"ACC"},
+                control_client=FakeControlClient(error=BleConnectionError("link lost")),  # type: ignore[arg-type]
+            )
 
     asyncio.run(run())

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
@@ -51,8 +52,16 @@ class PassiveFileEntry:
 
 @dataclass(frozen=True)
 class PassiveFileListing:
-    entries: list[PassiveFileEntry]
-    missing: list[str]
+    entries: tuple[PassiveFileEntry, ...]
+    missing: tuple[str, ...]
+
+    def __init__(
+        self,
+        entries: tuple[PassiveFileEntry, ...] | list[PassiveFileEntry],
+        missing: tuple[str, ...] | list[str],
+    ) -> None:
+        object.__setattr__(self, "entries", tuple(entries))
+        object.__setattr__(self, "missing", tuple(missing))
 
 
 class PassiveDataClient:
@@ -60,6 +69,27 @@ class PassiveDataClient:
 
     def __init__(self, pftp_client: PftpClient) -> None:
         self.pftp_client = pftp_client
+
+    @asynccontextmanager
+    async def sync_session(self):
+        """Own one complete PFTP passive-data synchronization lifecycle."""
+        await self.pftp_client.send_initialization_and_start_sync_notifications()
+        completed = False
+        body_failed = False
+        try:
+            yield self
+            completed = True
+        except BaseException:
+            body_failed = True
+            raise
+        finally:
+            try:
+                await self.pftp_client.send_terminate_and_stop_sync_notifications(
+                    completed=completed
+                )
+            except BaseException:
+                if not body_failed:
+                    raise
 
     async def list_files(
         self, domains: tuple[PassiveDomain, ...], *, from_date: date, to_date: date
@@ -107,7 +137,8 @@ class PassiveDataClient:
                 ):
                     missing.append(expected)
         return PassiveFileListing(
-            sorted(entries, key=lambda item: (item.domain.value, item.path)), sorted(set(missing))
+            tuple(sorted(entries, key=lambda item: (item.domain.value, item.path))),
+            tuple(sorted(set(missing))),
         )
 
     async def fetch_raw_file(self, entry: PassiveFileEntry) -> bytes:

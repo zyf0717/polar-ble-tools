@@ -1,9 +1,13 @@
 # Compatibility
 
-## Confirmed device
+## Supported devices
 
-Polar Loop Gen 2 was validated on Linux with BlueZ on 2026-07-25. The controlled
-checks covered:
+`0.3.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+the controlled capability boundaries below.
+
+## Polar Loop Gen 2
+
+Controlled checks covered:
 
 - discovery, pairing, bonding, trust, connection handoff, and reconnect;
 - PMD availability, status, and accelerometer recording start/stop;
@@ -17,11 +21,26 @@ The cleanup check did not delete device data. Reconnect required bounded retries
 after repeated BlueZ activity and completed within the configured operation
 timeout.
 
-## Other devices
+When a device is in its charging state, offline recording start may be rejected
+with the PMD typed response
+`ERROR_DEVICE_IN_CHARGER`. This is a valid device-state result, not a BLE
+transport failure. Passive PFTP collection can remain available in this state.
+Recording-control callers can inspect `PmdResponseError.response_code` to
+distinguish this condition.
 
-No other device is currently confirmed. Devices exposing compatible PMD and
-PFTP services are expected to support some operations, but should be treated as
-untested until their capability matrix passes on protected hardware.
+## Polar Verity Sense
+
+Controlled Linux/BlueZ validation confirmed PMD availability and inactive
+status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
+offline-recording start/stop and exact raw REC retrieval were exercised for all
+six types; the resulting files were size- and SHA-256-verified locally.
+
+Passive collection over the canonical domains returned no files; Verity Sense
+passive activity, sleep, wellness, or related domain support is not claimed.
+No destructive deletion was performed.
+
+Other devices exposing compatible PMD and PFTP services should be treated as
+untested until their capability matrix passes on controlled hardware.
 
 ## Structured REC decoding
 
@@ -37,6 +56,8 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
+- Batch and protected REC decoding are not `0.3.0` capabilities.
+- The optional REC decoder is currently limited to Linux x86_64.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.
 - Forced Bluetooth/radio-loss recovery is not validated.

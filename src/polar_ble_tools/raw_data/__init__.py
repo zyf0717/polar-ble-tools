@@ -1,7 +1,9 @@
+from polar_ble_tools.polar.offline import DeviceDeletionStatus
 from polar_ble_tools.raw_data.collector import (
     CleanupResult,
     CollectionRecordResult,
     CollectionResult,
+    RawCollectionStatus,
     RawRecordingCollector,
     raw_recording_store,
 )
@@ -24,6 +26,8 @@ __all__ = [
     "CleanupResult",
     "CollectionRecordResult",
     "CollectionResult",
+    "DeviceDeletionStatus",
+    "RawCollectionStatus",
     "RawRecordingCollector",
     "raw_recording_store",
 ]

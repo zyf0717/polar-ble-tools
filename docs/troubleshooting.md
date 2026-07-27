@@ -51,6 +51,13 @@ Do not delete the device copy. Preserve the manifest and local file privately,
 collect again, and compare the reported device size. Cleanup remains blocked
 until size and SHA-256 verification succeeds.
 
+## Recording start is rejected by device state
+
+Treat `ERROR_DEVICE_IN_CHARGER` as a typed PMD device-state response rather than
+a dropped BLE link. Stop charging or change the device state before retrying
+recording start. Listing or retrieving existing files may still work, so do not
+disable PFTP collection solely because recording start was rejected.
+
 ## REC decoder is unavailable
 
 Run `polar-ble rec status` and `polar-ble sdk decoder verify`. A changed or
@@ -60,7 +67,8 @@ exact full commit SHA.
 
 ## REC decode fails
 
-The decoder does not support encrypted recordings. Check that a renamed file
+The `0.3.0` decoder does not support encrypted recordings or batch decoding.
+Check that a renamed file
 still has a supported recording name, retain the original privately, and inspect
 bounded stderr diagnostics. A null timestamp can be intentional when the SDK
 does not provide validated timestamp semantics.

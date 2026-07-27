@@ -269,6 +269,36 @@ def test_pmd_client_response_error_preserves_response_code() -> None:
     asyncio.run(run())
 
 
+def test_pmd_client_preserves_device_in_charger_start_response() -> None:
+    async def run() -> None:
+        session = FakePmdSession()
+        request = bytes(
+            (
+                int(PmdControlPointCommand.REQUEST_MEASUREMENT_START),
+                PmdRecordingType.OFFLINE.bitfield | int(PmdMeasurementType.ACC),
+            )
+        )
+        session.responses[request] = [
+            cp_response(
+                PmdControlPointCommand.REQUEST_MEASUREMENT_START,
+                request[1],
+                PmdResponseCode.ERROR_DEVICE_IN_CHARGER,
+            )
+        ]
+        client = PmdClient(session, timeout_seconds=0.1)
+
+        try:
+            await client.start_measurement(PmdMeasurementType.ACC)
+        except PmdResponseError as exc:
+            assert exc.response_code == PmdResponseCode.ERROR_DEVICE_IN_CHARGER
+            assert exc.command == PmdControlPointCommand.REQUEST_MEASUREMENT_START
+            assert exc.measurement_type == request[1]
+        else:
+            raise AssertionError("Expected PMD response error.")
+
+    asyncio.run(run())
+
+
 def test_pmd_client_start_command_includes_offline_bit_and_settings() -> None:
     async def run() -> None:
         session = FakePmdSession()

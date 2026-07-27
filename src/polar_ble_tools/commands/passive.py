@@ -4,7 +4,11 @@ import argparse
 import asyncio
 import sys
 
-from polar_ble_tools.collection import collect_passive_files, list_passive_files
+from polar_ble_tools.collection import (
+    cleanup_passive_files,
+    collect_passive_files,
+    list_passive_files,
+)
 from polar_ble_tools.commands.common import parse_cli_date, print_json, validate_authorized_device
 from polar_ble_tools.passive_data.storage import DEFAULT_PASSIVE_ROOT
 from polar_ble_tools.polar.passive import (
@@ -25,7 +29,7 @@ def build_passive_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--root", default=str(DEFAULT_PASSIVE_ROOT), help="Ignored local passive-data root."
     )
-    parser.add_argument("--from-date", required=True, help="First logical date, YYYY-MM-DD.")
+    parser.add_argument("--from-date", help="First logical date, YYYY-MM-DD.")
     parser.add_argument("--to-date", help="Last logical date, YYYY-MM-DD; defaults to --from-date.")
     parser.add_argument(
         "--domain",
@@ -35,7 +39,22 @@ def build_passive_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="List passive files without retrieving them.")
-    commands.add_parser("collect", help="Fetch and hash-store passive files.")
+    collect = commands.add_parser("collect", help="Fetch and hash-store passive files.")
+    collect.add_argument(
+        "--existing-file-policy",
+        choices=["skip", "overwrite"],
+        default="skip",
+        help="Reuse verified local files or refetch them. Default: %(default)s.",
+    )
+    collect.add_argument("--delete-after-collect", action="store_true")
+    cleanup = commands.add_parser("cleanup", help="Delete only verified passive files.")
+    cleanup.add_argument(
+        "--domain", required=True, choices=[domain.value for domain in PASSIVE_DOMAIN_ORDER]
+    )
+    cleanup.add_argument(
+        "--delete-through", required=True, help="Inclusive logical-date cutoff, YYYY-MM-DD."
+    )
+    cleanup.add_argument("--dry-run", action="store_true")
     return parser
 
 
@@ -44,6 +63,8 @@ def _domains(raw: list[str] | None) -> tuple[PassiveDomain, ...]:
 
 
 def _dates(args: argparse.Namespace):
+    if args.from_date is None:
+        raise ValueError("--from-date is required for passive list and collect.")
     from_date = parse_cli_date(args.from_date, "from-date")
     to_date = parse_cli_date(args.to_date, "to-date") if args.to_date else from_date
     if from_date > to_date:
@@ -84,6 +105,20 @@ async def _collect(
         from_date=from_date,
         to_date=to_date,
         root=args.root,
+        existing_file_policy=args.existing_file_policy,
+        delete_after_collect=args.delete_after_collect,
+    )
+    print_json(result.to_jsonable())
+    return 0 if result.ok else 1
+
+
+async def _cleanup(args: argparse.Namespace) -> int:
+    result = await cleanup_passive_files(
+        args.mac_address,
+        root=args.root,
+        domain=args.domain,
+        delete_through=parse_cli_date(args.delete_through, "delete-through"),
+        dry_run=args.dry_run,
     )
     print_json(result.to_jsonable())
     return 0 if result.ok else 1
@@ -95,6 +130,8 @@ def passive_main(argv: list[str] | None = None) -> int:
     if authorization_error is not None:
         return authorization_error
     try:
+        if args.command == "cleanup":
+            return asyncio.run(_cleanup(args))
         from_date, to_date = _dates(args)
         domains = _domains(args.domain)
         if args.command == "list":

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import PurePosixPath
 
 from polar_ble_tools.ble.lifecycle import BleLifecycle, BleLifecycleEvent
@@ -42,6 +43,14 @@ RECORD_TYPE_ALIASES = {
 }
 
 
+class DeviceDeletionStatus(StrEnum):
+    DELETED = "deleted"
+    DRY_RUN = "dry_run"
+    BLOCKED_UNVERIFIED = "blocked_unverified"
+    BLOCKED_ACTIVE = "blocked_active"
+    FAILED = "failed"
+
+
 @dataclass(frozen=True)
 class OfflineRecordingEntry:
     path: str
@@ -62,24 +71,29 @@ class DeviceDeletionResult:
     device_path: str
     record_type: str
     base_record_type: str | None
-    status: str
-    deleted_paths: list[str]
-    cleaned_directories: list[str]
+    status: DeviceDeletionStatus
+    deleted_paths: tuple[str, ...]
+    cleaned_directories: tuple[str, ...]
     error: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "status", DeviceDeletionStatus(self.status))
+        object.__setattr__(self, "deleted_paths", tuple(self.deleted_paths))
+        object.__setattr__(self, "cleaned_directories", tuple(self.cleaned_directories))
 
     @property
     def ok(self) -> bool:
-        return self.status in {"deleted", "dry_run"}
+        return self.status in {DeviceDeletionStatus.DELETED, DeviceDeletionStatus.DRY_RUN}
 
     def to_jsonable(self) -> dict[str, object]:
         return {
             "base_record_type": self.base_record_type,
-            "cleaned_directories": self.cleaned_directories,
-            "deleted_paths": self.deleted_paths,
+            "cleaned_directories": list(self.cleaned_directories),
+            "deleted_paths": list(self.deleted_paths),
             "device_path": self.device_path,
             "error": self.error,
             "record_type": self.record_type,
-            "status": self.status,
+            "status": self.status.value,
         }
 
 
@@ -136,8 +150,8 @@ def parse_offline_recording_path(path: str, *, size: int) -> OfflineRecordingEnt
         raise ValueError(f"Not a Polar offline recording path: {path}")
     try:
         started_at = datetime.strptime(match.group("date") + match.group("time"), "%Y%m%d%H%M%S")
-    except ValueError:
-        started_at = None
+    except ValueError as exc:
+        raise ValueError(f"Offline recording path has an invalid date or time: {path}") from exc
     return OfflineRecordingEntry(
         path=path,
         size=size,
@@ -214,7 +228,7 @@ class OfflineRecordingClient:
                     device_path=entry.path,
                     record_type=entry.record_type,
                     base_record_type=base_record_type_for(entry.record_type),
-                    status="dry_run",
+                    status=DeviceDeletionStatus.DRY_RUN,
                     deleted_paths=deleted_paths,
                     cleaned_directories=[],
                 )
@@ -229,7 +243,7 @@ class OfflineRecordingClient:
                 device_path=entry.path,
                 record_type=entry.record_type,
                 base_record_type=base_record_type_for(entry.record_type),
-                status="failed",
+                status=DeviceDeletionStatus.FAILED,
                 deleted_paths=deleted_paths,
                 cleaned_directories=cleaned_directories,
                 error=str(exc),
@@ -239,7 +253,7 @@ class OfflineRecordingClient:
             device_path=entry.path,
             record_type=entry.record_type,
             base_record_type=base_record_type_for(entry.record_type),
-            status="deleted",
+            status=DeviceDeletionStatus.DELETED,
             deleted_paths=deleted_paths,
             cleaned_directories=cleaned_directories,
         )

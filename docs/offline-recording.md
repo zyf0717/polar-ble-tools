@@ -1,36 +1,67 @@
 # Offline recording
 
-Offline recording control is available through an open device session. Query
-the device before selecting a data type or settings; supported measurements and
-settings vary by firmware.
+`0.3.0` exposes offline-recording control through high-level one-operation APIs
+and matching `polar-ble raw` commands.
 
-```python
-import asyncio
+## Inspect capabilities
 
-from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.polar.pmd import PolarDeviceDataType
+Query the target before selecting a type or settings; support varies by device
+and firmware.
 
-
-async def record(mac_address: str) -> None:
-    async with open_polar_device(mac_address) as device:
-        control = device.services.offline_control
-        available = await control.get_available_recording_types()
-        if PolarDeviceDataType.ACC not in available:
-            raise RuntimeError("Accelerometer offline recording is unavailable")
-        settings = await control.request_full_recording_settings(PolarDeviceDataType.ACC)
-        await control.start_recording(PolarDeviceDataType.ACC, settings)
-        try:
-            await asyncio.sleep(10)
-        finally:
-            await control.stop_recording(PolarDeviceDataType.ACC)
-
-
-asyncio.run(record("AA:BB:CC:DD:EE:FF"))
+```bash
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF types
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF status
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF settings --type ACC --full
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF disk-space
 ```
 
-Always stop a recording in `finally`. A stopped recording may take time to
-appear through PFTP. Listing and collection are separate operations; use
-`polar-ble raw` after the device has finalized its `.REC` file.
+```python
+from polar_ble_tools import (
+    available_recording_types,
+    recording_settings,
+    recording_status,
+)
 
-The control client also exposes recording status and trigger setup. Unsupported
-measurement types and trigger combinations raise explicit PMD operation errors.
+types = await available_recording_types(target)
+settings = await recording_settings(target, "ACC", full=True)
+status = await recording_status(target)
+```
+
+## Start and stop
+
+```bash
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+  start --type ACC --setting sample_rate=52
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF stop --type ACC
+```
+
+```python
+from polar_ble_tools import start_recording, stop_recording
+
+await start_recording(target, "ACC", {"sample_rate": 52})
+# The calling application owns recording duration and scheduling.
+await stop_recording(target, "ACC")
+```
+
+Each function owns one bounded BLE operation. Timed flows, scheduling,
+multi-step capture protocols, and experiment orchestration belong in a separate
+application layer. When one process owns both operations, call stop from a
+`finally` block. `stop_recording()` waits for the selected type to become
+inactive before returning.
+
+## Triggers
+
+Use `raw trigger get` or `offline_trigger()` to inspect the complete current
+configuration. Trigger updates replace the configuration; validate the desired
+types and settings first. PPI exercise-start triggers are rejected because that
+combination is not supported.
+
+## Device-state rejection
+
+A device can reject recording start because of its current state, including
+charging. `ERROR_DEVICE_IN_CHARGER` is a typed PMD response, not a BLE transport
+failure. Callers can inspect `PmdResponseError.response_code`; other device
+operations, including PFTP retrieval, may remain available.
+
+After stop, the device may need time to finalize its REC file. Listing,
+retrieval, and collection are separate operations.

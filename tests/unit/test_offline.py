@@ -79,16 +79,16 @@ def test_offline_client_removes_complete_numbered_family_and_empty_parents() -> 
         result = await client.remove_record(entry)
 
         assert result.status == "deleted"
-        assert result.deleted_paths == [
+        assert result.deleted_paths == (
             "/U/0/20260613/R/112233/ACC0.REC",
             "/U/0/20260613/R/112233/ACC1.REC",
-        ]
-        assert result.cleaned_directories == [
+        )
+        assert result.cleaned_directories == (
             "/U/0/20260613/R/112233/",
             "/U/0/20260613/R/",
             "/U/0/20260613/",
-        ]
-        assert pftp.removed == result.deleted_paths + result.cleaned_directories
+        )
+        assert pftp.removed == list(result.deleted_paths + result.cleaned_directories)
 
     asyncio.run(run())
 
