@@ -32,6 +32,10 @@ PRIVATE_COMPONENTS = frozenset({"captures", "credentials", "private", "profiles"
 PROJECT_OWNED_DECODER_TEMPLATES = frozenset(
     {
         "src/polar_ble_tools/sdk_tools/decoder_project/DecoderMain.kt",
+        "src/polar_ble_tools/sdk_tools/decoder_project/JsonProtocol.kt",
+        "src/polar_ble_tools/sdk_tools/decoder_project/PayloadAdapter.kt",
+        "src/polar_ble_tools/sdk_tools/decoder_project/Publication.kt",
+        "src/polar_ble_tools/sdk_tools/decoder_project/RecordingDecoder.kt",
         "src/polar_ble_tools/sdk_tools/decoder_project/build.gradle.kts",
         "src/polar_ble_tools/sdk_tools/decoder_project/settings.gradle.kts",
     }
