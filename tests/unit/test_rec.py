@@ -213,7 +213,7 @@ def test_decoder_rejects_unmanifested_runtime_file(
         decode_recording(source, tmp_path / "decoded.jsonl")
 
 
-def test_status_accepts_legacy_decoder_cache_text_files(tmp_path: Path) -> None:
+def test_status_rejects_legacy_package_managed_decoder_cache(tmp_path: Path) -> None:
     cache = SdkCache(tmp_path / "cache")
     _decoder(cache)
     root = cache.decoder_path(COMMIT)
@@ -232,7 +232,11 @@ def test_status_accepts_legacy_decoder_cache_text_files(tmp_path: Path) -> None:
     manifest["license_material"] = [{"legacy": True}]
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    assert decoder_status(cache=cache).available
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "Legacy package-managed decoder cache is unsupported" in (status.reason or "")
+    assert "polar-ble sdk decoder build" in (status.reason or "")
 
 
 def test_status_reports_actionable_architecture_mismatch(

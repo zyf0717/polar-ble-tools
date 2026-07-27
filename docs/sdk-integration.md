@@ -29,10 +29,17 @@ required dependency closure, generates Python modules, verifies hashes,
 imports, symbols, and descriptors, then atomically activates the revision.
 Failure leaves the previously active verified revision unchanged.
 
-The command asks `Continue? [y/N]`; continuing means the user accepts the Polar
-BLE SDK licence. Use `polar-ble sdk install -y` for unattended installation.
-The explicit Python `install_sdk()` API has the same proceed-means-accept
-semantics and does not prompt.
+Every install/download invocation asks `Continue? [y/N]`, including when the
+requested SDK is already cached. Continuing means the user accepts the Polar
+BLE SDK licence for that invocation. Use `polar-ble sdk install -y` for
+unattended installation. Every explicit Python `install_sdk()` call has the
+same proceed-means-accept semantics and does not prompt.
+
+The package does not persist acceptance. A fresh explicit install/download
+removes deprecated acceptance metadata and package-created standalone licence
+copies from older SDK and generated-schema cache entries. The licence file
+inside an SDK source tree remains part of that upstream source, not an
+acceptance record.
 
 Use `--sdk-path PATH` for a separately obtained local copy or `--ref REVISION`
 for diagnostic evaluation. These overrides are content-addressed or revision
@@ -61,4 +68,6 @@ decoder: sdk decoder build -> verify -> activate -> rec decode
 
 `sdk install` does not build the decoder. The optional decoder uses the same
 separately obtained SDK source but retains a separate local runtime, manifest,
-and activation state. See [REC decoding](rec-decoding.md).
+and activation state. Only sidecars built and managed through this lifecycle are
+supported. Externally managed sidecars are outside the package's verification
+and compatibility scope. See [REC decoding](rec-decoding.md).

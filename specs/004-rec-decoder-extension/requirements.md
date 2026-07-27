@@ -96,12 +96,15 @@ generation cannot be performed; there is no transcribed fallback.
 
 **FR-060** — Before CLI installation, state that proceeding accepts the Polar
 BLE SDK licence and require a `y/N` confirmation. Support `-y`/`--yes` for
-unattended installation. Calling the explicit Python installation API also
-means the caller accepts the licence; no acceptance record is required.
+unattended installation. Require fresh consent for every install/download
+invocation, including cache reuse. Calling the explicit Python installation API
+also means the caller accepts the licence for that call; no acceptance record
+is retained or inherited from a legacy cache.
 
 **FR-061** — Keep SDK source and SDK-derived outputs local and out of project
 distributions. Decoder and generated-schema caches do not copy or independently
-enforce SDK licence or notice files.
+enforce SDK licence or notice files. Package-managed legacy decoder entries are
+not grandfathered; externally managed sidecars are out of scope.
 
 **FR-062** — Protected REC decoding constructs the SDK security model inside
 the JVM sidecar and invokes only the pinned official parser. No project-authored

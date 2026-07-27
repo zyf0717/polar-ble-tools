@@ -19,6 +19,8 @@ OFFICIAL_SDK_URL = "https://github.com/polarofficial/polar-ble-sdk.git"
 SUPPORTED_SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
 MANIFEST_FILE = "download-manifest.json"
+_LEGACY_ACCEPTANCE_FIELDS = frozenset({"license_acceptance", "license_notice_present"})
+_LEGACY_LICENSE_COPY = "Polar_SDK_License.txt"
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -203,6 +205,30 @@ def _activate(cache: SdkCache, commit: str) -> None:
     _atomic_write_json(cache.active_manifest_path, {"resolved_commit": commit})
 
 
+def _discard_legacy_acceptance_state(cache: SdkCache, result: SdkInstallResult) -> None:
+    """Remove package-created acceptance records after fresh explicit consent."""
+    try:
+        payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SdkDownloadError(f"Invalid SDK manifest at {result.manifest_path}.") from exc
+    legacy_copies = (
+        result.manifest_path.parent / _LEGACY_LICENSE_COPY,
+        cache.generated_path(result.resolved_commit) / _LEGACY_LICENSE_COPY,
+    )
+    for path in legacy_copies:
+        if path.exists() and not (path.is_file() or path.is_symlink()):
+            raise SdkDownloadError(f"Legacy SDK acceptance artifact is not a file: {path}")
+    for path in legacy_copies:
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+    if _LEGACY_ACCEPTANCE_FIELDS.intersection(payload):
+        for field in _LEGACY_ACCEPTANCE_FIELDS:
+            payload.pop(field, None)
+        if payload.get("format_version") == 5:
+            payload["format_version"] = 4
+        _atomic_write_json(result.manifest_path, payload)
+
+
 def install_sdk(
     *,
     ref: str | None = None,
@@ -212,8 +238,9 @@ def install_sdk(
 ) -> SdkInstallResult:
     """Stage the release pin by default or an explicitly requested override.
 
-    Calling this explicit installation API implies acceptance of the SDK's
-    licence terms. The CLI provides the user-facing confirmation gate.
+    Every call to this explicit installation API implies fresh acceptance of
+    the SDK's licence terms. The CLI confirms this before every invocation,
+    including cache reuse.
     """
     cache = cache or SdkCache.default()
     if sdk_path is not None:
@@ -251,6 +278,7 @@ def install_sdk(
                 support_tier="pinned" if resolved_commit == SUPPORTED_SDK_COMMIT else "override",
                 cache=cache,
             )
+    _discard_legacy_acceptance_state(cache, result)
     if activate:
         _activate(cache, result.resolved_commit)
     return result

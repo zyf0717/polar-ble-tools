@@ -52,13 +52,6 @@ class DecoderBuildResult:
 
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
-# Accepted only so decoder caches built by older releases remain usable.
-_LEGACY_SDK_TEXT_FILES = frozenset(
-    {
-        "licenses/Polar_SDK_License.txt",
-        "notices/ThirdPartySoftwareListing.txt",
-    }
-)
 _TOOLCHAIN_MANIFEST = ".polar-rec-toolchain.json"
 _DECODER_PROJECT_FILES = (
     "DecoderMain.kt",
@@ -166,14 +159,8 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderBuildError(f"Decoder distribution has an unsafe entry: {path}")
         relative = path.relative_to(root).as_posix()
-        allowed = (
-            relative in _RUNTIME_LAUNCHERS
-            or relative in _LEGACY_SDK_TEXT_FILES
-            or (
-                relative.startswith("lib/")
-                and "/" not in relative[4:]
-                and relative.endswith(".jar")
-            )
+        allowed = relative in _RUNTIME_LAUNCHERS or (
+            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
         )
         if not allowed:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")

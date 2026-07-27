@@ -78,6 +78,39 @@ def test_local_source_does_not_require_a_licence_file(tmp_path: Path) -> None:
     assert result.source_path.is_dir()
 
 
+def test_reinstall_discards_legacy_acceptance_state(tmp_path: Path) -> None:
+    source = _make_sdk_source(tmp_path)
+    (source / "Polar_SDK_License.txt").write_text("upstream licence\n", encoding="utf-8")
+    cache = SdkCache(tmp_path / "cache")
+    installed = install_sdk(sdk_path=source, cache=cache)
+    manifest = json.loads(installed.manifest_path.read_text(encoding="utf-8"))
+    manifest.update(
+        {
+            "format_version": 5,
+            "license_acceptance": {"method": "cli_flag"},
+            "license_notice_present": True,
+        }
+    )
+    installed.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    legacy_copies = (
+        installed.manifest_path.parent / "Polar_SDK_License.txt",
+        cache.generated_path(installed.resolved_commit) / "Polar_SDK_License.txt",
+    )
+    for path in legacy_copies:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("legacy package copy\n", encoding="utf-8")
+
+    reused = install_sdk(sdk_path=source, cache=cache)
+
+    migrated = json.loads(reused.manifest_path.read_text(encoding="utf-8"))
+    assert reused.reused
+    assert migrated["format_version"] == 4
+    assert "license_acceptance" not in migrated
+    assert "license_notice_present" not in migrated
+    assert all(not path.exists() for path in legacy_copies)
+    assert (reused.source_path / "Polar_SDK_License.txt").is_file()
+
+
 def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
     source = _make_sdk_source(tmp_path)
     outside = tmp_path / "outside"
@@ -162,6 +195,35 @@ def test_cli_install_declines_by_default(
 
     assert sdk_main(["install"]) == 1
     assert "Continue? [y/N]" in capsys.readouterr().err
+
+
+def test_cli_requests_fresh_consent_when_reusing_an_sdk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    responses = iter(("yes", "yes"))
+    prompts = 0
+
+    def confirm() -> str:
+        nonlocal prompts
+        prompts += 1
+        return next(responses)
+
+    result = SdkInstallResult(
+        "candidate",
+        "c" * 40,
+        "user-supplied",
+        tmp_path / "source",
+        tmp_path / "manifest",
+        True,
+        "override",
+    )
+    monkeypatch.setattr("builtins.input", confirm)
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.install_sdk", lambda **_kwargs: result)
+
+    assert sdk_main(["download"]) == 0
+    assert sdk_main(["download"]) == 0
+    assert prompts == 2
 
 
 def test_cli_install_proceeds_when_confirmed(

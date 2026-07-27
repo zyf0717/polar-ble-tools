@@ -34,8 +34,9 @@ python -m pip install "polar-ble-tools[sdk]"
 polar-ble sdk install
 ```
 
-Proceeding at the install prompt accepts the Polar BLE SDK licence; use `-y`
-for unattended installation. No separate acceptance record is stored.
+Proceeding at each install/download prompt accepts the Polar BLE SDK licence for
+that invocation, including cache reuse; use `-y` for unattended installation.
+No acceptance record is stored.
 
 The first decoder build provisions architecture-specific, checksum-verified
 Temurin JDK 21.0.12+8 and Gradle 9.4.1 in the user cache. Reuse requires a
@@ -54,6 +55,10 @@ Builds create an isolated per-commit workspace. The JDK is persistent and
 shared across commits. Activation executes the sidecar `version` and
 `self-test` handshakes and preserves the previously active decoder on failure.
 Use `--offline` only after the toolchain and Gradle dependencies are cached.
+
+Package-managed decoder caches created under the former licence-material
+contract must be rebuilt and are not grandfathered. Manually or externally
+managed sidecars are outside this package's lifecycle and compatibility scope.
 
 ## Check status
 

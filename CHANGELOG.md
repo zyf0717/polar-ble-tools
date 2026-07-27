@@ -22,8 +22,10 @@ All notable changes to this project are documented here.
 ### Changed
 
 - Simplified Polar BLE SDK licence consent to one interactive `y/N` install
-  confirmation, with `-y`/`--yes` for unattended use. Removed persisted
-  content-bound acceptance and decoder/generated-cache licence-notice gates.
+  confirmation on every install/download invocation, with `-y`/`--yes` for
+  unattended use. Removed persisted content-bound acceptance and
+  decoder/generated-cache licence-notice gates; legacy managed decoder caches
+  require rebuilding.
 - Decomposed REC decoding into cohesive model, sidecar process, protocol
   validation, and publication modules, and split the JVM template into command,
   SDK parsing, payload adaptation, JSON protocol, and publication modules

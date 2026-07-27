@@ -64,15 +64,20 @@ selects another decoder.
 
 ## SDK licence confirmation
 
-The SDK install/download CLI states that proceeding accepts the Polar BLE SDK
-licence and uses a `y/N` confirmation. `-y`/`--yes` proceeds non-interactively.
-The explicit Python installation API implies acceptance by the caller.
+Every SDK install/download CLI invocation states that proceeding accepts the
+Polar BLE SDK licence and uses a `y/N` confirmation, including cache reuse.
+`-y`/`--yes` proceeds non-interactively. Each explicit Python installation API
+call implies fresh acceptance by the caller.
 
 Acceptance is not persisted or bound to SDK content. Decoder and
 generated-schema cache entries do not copy or validate separate SDK licence or
 notice files. SDK source and SDK-derived outputs remain local and excluded from
 Git, Python distributions, public CI artifacts or caches, container layers, and
 release assets.
+
+Package-managed decoder entries carrying the former licence-material manifest
+contract are rejected with a rebuild remediation. Externally managed sidecars
+are outside this package's lifecycle and compatibility scope.
 
 ## Protocol versions
 

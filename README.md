@@ -68,7 +68,8 @@ polar-ble sdk install
 ```
 
 The installer asks for a simple `y/N` confirmation that proceeding accepts the
-Polar BLE SDK licence. Use `-y` for non-interactive installation.
+Polar BLE SDK licence. This happens on every install/download invocation,
+including cache reuse. Use `-y` for non-interactive installation.
 
 ## Quick start
 
