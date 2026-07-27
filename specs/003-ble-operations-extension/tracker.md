@@ -1,5 +1,7 @@
 # SPEC-003 implementation tracker
 
+**Status:** Complete — implemented SPEC-003 code contract.
+
 ## Phase 1 — recording control and retrieval
 
 - [x] **FR-001–010** — Public recording-control, status, trigger, disk-space,
@@ -21,6 +23,9 @@
 - [x] Full tests, lint, formatting, build, metadata checks, package-content
   tests, release audit, and clean-wheel smoke test.
 - [x] Package and documentation version updated to `0.3.0`.
+
+## Release follow-ups — outside SPEC-003 completion
+
 - [ ] Re-run the private hardware smoke matrix for the exact release commit.
 - [ ] Publish through the approved TestPyPI/PyPI workflow.
 
