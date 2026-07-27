@@ -2,7 +2,7 @@
 
 ## Supported devices
 
-`0.3.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+`0.3.1` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
 the controlled capability boundaries below.
 
 ## Polar Loop Gen 2
@@ -56,7 +56,7 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.3.0` capabilities.
+- Batch and protected REC decoding are not `0.3.1` capabilities.
 - The optional REC decoder is currently limited to Linux x86_64.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.
