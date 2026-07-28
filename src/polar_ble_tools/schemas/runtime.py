@@ -8,8 +8,11 @@ from types import ModuleType, SimpleNamespace
 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.schemas.errors import SchemaUnavailableError
-from polar_ble_tools.sdk_tools.downloader import SdkDownloadError
-from polar_ble_tools.sdk_tools.verifier import SchemaVerificationError, verify_schemas
+from polar_ble_tools.sdk_tools.verifier import (
+    SchemaVerificationError,
+    active_schema_commit,
+    verify_schemas,
+)
 
 
 @dataclass
@@ -28,14 +31,12 @@ class SchemaActivationManager:
 
     def require(self, *modules: str) -> SimpleNamespace:
         try:
-            root = verify_schemas(cache=self.cache)
-            from polar_ble_tools.sdk_tools.downloader import active_sdk_source
-
-            commit, _ = active_sdk_source(cache=self.cache)
+            commit = active_schema_commit(cache=self.cache)
+            root = verify_schemas(commit=commit, cache=self.cache)
             self._activate(commit, root)
             imported = {name: self._import_from_active_root(name) for name in modules}
             return SimpleNamespace(**imported)
-        except (SdkDownloadError, SchemaVerificationError, ImportError, OSError, ValueError) as exc:
+        except (SchemaVerificationError, ImportError, OSError, ValueError) as exc:
             raise SchemaUnavailableError(
                 "Polar protobuf schemas are not installed or are invalid. Run: polar-ble sdk install"
             ) from exc
@@ -96,6 +97,13 @@ class SchemaActivationManager:
         if self.active_commit is not None and (commit is None or self.active_commit == commit):
             raise SchemaUnavailableError(
                 "Cannot remove the active generated cache after schemas are loaded; start a new process first."
+            )
+
+    def ensure_activatable(self, commit: str) -> None:
+        if self.active_commit is not None and self.active_commit != commit:
+            raise SchemaUnavailableError(
+                f"Generated schemas for {self.active_commit} are already loaded; "
+                f"start a new process before activating {commit}."
             )
 
 

@@ -143,6 +143,44 @@ def test_absent_exact_commit_is_idempotent_success(tmp_path: Path) -> None:
     assert record.decoder_workspace is RemovalArtifactStatus.ABSENT
 
 
+def test_removal_can_retain_verified_format_3_schemas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    _directory(cache.sdk_path(commit))
+    _directory(cache.generated_path(commit))
+    (cache.sdk_path(commit) / "download-manifest.json").write_text(
+        json.dumps({"resolved_commit": commit}), encoding="utf-8"
+    )
+    (cache.generated_path(commit) / "generated-manifest.json").write_text(
+        json.dumps({"format_version": 3}), encoding="utf-8"
+    )
+    _activate(cache, sdk=commit)
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.removal.verify_schemas", lambda **_kwargs: object()
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.verify_schemas", lambda **_kwargs: object()
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.activate_schemas",
+        lambda revision, *, cache: cache.active_schema_manifest_path.write_text(
+            json.dumps({"resolved_commit": revision}), encoding="utf-8"
+        ),
+    )
+
+    result = remove_sdk_artifacts((commit,), retain_schemas=True, cache=cache)
+
+    assert result.retain_schemas is True
+    assert result.records[0].generated_schemas is RemovalArtifactStatus.RETAINED
+    assert result.records[0].active_schemas is True
+    assert not cache.sdk_path(commit).exists()
+    assert cache.generated_path(commit).is_dir()
+    assert not cache.active_manifest_path.exists()
+    assert cache.active_schema_manifest_path.is_file()
+
+
 def test_api_rejects_commits_combined_with_remove_all(tmp_path: Path) -> None:
     with pytest.raises(SdkRemovalError, match="not both"):
         remove_sdk_artifacts(("a" * 40,), remove_all=True, cache=SdkCache(tmp_path / "cache"))

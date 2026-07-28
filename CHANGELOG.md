@@ -8,6 +8,8 @@ All notable changes to this project are documented here.
 
 - Restored executable permissions on the expected Gradle launcher after safe
   ZIP extraction so a freshly provisioned decoder toolchain can build.
+- Removed the SDK-tooling import cycle that could prevent `doctor` from loading
+  REC and schema status together.
 
 ### Documentation
 
@@ -23,6 +25,15 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- Added official-schema BPB decoding provenance, bounded/symlink-safe input
+  handling, owner-private atomic JSON output, stable failure codes, and
+  all-registered-schema local SDK contracts.
+- Added passive-manifest BPB decoding and opt-in `passive collect --decode`,
+  including payload-date validation and additive version-2 decode evidence.
+- Added independent generated-schema status, verification, and activation,
+  plus format-3 cache manifests that remain verifiable after SDK-source
+  removal.
+- Added `sdk remove --retain-schemas` for verified format-3 caches.
 - Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
   architecture alias normalization, descriptor-bound offline cache reuse, and
   actionable platform mismatch reporting.

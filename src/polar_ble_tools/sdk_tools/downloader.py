@@ -329,22 +329,67 @@ def active_sdk_source(*, cache: SdkCache | None = None) -> tuple[str, Path]:
     return active_commit, source
 
 
-def remove_sdk(commit: str, *, cache: SdkCache | None = None) -> bool:
+def _active_pointer_matches(path: Path, field: str, commit: str) -> bool:
+    if not path.is_file() or path.is_symlink():
+        return False
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get(field) == commit
+    except (OSError, json.JSONDecodeError):
+        return False
+
+
+def remove_sdk(
+    commit: str,
+    *,
+    retain_schemas: bool = False,
+    cache: SdkCache | None = None,
+) -> bool:
     if not _COMMIT_RE.fullmatch(commit):
         raise SdkDownloadError("SDK removal requires a full 40-character commit SHA.")
-    from polar_ble_tools.schemas.runtime import schema_activation_manager
 
     cache = cache or SdkCache.default()
-    schema_activation_manager(cache).ensure_removable(commit)
     sdk_target, generated_target = cache.sdk_path(commit), cache.generated_path(commit)
+    if retain_schemas and not sdk_target.is_dir():
+        return False
     if not sdk_target.is_dir() and not generated_target.is_dir():
         return False
+    if retain_schemas and generated_target.is_dir():
+        from polar_ble_tools.sdk_tools.generator import GENERATED_MANIFEST
+        from polar_ble_tools.sdk_tools.verifier import activate_schemas, verify_schemas
+
+        verify_schemas(commit=commit, cache=cache)
+        try:
+            manifest = json.loads(
+                (generated_target / GENERATED_MANIFEST).read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SdkDownloadError("Generated schema manifest is unavailable or invalid.") from exc
+        if manifest.get("format_version") != 3:
+            raise SdkDownloadError(
+                "Retaining schemas while removing SDK source requires a format-3 cache; "
+                "regenerate schemas first."
+            )
+        if (
+            sdk_status(cache=cache).active_commit == commit
+            and not cache.active_schema_manifest_path.exists()
+            and not cache.active_schema_manifest_path.is_symlink()
+        ):
+            activate_schemas(commit, cache=cache)
+    if not retain_schemas:
+        from polar_ble_tools.schemas.runtime import schema_activation_manager
+
+        schema_activation_manager(cache).ensure_removable(commit)
     was_active = sdk_status(cache=cache).active_commit == commit
-    for target in (sdk_target, generated_target):
+    targets = (sdk_target,) if retain_schemas else (sdk_target, generated_target)
+    for target in targets:
         if target.is_dir():
             shutil.rmtree(target)
     if was_active:
         cache.active_manifest_path.unlink(missing_ok=True)
+    if not retain_schemas and _active_pointer_matches(
+        cache.active_schema_manifest_path, "resolved_commit", commit
+    ):
+        cache.active_schema_manifest_path.unlink(missing_ok=True)
     return True
 
 

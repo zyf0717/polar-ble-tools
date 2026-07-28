@@ -100,6 +100,48 @@ def test_passive_collect_passes_existing_file_policy(monkeypatch, capsys) -> Non
     assert json.loads(capsys.readouterr().out) == {"fetched": 1}
 
 
+def test_passive_collect_decode_reports_collection_and_decode_outcomes(monkeypatch, capsys) -> None:
+    class CollectionResult:
+        ok = True
+        manifest_path = "/store/DEVICE/manifest.jsonl"
+
+        def to_jsonable(self):
+            return {"fetched": 1}
+
+    class DecodeResult:
+        ok = False
+
+        def to_jsonable(self):
+            return {"decoded": 0, "failed": 1}
+
+    async def fake_collect(*_args, **_kwargs):
+        return CollectionResult()
+
+    monkeypatch.setattr("polar_ble_tools.commands.passive.collect_passive_files", fake_collect)
+    monkeypatch.setattr(
+        "polar_ble_tools.commands.passive.decode_passive_manifest",
+        lambda *_args, **_kwargs: DecodeResult(),
+    )
+
+    assert (
+        passive_main(
+            [
+                "--mac-address",
+                "AA:BB:CC:DD:EE:FF",
+                "--from-date",
+                "2026-06-25",
+                "collect",
+                "--decode",
+            ]
+        )
+        == 1
+    )
+    assert json.loads(capsys.readouterr().out) == {
+        "collection": {"fetched": 1},
+        "decoding": {"decoded": 0, "failed": 1},
+    }
+
+
 def test_passive_cleanup_dry_run_does_not_require_collection_dates(monkeypatch, capsys) -> None:
     class Result:
         ok = True

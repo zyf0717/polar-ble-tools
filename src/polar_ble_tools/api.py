@@ -226,29 +226,31 @@ def doctor(*, cache: SdkCache | None = None) -> DoctorReport:
     """Return core, SDK-schema, and REC-decoder readiness without mutation."""
     from polar_ble_tools.rec import decoder_status
     from polar_ble_tools.schemas.cache import SdkCache
-    from polar_ble_tools.sdk_tools.downloader import SdkDownloadError, sdk_status
+    from polar_ble_tools.sdk_tools.downloader import sdk_status
     from polar_ble_tools.sdk_tools.verifier import (
         SchemaVerificationError,
+        schema_status,
         verify_active_schemas,
     )
 
     cache = cache or SdkCache.default()
     sdk = sdk_status(cache=cache)
-    if sdk.active_commit is None:
+    schema_state = schema_status(cache=cache)
+    if schema_state.active_commit is None:
         schemas = DoctorSchemaStatus(ready=False, remediation="polar-ble sdk install")
     else:
         try:
             schema_root = verify_active_schemas(cache=cache)
-        except (SdkDownloadError, SchemaVerificationError, OSError, ValueError) as exc:
+        except (SchemaVerificationError, OSError, ValueError) as exc:
             schemas = DoctorSchemaStatus(
                 ready=False,
-                active_commit=sdk.active_commit,
+                active_commit=schema_state.active_commit,
                 error=str(exc),
-                remediation="polar-ble sdk verify",
+                remediation="polar-ble sdk schemas verify",
             )
         else:
             schemas = DoctorSchemaStatus(
-                ready=True, active_commit=sdk.active_commit, path=schema_root
+                ready=True, active_commit=schema_state.active_commit, path=schema_root
             )
     decoder = decoder_status(cache=cache)
     warnings = ()

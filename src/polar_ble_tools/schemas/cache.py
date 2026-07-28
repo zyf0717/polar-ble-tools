@@ -32,6 +32,10 @@ class SdkCache:
     def active_manifest_path(self) -> Path:
         return self.root / "active-sdk.json"
 
+    @property
+    def active_schema_manifest_path(self) -> Path:
+        return self.root / "active-schemas.json"
+
     def sdk_path(self, commit: str) -> Path:
         return self.sdk_root / commit
 

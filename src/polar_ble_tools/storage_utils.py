@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import json
 import os
+import stat
 import tempfile
 from pathlib import Path
 
@@ -36,8 +37,18 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
 def append_json_line(path: Path, value: dict[str, object]) -> None:
     line = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8") + b"\n"
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    descriptor = os.open(
+        path,
+        os.O_RDWR
+        | os.O_CREAT
+        | os.O_APPEND
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
     try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise OSError(f"JSONL target is not a regular file: {path}")
         fcntl.flock(descriptor, fcntl.LOCK_EX)
         size = os.fstat(descriptor).st_size
         if size:

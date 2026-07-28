@@ -89,5 +89,12 @@ payload.
 - Device features absent from PMD/PFTP or unknown `.BPB` paths are reported as
   unsupported.
 
+The BPB registry has local official-binding parse/serialize contracts for every
+registered schema. That validates schema generation and runtime wiring only; it
+does not broaden device compatibility. Device-level decoding claims remain
+limited to the private fixtures and controlled hardware evidence stated above.
+BPB decoding uses generated Python protobuf bindings and never the REC JVM
+sidecar.
+
 SDK contracts use separately licensed input and are not part of ordinary public
 CI. A skipped SDK or hardware job is not evidence of device compatibility.

@@ -21,7 +21,7 @@ from polar_ble_tools.sdk_tools.downloader import (
 )
 from polar_ble_tools.sdk_tools.generator import SchemaGenerationError
 from polar_ble_tools.sdk_tools.proto_reader import ProtoReaderError
-from polar_ble_tools.sdk_tools.verifier import SchemaVerificationError
+from polar_ble_tools.sdk_tools.verifier import SchemaStatus, SchemaVerificationError
 
 
 def _make_sdk_source(tmp_path: Path) -> Path:
@@ -264,8 +264,29 @@ def test_cli_install_proceeds_when_confirmed(
     monkeypatch.setattr(cli, "generate_schemas", lambda **_kwargs: object())
     monkeypatch.setattr(cli, "verify_schemas", lambda **_kwargs: tmp_path / "generated")
     monkeypatch.setattr(cli, "activate_sdk", lambda _revision: None)
+    monkeypatch.setattr(cli, "activate_schemas", lambda _revision: None)
 
     assert sdk_main(["install"]) == 0
+
+
+def test_cli_exposes_independent_schema_status_and_activation(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import polar_ble_tools.sdk_tools.cli as cli
+
+    commit = "a" * 40
+    monkeypatch.setattr(
+        cli,
+        "schema_status",
+        lambda: SchemaStatus(commit, (commit,), 3, True),
+    )
+    activated: list[str] = []
+    monkeypatch.setattr(cli, "activate_schemas", activated.append)
+
+    assert sdk_main(["schemas", "status"]) == 0
+    assert json.loads(capsys.readouterr().out)["source_independent"] is True
+    assert sdk_main(["schemas", "activate", "--commit", commit]) == 0
+    assert activated == [commit]
 
 
 def test_cli_warns_for_an_explicit_unsupported_override(
@@ -436,13 +457,24 @@ def test_cli_install_activates_only_after_all_stages_succeed(
     real_activate = cli.activate_sdk
 
     def activate(revision: str) -> None:
-        events.append("activate")
+        events.append("activate_sdk")
         real_activate(revision, cache=cache)
 
     monkeypatch.setattr(cli, "activate_sdk", activate)
+    monkeypatch.setattr(
+        cli,
+        "activate_schemas",
+        lambda revision: events.append("activate_schemas"),
+    )
 
     assert sdk_main(["install", "-y"]) == 0
-    assert events == ["inspect_sdk", "generate_schemas", "verify_schemas", "activate"]
+    assert events == [
+        "inspect_sdk",
+        "generate_schemas",
+        "verify_schemas",
+        "activate_sdk",
+        "activate_schemas",
+    ]
     assert sdk_status(cache=cache).active_commit == candidate_revision
 
 

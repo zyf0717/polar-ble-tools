@@ -33,6 +33,8 @@ from polar_ble_tools.sdk_tools.proto_reader import ProtoReaderError
 from polar_ble_tools.sdk_tools.removal import SdkRemovalError, remove_sdk_artifacts
 from polar_ble_tools.sdk_tools.verifier import (
     SchemaVerificationError,
+    activate_schemas,
+    schema_status,
     verify_active_schemas,
     verify_schemas,
 )
@@ -107,6 +109,15 @@ def _build_parser() -> argparse.ArgumentParser:
     commands.add_parser("inspect")
     commands.add_parser("generate")
     commands.add_parser("verify")
+    schemas = commands.add_parser(
+        "schemas", help="Verify and activate generated protobuf schema caches."
+    )
+    schema_commands = schemas.add_subparsers(dest="schema_command", required=True)
+    schema_commands.add_parser("status")
+    schema_verify = schema_commands.add_parser("verify")
+    schema_verify.add_argument("--commit")
+    schema_activate = schema_commands.add_parser("activate")
+    schema_activate.add_argument("--commit", required=True)
     decoder = commands.add_parser("decoder", help="Build and manage the optional REC decoder.")
     decoder_commands = decoder.add_subparsers(dest="decoder_command", required=True)
     build = decoder_commands.add_parser("build")
@@ -135,6 +146,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--include-decoders",
         action="store_true",
         help="Also remove matching decoder runtimes and build workspaces.",
+    )
+    remove.add_argument(
+        "--retain-schemas",
+        action="store_true",
+        help="Remove SDK source but retain verified format-3 generated schemas.",
     )
     remove.add_argument(
         "--dry-run",
@@ -184,6 +200,18 @@ def main(argv: list[str] | None = None) -> int:
                     return 0
                 print(f"REC decoder {args.commit} is not built")
                 return 1
+        if args.command == "schemas":
+            if args.schema_command == "status":
+                status = schema_status()
+                print(json.dumps(status.__dict__, sort_keys=True))
+                return 0 if status.active_commit is not None else 1
+            if args.schema_command == "verify":
+                print(f"verified schemas: {verify_schemas(commit=args.commit)}")
+                return 0
+            if args.schema_command == "activate":
+                activate_schemas(args.commit)
+                print(f"activated schemas {args.commit}")
+                return 0
         if args.command == "download":
             if not _confirm_install(assume_yes=args.yes):
                 print("Polar SDK installation cancelled.", file=sys.stderr)
@@ -220,13 +248,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             verified = verify_schemas(commit=result.resolved_commit, cache=SdkCache.default())
             activate_sdk(result.resolved_commit)
+            activate_schemas(result.resolved_commit)
             print(
                 f"installed Polar SDK {result.resolved_commit}; verified generated cache: {verified}"
             )
             return 0
         if args.command == "status":
             status = sdk_status()
-            print(f"active: {status.active_commit or 'none'}")
+            schemas = schema_status()
+            print(f"active SDK source: {status.active_commit or 'none'}")
+            print(f"active schemas: {schemas.active_commit or 'none'}")
             print("installed:")
             for commit in status.installed_commits:
                 print(f"  {commit}")
@@ -248,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
                 commits,
                 remove_all=args.all,
                 include_decoders=args.include_decoders,
+                retain_schemas=args.retain_schemas,
                 dry_run=True,
             )
             if args.dry_run:
@@ -265,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
                 commits,
                 remove_all=args.all,
                 include_decoders=args.include_decoders,
+                retain_schemas=args.retain_schemas,
             )
             print(json.dumps(result.to_jsonable(), sort_keys=True))
             return 0

@@ -21,13 +21,30 @@ source files, or artefacts generated from those files.
 python -m pip install "polar-ble-tools[sdk]"
 polar-ble doctor
 polar-ble sdk install
-polar-ble sdk verify
+polar-ble sdk schemas verify
 ```
 
 `sdk install` stages the pinned source, inspects descriptors, resolves the
 required dependency closure, generates Python modules, verifies hashes,
-imports, symbols, and descriptors, then atomically activates the revision.
-Failure leaves the previously active verified revision unchanged.
+imports, symbols, and descriptors, then activates the SDK source and generated
+schema revision.
+Generation or verification failure leaves the previously active verified
+revisions unchanged.
+
+SDK source and generated schemas have independent status and activation:
+
+```bash
+polar-ble sdk status
+polar-ble sdk schemas status
+polar-ble sdk schemas verify
+polar-ble sdk schemas activate --commit FULL_REVISION
+```
+
+New format-3 caches bind source, descriptor, generated-file, and toolchain
+provenance in their local manifest. They can be verified and used without
+retaining the SDK checkout. Existing format-2 caches remain usable only while
+their matching verified source is installed; regenerate them before
+source-only removal.
 
 Every install/download invocation asks `Continue? [y/N]`, including when the
 requested SDK is already cached. Continuing means the user accepts the Polar
@@ -53,6 +70,7 @@ commit SHAs, or every SDK/schema entry:
 polar-ble sdk remove --commit FULL_REVISION
 polar-ble sdk remove --commit FULL_REVISION --commit ANOTHER_FULL_REVISION
 polar-ble sdk remove --all
+polar-ble sdk remove --commit FULL_REVISION --retain-schemas
 ```
 
 Add `--dry-run` to inspect deterministic per-commit outcomes without mutation.
@@ -65,7 +83,10 @@ polar-ble sdk remove --commit FULL_REVISION --include-decoders --dry-run
 polar-ble sdk remove --all --include-decoders --yes
 ```
 
-Removing a selected active SDK or decoder clears its activation pointer.
+`--retain-schemas` removes SDK source only and requires any matching generated
+cache to be verified format 3. It preserves the independent schema pointer.
+Removing selected schemas, SDK source, or a decoder clears only the
+corresponding activation pointer.
 Already-absent exact targets are successful idempotent outcomes. Every target
 is preflighted before deletion begins, and paths must remain exact regular
 directories under their configured roots. The shared JDK is never removed by
@@ -75,6 +96,13 @@ files and dependency cache, is removed when decoder inclusion is requested.
 This project does not grant rights to the Polar BLE SDK. The user's SDK copy,
 schema source, generated modules, and descriptor sets remain governed by the
 terms under which the user obtained them.
+
+The licensed local BPB contract suite accepts
+`POLAR_BLE_BPB_FIXTURE_MANIFEST=/absolute/path/to/manifest.json`. The external
+JSON object contains a non-empty `fixtures` list. Each row supplies `path`,
+`device_path`, and `expected_schema_id`, with optional `expected_raw_sha256`,
+`expected_json_sha256`, and dotted `expected_fields`. Fixture files, manifests,
+decoded values, and generated bindings must remain outside Git and public CI.
 
 ## Separate decoder lifecycle
 

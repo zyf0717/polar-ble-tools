@@ -17,8 +17,9 @@ tested without hardware or downloaded schemas.
 - `device.py` owns one BLE session and assembles the protocol services.
 - `collection.py`, `raw_data/`, and `passive_data/` coordinate retrieval and
   durable storage without embedding transport logic in storage classes.
-- `bpb_decode/` maps supported device paths to locally available protobuf
-  messages and normalizes decoded output.
+- `bpb_decode/` maps supported device paths to locally generated official
+  protobuf messages, preserves schema-faithful JSON, and keeps derived passive
+  metadata separate.
 - `schemas/` and `sdk_tools/` manage explicit, user-initiated SDK discovery,
   schema generation, verification, and cache activation.
 - `rec/` is the public, SDK-free facade for verified local REC sidecars.
@@ -56,12 +57,21 @@ collections. Internal outcome enums serialize to stable strings at JSON/CLI
 boundaries. Per-file protocol failures may produce failed records; BLE
 transport failures abort the workflow.
 
+Optional passive decoding starts only after raw collection and manifest
+publication complete. It re-verifies raw size and SHA-256, writes owner-private
+JSON atomically, and appends a version-2 evidence row containing schema/output
+provenance. Cleanup-relevant dates are derived only from known payload fields;
+payload/path disagreement is a decode failure. Version-1 raw rows remain
+readable.
+
 Structured REC decoding is a separate Python-to-JVM process boundary. Python
 validates the active decoder manifest, runtime-file digests, pinned JDK digest,
 host platform, and sidecar handshake before invoking it. The sidecar receives a
 source path and private output path, then returns a versioned JSONL stream.
-Raw collection neither requires nor invokes this component. Decoder activation
-and schema activation are independent, explicit state transitions.
+Raw collection neither requires nor invokes this component. REC-decoder,
+generated-schema, and retained SDK-source activation are independent, explicit
+state transitions. BPB decoding uses Python protobuf bindings directly and
+does not use the JVM REC sidecar.
 
 ## Optional SDK data
 
@@ -71,6 +81,12 @@ and cache activation occur outside the repository and installed distribution.
 Activation changes only after verification succeeds. Importing the package or
 accessing a property never downloads or generates schemas.
 
+Generated-schema manifest format 3 binds the SDK source content digest,
+revision metadata, descriptor digest, generated-file digests, dependency
+closure, resolved symbols, and toolchain. Its independent active pointer allows
+verified schemas to remain usable after explicit SDK-source removal. Legacy
+format-2 caches remain source-bound until regenerated.
+
 The decoder cache separates per-commit workspaces and installed runtimes from a
 shared pinned JDK. Installed manifests use relative cache paths and digests, so
 they are portable within a user cache but reject altered runtimes.
@@ -79,4 +95,5 @@ SDK cleanup is planned per full commit SHA across SDK source and generated
 schemas. Matching decoder runtimes and workspaces remain independent and are
 included only by explicit request. Multi-revision and all-revision cleanup
 preflights every exact cache path before deletion and never implicitly removes
-the shared decoder JDK.
+the shared decoder JDK. Source-only removal may retain a verified format-3
+schema cache and its activation pointer.

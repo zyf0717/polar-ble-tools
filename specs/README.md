@@ -53,3 +53,4 @@ Specification changes remain on `dev`.
 | [SPEC-005](005-protected-compatibility/README.md) | Deferred | Protected compatibility certification |
 | [SPEC-006](006-protected-rec-decoding/README.md) | Deferred | Protected REC decoding |
 | [SPEC-007](007-rec-batch-decoding/README.md) | Deferred | REC batch decoding |
+| [SPEC-008](008-bpb-decoding/README.md) | Implemented | Official-schema BPB decoding |
