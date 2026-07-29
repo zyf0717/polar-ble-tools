@@ -14,9 +14,9 @@ Controlled checks covered:
 - PFTP raw `.REC` listing, retrieval, size checks, SHA-256 storage, and cleanup
   dry-run;
 - FTU profile application, status, and device settings;
-- passive activity-sample, daily-summary, and skin-temperature `.BPB` retrieval
-  and hash storage;
-- daily-summary BPB decoding with a verified local schema cache.
+- passive activity-sample, daily-summary, and skin-temperature `.BPB`
+  retrieval, hash storage, and decoding with a verified local format-3 schema
+  cache.
 
 Controlled Linux aarch64/BlueZ validation confirmed discovery, durable pairing
 and bonding, and FTU profile application for Polar Loop Gen 2. This evidence
@@ -27,16 +27,18 @@ and SKIN_TEMPERATURE as available offline-recording types. Availability is not
 evidence that recording start/stop works for every advertised type; ACC remains
 the only Loop Gen 2 type with controlled start/stop evidence.
 
-The same observation retrieved and SHA-256-verified six logical days each of
-activity-sample, daily-summary, and skin-temperature BPB files. Only the
-daily-summary file was decoded. Raw retrieval therefore does not establish
-schema-decoding support for activity samples or skin temperature. No sleep,
-nightly-recharge, or autos file was present in that bounded lookback; absence is
-not evidence that those domains are unsupported.
+Controlled 2026-07-29 validation retrieved, SHA-256-verified, and decoded seven
+logical days each of activity-sample, daily-summary, and skin-temperature BPB
+files: 21 real files with no unsupported or failed decodes. Raw and decoded
+digests, format-3 schema provenance, owner-private output permissions, and
+logical dates were verified. No sleep, nightly-recharge, or autos file was
+present in that bounded lookback; absence is not evidence that those domains
+are unsupported.
 
-The cleanup check did not delete device data. Reconnect required bounded retries
-after repeated BlueZ activity and completed within the configured operation
-timeout.
+A cleanup dry-run selected six verified daily-summary files; all six reached
+`dry_run`, none was deleted, and a corrupted temporary local copy was
+`blocked_unverified`. A two-session reconnect probe returned consistent PMD
+status within the configured operation timeout.
 
 Interpret cleanup outcomes by status rather than the test process exit code. A
 result with selected entries but `dry_run=0` and only blocked entries confirms

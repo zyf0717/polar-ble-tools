@@ -14,7 +14,8 @@ All notable changes to this project are documented here.
 ### Documentation
 
 - Documented device-scoped Loop Gen 2 evidence for advertised recording types
-  and raw activity-sample, daily-summary, and skin-temperature BPB retrieval.
+  and activity-sample, daily-summary, and skin-temperature BPB retrieval and
+  decoding.
 - Clarified that advertised types are not recording evidence, raw BPB retrieval
   is not decoding evidence, and blocked cleanup candidates do not constitute an
   eligible cleanup dry-run.
