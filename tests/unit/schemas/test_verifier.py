@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -11,7 +13,12 @@ from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.schemas.requirements import requirements_for
 from polar_ble_tools.sdk_tools.downloader import OFFICIAL_SDK_URL
 from polar_ble_tools.sdk_tools.generator import GENERATED_MANIFEST
-from polar_ble_tools.sdk_tools.verifier import SchemaVerificationError, verify_schemas
+from polar_ble_tools.sdk_tools.verifier import (
+    SchemaVerificationError,
+    activate_schemas,
+    schema_status,
+    verify_schemas,
+)
 
 COMMIT = "a" * 40
 
@@ -35,7 +42,6 @@ def _write_cache(
     cache = SdkCache(tmp_path / "cache")
     source = cache.sdk_path(COMMIT) / "source"
     source.mkdir(parents=True)
-    (cache.sdk_path(COMMIT) / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (cache.sdk_path(COMMIT) / "download-manifest.json").write_text(
         json.dumps(
             {
@@ -80,7 +86,6 @@ def _write_cache(
             "python": sys.version.split()[0],
         },
     }
-    (root / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (root / GENERATED_MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
     return cache, root, manifest
 
@@ -102,6 +107,37 @@ def test_verifier_accepts_a_complete_synthetic_cache(
         )
         for module in requirements_for("setup", "passive", "bpb").modules
     )
+
+
+def test_format_3_cache_verifies_and_activates_without_sdk_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache, root, manifest = _write_cache(tmp_path, monkeypatch)
+    manifest["format_version"] = 3
+    manifest["source_content_sha256"] = "b" * 64
+    _write_manifest(root, manifest)
+
+    activate_schemas(COMMIT, cache=cache)
+    shutil.rmtree(cache.sdk_path(COMMIT))
+    cache.active_manifest_path.unlink()
+
+    assert verify_schemas(cache=cache) == root / "python"
+    status = schema_status(cache=cache)
+    assert status.active_commit == COMMIT
+    assert status.source_independent is True
+    assert status.manifest_format == 3
+    assert stat.S_IMODE(cache.active_schema_manifest_path.stat().st_mode) == 0o600
+
+
+def test_format_2_cache_remains_source_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache, _root, _manifest = _write_cache(tmp_path, monkeypatch)
+    activate_schemas(COMMIT, cache=cache)
+    shutil.rmtree(cache.sdk_path(COMMIT))
+
+    with pytest.raises(SchemaVerificationError, match="source manifest"):
+        verify_schemas(cache=cache)
 
 
 def test_verifier_rejects_corrupt_descriptor(
@@ -129,6 +165,20 @@ def test_verifier_rejects_corrupt_generated_module(
     (root / "python" / "types_pb2.py").write_text("VALUE = 2\n", encoding="utf-8")
 
     with pytest.raises(SchemaVerificationError, match="cache is corrupt"):
+        verify_schemas(cache=cache)
+
+
+def test_verifier_rejects_generated_file_path_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache, root, manifest = _write_cache(tmp_path, monkeypatch)
+    relative = str(manifest["generated_files"][0])
+    expected = manifest["generated_file_hashes"].pop(relative)
+    manifest["generated_files"][0] = "../../outside_pb2.py"
+    manifest["generated_file_hashes"]["../../outside_pb2.py"] = expected
+    _write_manifest(root, manifest)
+
+    with pytest.raises(SchemaVerificationError, match="path is unsafe"):
         verify_schemas(cache=cache)
 
 

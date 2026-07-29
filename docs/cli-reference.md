@@ -22,10 +22,11 @@ direct Python API is available.
 | `raw collect` | Retrieve/hash-store REC files | `await collect_raw_recordings()` |
 | `raw cleanup` | Safely remove verified device files | `await cleanup_raw_recordings()` |
 | `passive list` | List passive BPB files | `await list_passive_files()` |
-| `passive collect [--existing-file-policy skip\|overwrite] [--delete-after-collect]` | Retrieve/hash-store passive files | `await collect_passive_files()` |
+| `passive collect [--existing-file-policy skip\|overwrite] [--delete-after-collect] [--decode]` | Retrieve/hash-store passive files, then optionally decode the persisted manifest | `await collect_passive_files()`, `decode_passive_manifest()` |
 | `passive cleanup --domain DOMAIN --delete-through YYYY-MM-DD [--dry-run]` | Delete verified passive files through a date | `await cleanup_passive_files()` |
 | `bpb decode` | Decode one local BPB file | `decode_bpb_file()` |
 | `bpb decode-manifest` | Decode BPB files named by a manifest | `decode_bpb_manifest()` |
+| `bpb decode-passive-manifest` | Decode and enrich the latest rows in a passive manifest | `decode_passive_manifest()` |
 | `ftu dry-run` | Validate an FTU profile without a device | `FtuProfile.from_json_file()` |
 | `ftu apply` | Apply FTU profile and initial settings | `await apply_ftu()` |
 | `ftu status` | Read FTU completion | `await ftu_status()` |
@@ -34,12 +35,16 @@ direct Python API is available.
 | `ftu settings set` | Patch user-device settings | `await update_user_device_settings()` |
 | `ftu diagnose` | Read FTU diagnostic state | `await diagnose_ftu()` |
 | `sdk download` | Stage SDK source only | `install_sdk(..., activate=False)` |
-| `sdk install` | Stage, inspect, generate, verify, activate schemas | Compose `install_sdk`, `inspect_sdk`, `generate_schemas`, `verify_schemas`, `activate_sdk` |
-| `sdk status` | Show staged/active revisions | `sdk_status()` |
+| `sdk install` | Stage, inspect, generate, verify, and independently activate SDK source and schemas | Compose `install_sdk`, `inspect_sdk`, `generate_schemas`, `verify_schemas`, `activate_sdk`, `activate_schemas` |
+| `sdk status` | Show staged SDK source and active source/schema revisions | `sdk_status()`, `schema_status()` |
 | `sdk inspect` | Inspect active SDK descriptors | `inspect_active_sdk()` |
 | `sdk generate` | Generate schemas for active SDK | `generate_active_schemas()` |
 | `sdk verify` | Verify active schemas | `verify_active_schemas()` |
-| `sdk remove` | Remove one/all SDK cache entries | `remove_sdk()` / `remove_all_sdk_cache()` |
+| `sdk schemas status` | Show independent generated-schema state | `schema_status()` |
+| `sdk schemas verify [--commit SHA]` | Verify active or selected generated schemas | `verify_schemas()` |
+| `sdk schemas activate --commit SHA` | Activate a verified generated-schema cache | `activate_schemas()` |
+| `sdk remove --commit SHA [--commit SHA ...] [--retain-schemas] [--include-decoders] [--dry-run]` | Remove exact SDK revisions, optionally retaining format-3 schemas or including matching decoders | `remove_sdk_artifacts()` |
+| `sdk remove --all [--include-decoders] [--dry-run] [--yes]` | Remove every selected cache revision with bulk confirmation | `remove_sdk_artifacts()` |
 | `sdk decoder build` | Build optional REC sidecar | `build_decoder()` |
 | `sdk decoder verify` | Execute sidecar handshakes | `verify_decoder()` |
 | `sdk decoder status` | Check sidecar availability | `decoder_status()` |

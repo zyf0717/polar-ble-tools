@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import sys
 
+from polar_ble_tools.bpb_decode import BpbManifestError, decode_passive_manifest
 from polar_ble_tools.collection import (
     cleanup_passive_files,
     collect_passive_files,
@@ -47,6 +48,15 @@ def build_passive_parser() -> argparse.ArgumentParser:
         help="Reuse verified local files or refetch them. Default: %(default)s.",
     )
     collect.add_argument("--delete-after-collect", action="store_true")
+    collect.add_argument(
+        "--decode",
+        action="store_true",
+        help="Decode the persisted local manifest after raw collection completes.",
+    )
+    collect.add_argument(
+        "--decoded-output-dir",
+        help="Decoded JSON directory inside the passive store; requires --decode.",
+    )
     cleanup = commands.add_parser("cleanup", help="Delete only verified passive files.")
     cleanup.add_argument(
         "--domain", required=True, choices=[domain.value for domain in PASSIVE_DOMAIN_ORDER]
@@ -99,6 +109,8 @@ async def _list(
 async def _collect(
     args: argparse.Namespace, domains: tuple[PassiveDomain, ...], from_date, to_date
 ) -> int:
+    if args.decoded_output_dir is not None and not args.decode:
+        raise ValueError("--decoded-output-dir requires --decode.")
     result = await collect_passive_files(
         args.mac_address,
         domains=domains,
@@ -108,8 +120,26 @@ async def _collect(
         existing_file_policy=args.existing_file_policy,
         delete_after_collect=args.delete_after_collect,
     )
-    print_json(result.to_jsonable())
-    return 0 if result.ok else 1
+    if not args.decode:
+        print_json(result.to_jsonable())
+        return 0 if result.ok else 1
+    try:
+        decoding = decode_passive_manifest(
+            result.manifest_path,
+            output_dir=args.decoded_output_dir,
+        )
+        decoding_payload: dict[str, object] = decoding.to_jsonable()
+        decoding_ok = decoding.ok
+    except (BpbManifestError, OSError, ValueError) as exc:
+        decoding_payload = {"error": str(exc), "failed": 1}
+        decoding_ok = False
+    print_json(
+        {
+            "collection": result.to_jsonable(),
+            "decoding": decoding_payload,
+        }
+    )
+    return 0 if result.ok and decoding_ok else 1
 
 
 async def _cleanup(args: argparse.Namespace) -> int:

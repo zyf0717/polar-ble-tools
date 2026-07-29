@@ -18,8 +18,10 @@ OFFICIAL_SDK_URL = "https://github.com/polarofficial/polar-ble-sdk.git"
 # not covered by this package's schema or device compatibility evidence.
 SUPPORTED_SDK_COMMIT = "ccff6812c40fff1753c72385387d1877ca9b27b4"
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
-SDK_LICENSE_FILE = "Polar_SDK_License.txt"
 MANIFEST_FILE = "download-manifest.json"
+SDK_LICENSE_FILE = "Polar_SDK_License.txt"
+_LEGACY_ACCEPTANCE_FIELDS = frozenset({"license_acceptance", "license_notice_present"})
+_LEGACY_LICENSE_COPY = SDK_LICENSE_FILE
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -70,9 +72,9 @@ def _manifest_payload(
     requested_ref: str,
     resolved_commit: str,
     support_tier: str,
-    source_content_sha256: str | None = None,
+    source_content_sha256: str,
 ) -> dict[str, object]:
-    payload: dict[str, object] = {
+    return {
         "format_version": 4,
         "vendor": "polar",
         "source_type": source_type,
@@ -82,30 +84,41 @@ def _manifest_payload(
         "supported_commit": SUPPORTED_SDK_COMMIT,
         "support_tier": support_tier,
         "installed_at": datetime.now(UTC).isoformat(),
-        "license_notice_present": True,
+        "source_content_sha256": source_content_sha256,
     }
-    if source_content_sha256 is not None:
-        payload["source_content_sha256"] = source_content_sha256
-    return payload
 
 
-def _local_source_identity(source: Path) -> tuple[str, str]:
-    """Return a stable cache revision and full content digest for a local source."""
+def source_content_sha256(source: Path) -> str:
+    """Return a stable digest for an SDK source tree without cache artifacts."""
     digest = hashlib.sha256()
     for root, directories, files in os.walk(source):
-        directories[:] = sorted(name for name in directories if name not in {".git", "__pycache__"})
         root_path = Path(root)
+        retained_directories: list[str] = []
+        for name in sorted(name for name in directories if name not in {".git", "__pycache__"}):
+            if (root_path / name).is_symlink():
+                raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
+            retained_directories.append(name)
+        directories[:] = retained_directories
         for name in sorted(files):
             if name.endswith(".pyc"):
                 continue
             path = root_path / name
+            if path.is_symlink():
+                raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
+            if not path.is_file():
+                raise SdkDownloadError("SDK source contains an unsafe non-regular file.")
             relative = path.relative_to(source).as_posix()
             digest.update(relative.encode("utf-8"))
             digest.update(b"\0")
             with path.open("rb") as current:
                 for block in iter(lambda: current.read(1024 * 1024), b""):
                     digest.update(block)
-    content_sha256 = digest.hexdigest()
+    return digest.hexdigest()
+
+
+def _local_source_identity(source: Path) -> tuple[str, str]:
+    """Return a stable cache revision and full content digest for a local source."""
+    content_sha256 = source_content_sha256(source)
     # Cache paths and activation already use 40-hex revision identifiers. A
     # SHA-256 prefix gives local snapshots immutable addressing without
     # falsely claiming the user supplied a Git commit.
@@ -116,7 +129,7 @@ def _existing_result(cache: SdkCache, commit: str) -> SdkInstallResult | None:
     root = cache.sdk_path(commit)
     source = root / "source"
     manifest = root / MANIFEST_FILE
-    if not (source.is_dir() and manifest.is_file() and (root / SDK_LICENSE_FILE).is_file()):
+    if not (source.is_dir() and manifest.is_file()):
         return None
     try:
         payload = json.loads(manifest.read_text(encoding="utf-8"))
@@ -146,14 +159,12 @@ def _stage_source(
     resolved_commit: str,
     support_tier: str,
     cache: SdkCache,
-    source_content_sha256: str | None = None,
+    source_tree_sha256: str | None = None,
 ) -> SdkInstallResult:
     existing = _existing_result(cache, resolved_commit)
     if existing is not None:
         return existing
-    license_path = source / SDK_LICENSE_FILE
-    if not license_path.is_file():
-        raise SdkDownloadError(f"SDK source is missing {SDK_LICENSE_FILE}.")
+    content_sha256 = source_tree_sha256 or source_content_sha256(source)
     cache.sdk_root.mkdir(parents=True, exist_ok=True)
     destination = cache.sdk_path(resolved_commit)
     with TemporaryDirectory(prefix=f".{resolved_commit[:12]}-", dir=cache.sdk_root) as temporary:
@@ -162,7 +173,6 @@ def _stage_source(
         shutil.copytree(
             source, staged_source, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc")
         )
-        shutil.copy2(license_path, staged_root / SDK_LICENSE_FILE)
         manifest = staged_root / MANIFEST_FILE
         _atomic_write_json(
             manifest,
@@ -171,7 +181,7 @@ def _stage_source(
                 requested_ref=requested_ref,
                 resolved_commit=resolved_commit,
                 support_tier=support_tier,
-                source_content_sha256=source_content_sha256,
+                source_content_sha256=content_sha256,
             ),
         )
         try:
@@ -196,17 +206,43 @@ def _activate(cache: SdkCache, commit: str) -> None:
     _atomic_write_json(cache.active_manifest_path, {"resolved_commit": commit})
 
 
+def _discard_legacy_acceptance_state(cache: SdkCache, result: SdkInstallResult) -> None:
+    """Remove package-created acceptance records after fresh explicit consent."""
+    try:
+        payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SdkDownloadError(f"Invalid SDK manifest at {result.manifest_path}.") from exc
+    legacy_copies = (
+        result.manifest_path.parent / _LEGACY_LICENSE_COPY,
+        cache.generated_path(result.resolved_commit) / _LEGACY_LICENSE_COPY,
+    )
+    for path in legacy_copies:
+        if path.exists() and not (path.is_file() or path.is_symlink()):
+            raise SdkDownloadError(f"Legacy SDK acceptance artifact is not a file: {path}")
+    for path in legacy_copies:
+        if path.is_file() or path.is_symlink():
+            path.unlink()
+    if _LEGACY_ACCEPTANCE_FIELDS.intersection(payload):
+        for field in _LEGACY_ACCEPTANCE_FIELDS:
+            payload.pop(field, None)
+        if payload.get("format_version") == 5:
+            payload["format_version"] = 4
+        _atomic_write_json(result.manifest_path, payload)
+
+
 def install_sdk(
     *,
-    accept_license: bool,
     ref: str | None = None,
     sdk_path: Path | None = None,
     cache: SdkCache | None = None,
     activate: bool = True,
 ) -> SdkInstallResult:
-    """Stage the release pin by default or an explicitly requested override."""
-    if not accept_license:
-        raise SdkDownloadError("Pass --accept-license to install the Polar BLE SDK.")
+    """Stage the release pin by default or an explicitly requested override.
+
+    Every call to this explicit installation API implies fresh acceptance of
+    the SDK's licence terms. The CLI confirms this before every invocation,
+    including cache reuse.
+    """
     cache = cache or SdkCache.default()
     if sdk_path is not None:
         if ref is not None:
@@ -223,7 +259,7 @@ def install_sdk(
             requested_ref=str(source),
             resolved_commit=revision,
             support_tier="override",
-            source_content_sha256=content_sha256,
+            source_tree_sha256=content_sha256,
             cache=cache,
         )
     else:
@@ -243,6 +279,7 @@ def install_sdk(
                 support_tier="pinned" if resolved_commit == SUPPORTED_SDK_COMMIT else "override",
                 cache=cache,
             )
+    _discard_legacy_acceptance_state(cache, result)
     if activate:
         _activate(cache, result.resolved_commit)
     return result
@@ -285,45 +322,88 @@ def active_sdk_source(*, cache: SdkCache | None = None) -> tuple[str, Path]:
     cache = cache or SdkCache.default()
     active_commit = sdk_status(cache=cache).active_commit
     if active_commit is None:
-        raise SdkDownloadError(
-            "No active Polar SDK is installed. Run: polar-ble sdk install --accept-license"
-        )
+        raise SdkDownloadError("No active Polar SDK is installed. Run: polar-ble sdk install")
     source = cache.sdk_path(active_commit) / "source"
     if not source.is_dir():
         raise SdkDownloadError(f"Active Polar SDK source is missing: {source}")
     return active_commit, source
 
 
-def remove_sdk(commit: str, *, cache: SdkCache | None = None) -> bool:
+def _active_pointer_matches(path: Path, field: str, commit: str) -> bool:
+    if not path.is_file() or path.is_symlink():
+        return False
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get(field) == commit
+    except (OSError, json.JSONDecodeError):
+        return False
+
+
+def remove_sdk(
+    commit: str,
+    *,
+    retain_schemas: bool = False,
+    cache: SdkCache | None = None,
+) -> bool:
     if not _COMMIT_RE.fullmatch(commit):
         raise SdkDownloadError("SDK removal requires a full 40-character commit SHA.")
-    from polar_ble_tools.schemas.runtime import schema_activation_manager
 
     cache = cache or SdkCache.default()
-    schema_activation_manager(cache).ensure_removable(commit)
     sdk_target, generated_target = cache.sdk_path(commit), cache.generated_path(commit)
+    if retain_schemas and not sdk_target.is_dir():
+        return False
     if not sdk_target.is_dir() and not generated_target.is_dir():
         return False
+    if retain_schemas and generated_target.is_dir():
+        from polar_ble_tools.sdk_tools.generator import GENERATED_MANIFEST
+        from polar_ble_tools.sdk_tools.verifier import activate_schemas, verify_schemas
+
+        verify_schemas(commit=commit, cache=cache)
+        try:
+            manifest = json.loads(
+                (generated_target / GENERATED_MANIFEST).read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SdkDownloadError("Generated schema manifest is unavailable or invalid.") from exc
+        if manifest.get("format_version") != 3:
+            raise SdkDownloadError(
+                "Retaining schemas while removing SDK source requires a format-3 cache; "
+                "regenerate schemas first."
+            )
+        if (
+            sdk_status(cache=cache).active_commit == commit
+            and not cache.active_schema_manifest_path.exists()
+            and not cache.active_schema_manifest_path.is_symlink()
+        ):
+            activate_schemas(commit, cache=cache)
+    if not retain_schemas:
+        from polar_ble_tools.schemas.runtime import schema_activation_manager
+
+        schema_activation_manager(cache).ensure_removable(commit)
     was_active = sdk_status(cache=cache).active_commit == commit
-    for target in (sdk_target, generated_target):
+    targets = (sdk_target,) if retain_schemas else (sdk_target, generated_target)
+    for target in targets:
         if target.is_dir():
             shutil.rmtree(target)
     if was_active:
         cache.active_manifest_path.unlink(missing_ok=True)
+    if not retain_schemas and _active_pointer_matches(
+        cache.active_schema_manifest_path, "resolved_commit", commit
+    ):
+        cache.active_schema_manifest_path.unlink(missing_ok=True)
     return True
 
 
 def remove_all_sdk_cache(*, cache: SdkCache | None = None) -> bool:
-    from polar_ble_tools.schemas.runtime import schema_activation_manager
-
     cache = cache or SdkCache.default()
-    schema_activation_manager(cache).ensure_removable(None)
-    removed = False
-    for target in (cache.sdk_root, cache.generated_root):
-        if target.is_dir():
-            shutil.rmtree(target)
-            removed = True
-    if cache.active_manifest_path.exists():
-        cache.active_manifest_path.unlink()
-        removed = True
-    return removed
+    from polar_ble_tools.sdk_tools.removal import (
+        RemovalArtifactStatus,
+        remove_sdk_artifacts,
+    )
+
+    result = remove_sdk_artifacts(remove_all=True, cache=cache)
+    return any(
+        record.sdk_source is RemovalArtifactStatus.REMOVED
+        or record.generated_schemas is RemovalArtifactStatus.REMOVED
+        or record.active_sdk
+        for record in result.records
+    )

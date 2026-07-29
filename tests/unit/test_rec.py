@@ -18,6 +18,11 @@ from polar_ble_tools.rec import (
     iter_decoded_records,
 )
 from polar_ble_tools.schemas.cache import SdkCache
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    toolchain_descriptor,
+    toolchain_descriptor_digest,
+)
+from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 
 COMMIT = "a" * 40
 
@@ -27,6 +32,7 @@ def _digest(path: Path) -> str:
 
 
 def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -> Path:
+    descriptor = toolchain_descriptor("linux", "x86_64")
     root = cache.decoder_path(COMMIT)
     executable = root / "bin" / "polar-rec-decoder"
     executable.parent.mkdir(parents=True)
@@ -54,6 +60,9 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
         encoding="utf-8",
     )
     executable.chmod(0o755)
+    attribution = root / "attribution" / SDK_LICENSE_FILE
+    attribution.parent.mkdir()
+    attribution.write_text("SDK attribution material\n", encoding="utf-8")
     (root / "manifest.json").write_text(
         json.dumps(
             {
@@ -61,16 +70,39 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
                 "decoder_protocol_version": 1,
                 "sdk_commit": COMMIT,
                 "decoder_version": "test",
+                "polar_ble_tools_version": "test",
+                "platform": descriptor.platform,
+                "architecture": descriptor.architecture,
+                "java_version": descriptor.jdk_version,
+                "java_archive_sha256": descriptor.jdk_sha256,
+                "gradle_version": descriptor.gradle_version,
+                "gradle_archive_sha256": descriptor.gradle_sha256,
+                "adapter_source_sha256": "0" * 64,
+                "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
                 "executable_relative_path": "bin/polar-rec-decoder",
                 "executable_sha256": _digest(executable),
-                "runtime_files": {"bin/polar-rec-decoder": _digest(executable)},
+                "runtime_files": {
+                    "bin/polar-rec-decoder": _digest(executable),
+                    f"attribution/{SDK_LICENSE_FILE}": _digest(attribution),
+                },
+                "sdk_license_attribution": {
+                    "relative_path": f"attribution/{SDK_LICENSE_FILE}",
+                    "sha256": _digest(attribution),
+                    "sdk_commit": COMMIT,
+                    "purpose": "attribution",
+                    "is_acceptance_record": False,
+                },
                 "runtime": {
                     "kind": "pinned-jvm",
                     "platform": "linux",
                     "architecture": "x86_64",
-                    "java_version": "21.0.12+8",
-                    "java_relative_cache_path": "toolchains/rec-jvm/linux/x86_64/jdk-21.0.12+8",
+                    "java_version": descriptor.jdk_version,
+                    "java_relative_cache_path": (
+                        f"toolchains/rec-jvm/linux/x86_64/jdk-{descriptor.jdk_version}"
+                    ),
+                    "java_relative_path": descriptor.java_relative_path,
                     "java_executable_sha256": "",
+                    "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
                 },
                 "verification_level": "handshake",
                 "verified": True,
@@ -81,7 +113,10 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
     cache.active_decoder_manifest_path.write_text(
         json.dumps({"sdk_commit": COMMIT}), encoding="utf-8"
     )
-    java = cache.rec_jvm_java_home("linux", "x86_64", "21.0.12+8") / "bin" / "java"
+    java = (
+        cache.rec_jvm_java_home("linux", "x86_64", descriptor.jdk_version)
+        / descriptor.java_relative_path
+    )
     java.parent.mkdir(parents=True)
     java.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     java.chmod(0o755)
@@ -135,6 +170,17 @@ def test_decode_rejects_hardlinked_source_and_output(tmp_path: Path) -> None:
     assert output.read_bytes() == original
 
 
+def test_decode_overwrite_rejects_unrelated_existing_file(tmp_path: Path) -> None:
+    source, output = tmp_path / "PPI0.REC", tmp_path / "decoded.jsonl"
+    source.write_bytes(b"recording bytes")
+    output.write_text("unrelated\n", encoding="utf-8")
+
+    with pytest.raises(RecordingDecodeError, match="project-owned"):
+        decode_recording(source, output, overwrite=True)
+
+    assert output.read_text(encoding="utf-8") == "unrelated\n"
+
+
 def test_decode_recording_validates_and_iterates(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -177,6 +223,71 @@ def test_decoder_rejects_unmanifested_runtime_file(
 
     with pytest.raises(DecoderVerificationError, match="runtime files changed"):
         decode_recording(source, tmp_path / "decoded.jsonl")
+
+
+def test_status_rejects_legacy_package_managed_decoder_cache(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    root = cache.decoder_path(COMMIT)
+    legacy_files = (
+        root / "licenses" / "Polar_SDK_License.txt",
+        root / "notices" / "ThirdPartySoftwareListing.txt",
+    )
+    for path in legacy_files:
+        path.parent.mkdir()
+        path.write_text("legacy cache material\n", encoding="utf-8")
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["runtime_files"].update(
+        {path.relative_to(root).as_posix(): _digest(path) for path in legacy_files}
+    )
+    manifest["license_material"] = [{"legacy": True}]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "Legacy package-managed decoder cache is unsupported" in (status.reason or "")
+    assert "polar-ble sdk decoder build" in (status.reason or "")
+
+
+def test_status_rejects_license_attribution_labelled_as_acceptance(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    manifest_path = cache.decoder_path(COMMIT) / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["sdk_license_attribution"]["is_acceptance_record"] = True
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "invalid SDK licence attribution" in (status.reason or "")
+
+
+def test_status_rejects_changed_license_attribution_bytes(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    attribution = cache.decoder_path(COMMIT) / "attribution" / SDK_LICENSE_FILE
+    attribution.write_text("changed attribution material\n", encoding="utf-8")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "runtime files changed" in (status.reason or "")
+
+
+def test_status_reports_actionable_architecture_mismatch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    _decoder(cache)
+    monkeypatch.setattr("polar_ble_tools.rec.api.platform.machine", lambda: "aarch64")
+
+    status = decoder_status(cache=cache)
+
+    assert not status.available
+    assert "polar-ble sdk decoder build" in (status.reason or "")
 
 
 def test_decode_timeout_terminates_child_and_removes_temporary_output(

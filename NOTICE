@@ -13,3 +13,7 @@ The project distributes only project-authored decoder and build templates. It
 does not distribute Polar SDK source, locally compiled decoder outputs, or
 downloaded JDK/Gradle dependencies; those remain governed by their respective
 licences.
+
+A package-managed local decoder build includes the exact Polar SDK licence as
+attribution material. It is not an acceptance record. The locally compiled
+decoder must not be redistributed under this project's Apache-2.0 licence alone.

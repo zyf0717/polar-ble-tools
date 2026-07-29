@@ -22,11 +22,12 @@ transient and is `no` after a successful pairing.
 
 ## Prepare FTU
 
-Obtain and license the SDK separately, then create the local schema cache:
+Create the local schema cache. Proceeding at the prompt accepts the Polar BLE
+SDK licence:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
-polar-ble sdk install --accept-license
+polar-ble sdk install
 ```
 
 Copy [the profile example](ftu-profile.example.json) to a private location and

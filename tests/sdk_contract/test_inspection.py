@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -17,7 +18,7 @@ from polar_ble_tools.sdk_tools.generator import (
 from polar_ble_tools.sdk_tools.inspector import inspect_descriptor_set
 from polar_ble_tools.sdk_tools.proto_reader import build_descriptor_set
 from polar_ble_tools.sdk_tools.schema_decoder import decode_schema_requirements
-from polar_ble_tools.sdk_tools.verifier import verify_schemas
+from polar_ble_tools.sdk_tools.verifier import activate_schemas, verify_schemas
 
 PINNED_SDK_COMMIT = SUPPORTED_SDK_COMMIT
 SDK_PATH = os.environ.get("POLAR_BLE_SDK_PATH")
@@ -90,7 +91,7 @@ def test_pinned_sdk_descriptor_inventory() -> None:
     )
 
 
-def test_pinned_sdk_generation_and_verification_contract() -> None:
+def test_pinned_sdk_generation_and_verification_contract(tmp_path: Path) -> None:
     source = _pinned_sdk_source()
     cache = SdkCache.default()
     expected_source = cache.sdk_path(PINNED_SDK_COMMIT) / "source"
@@ -117,8 +118,19 @@ def test_pinned_sdk_generation_and_verification_contract() -> None:
 
     assert first.plan.to_dict() == second.plan.to_dict()
     assert verified_root == second.python_path
+    assert manifest["format_version"] == 3
     assert manifest["resolved_commit"] == PINNED_SDK_COMMIT
+    assert manifest["source_content_sha256"]
     assert manifest["descriptor_sha256"]
     assert manifest["generated_files"]
     assert manifest["generated_file_hashes"]
     assert manifest["resolved_symbols"]
+
+    detached = SdkCache(tmp_path / "detached-cache")
+    detached.generated_root.mkdir(parents=True)
+    shutil.copytree(
+        cache.generated_path(PINNED_SDK_COMMIT),
+        detached.generated_path(PINNED_SDK_COMMIT),
+    )
+    activate_schemas(PINNED_SDK_COMMIT, cache=detached)
+    assert verify_schemas(cache=detached) == detached.generated_path(PINNED_SDK_COMMIT) / "python"

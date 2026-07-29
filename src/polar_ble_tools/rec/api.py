@@ -7,85 +7,53 @@ import json
 import os
 import platform
 import re
-import signal
 import subprocess
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from threading import Thread
-from typing import Any
 
+from polar_ble_tools.rec.models import (
+    DecodeReport,
+    DecoderManifestError,
+    DecoderProtocolError,
+    DecoderStatus,
+    DecoderTimeoutError,
+    DecoderUnavailableError,
+    DecoderVerificationError,
+    RecDecodeError,
+    RecordingDecodeError,
+    RecRecord,
+    UnsupportedRecordingError,
+)
+from polar_ble_tools.rec.process import diagnostic, run_sidecar
+from polar_ble_tools.rec.publication import (
+    preflight_destination,
+    publish_decoded_output,
+)
+from polar_ble_tools.rec.validation import (
+    PROTOCOL_VERSION,
+    iter_json_rows,
+    validated_rows,
+)
 from polar_ble_tools.schemas.cache import SdkCache
-from polar_ble_tools.sdk_tools.decoder.toolchain import java_environment
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    java_environment,
+    normalized_architecture,
+    normalized_platform,
+    toolchain_descriptor,
+    toolchain_descriptor_digest,
+)
+from polar_ble_tools.sdk_tools.decoder.toolchain import (
+    java_home as toolchain_java_home,
+)
+from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
-_PROTOCOL_VERSION = 1
-_MAX_DIAGNOSTIC = 8_192
-_MAX_STATUS_BYTES = 8_192
-_MAX_JSONL_LINE_BYTES = 1_048_576
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_SDK_LICENSE_ATTRIBUTION_PATH = f"attribution/{SDK_LICENSE_FILE}"
 _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _DIGEST_RE = re.compile(r"[0-9a-f]{64}")
-_RECORD_TYPE_RE = re.compile(r"[a-z][a-z0-9_]*")
-
-
-class RecDecodeError(RuntimeError):
-    """Base error for local REC decoding."""
-
-
-class DecoderUnavailableError(RecDecodeError):
-    """No active verified local decoder is available."""
-
-
-class DecoderManifestError(RecDecodeError):
-    """The active decoder manifest is malformed or unsafe."""
-
-
-class DecoderVerificationError(RecDecodeError):
-    """The active decoder no longer matches its verified manifest."""
-
-
-class DecoderProtocolError(RecDecodeError):
-    """The sidecar's protocol output is invalid."""
-
-
-class DecoderTimeoutError(RecDecodeError):
-    """The local decoder exceeded its deadline."""
-
-
-class RecordingDecodeError(RecDecodeError):
-    """The local decoder could not decode the recording."""
-
-
-@dataclass(frozen=True)
-class DecoderStatus:
-    available: bool
-    verified: bool
-    sdk_commit: str | None
-    protocol_version: int | None
-    verification_level: str | None
-    reason: str | None
-
-
-@dataclass(frozen=True)
-class DecodeReport:
-    source_path: Path
-    destination_path: Path
-    source_sha256: str
-    destination_sha256: str
-    sdk_commit: str
-    decoder_version: str
-    record_count: int
-    record_types: Mapping[str, int]
-    warnings: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class RecRecord:
-    record_type: str
-    timestamp_ns: int | None
-    payload: Mapping[str, object]
 
 
 @dataclass(frozen=True)
@@ -104,15 +72,39 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
     architecture = runtime.get("architecture")
     version = runtime.get("java_version")
     relative = runtime.get("java_relative_cache_path")
+    java_relative_path = runtime.get("java_relative_path")
     expected_digest = runtime.get("java_executable_sha256")
-    expected_platform = platform.system().lower()
-    expected_architecture = platform.machine().lower().replace("amd64", "x86_64")
+    descriptor_digest = runtime.get("toolchain_descriptor_sha256")
+    expected_platform = normalized_platform(platform.system())
+    expected_architecture = normalized_architecture(platform.machine())
     if platform_name != expected_platform or architecture != expected_architecture:
         raise DecoderUnavailableError(
-            "Active REC decoder was built for a different platform or architecture."
+            "Active REC decoder was built for a different platform or architecture; "
+            "rebuild with: polar-ble sdk decoder build"
         )
-    if not all(isinstance(value, str) for value in (version, relative, expected_digest)):
+    try:
+        descriptor = toolchain_descriptor(expected_platform, expected_architecture)
+    except RuntimeError as exc:
+        raise DecoderUnavailableError(str(exc)) from exc
+    if not all(
+        isinstance(value, str)
+        for value in (
+            version,
+            relative,
+            java_relative_path,
+            expected_digest,
+            descriptor_digest,
+        )
+    ):
         raise DecoderManifestError("Decoder runtime descriptor is malformed.")
+    if (
+        version != descriptor.jdk_version
+        or java_relative_path != descriptor.java_relative_path
+        or descriptor_digest != toolchain_descriptor_digest(descriptor)
+    ):
+        raise DecoderVerificationError(
+            "Decoder toolchain descriptor changed; rebuild with: polar-ble sdk decoder build"
+        )
     if len(expected_digest) != 64 or any(
         character not in "0123456789abcdef" for character in expected_digest
     ):
@@ -121,12 +113,12 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
         java_home = require_within(cache.root / relative, cache.root)
     except ValueError as exc:
         raise DecoderManifestError("Decoder runtime descriptor escapes the cache root.") from exc
-    expected_home = cache.rec_jvm_java_home(platform_name, architecture, version).resolve()
+    expected_home = toolchain_java_home(cache, descriptor).resolve()
     if java_home != expected_home:
         raise DecoderManifestError(
             "Decoder runtime descriptor does not name the pinned JDK location."
         )
-    executable = java_home / "bin" / "java"
+    executable = java_home / java_relative_path
     if not executable.is_file() or executable.is_symlink() or not os.access(executable, os.X_OK):
         raise DecoderUnavailableError(
             "Decoder JDK is missing or not executable; rebuild the active REC decoder."
@@ -136,7 +128,7 @@ def _decoder_environment(cache: SdkCache, manifest: Mapping[str, object]) -> dic
             "Decoder JDK changed; rebuild and verify the active REC decoder."
         )
     try:
-        return java_environment(java_home)
+        return java_environment(java_home, java_relative_path=java_relative_path)
     except RuntimeError as exc:
         raise DecoderUnavailableError(str(exc)) from exc
 
@@ -165,13 +157,49 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderManifestError(f"Decoder runtime has an unsafe entry: {path.name}")
         relative = path.relative_to(root).as_posix()
-        allowed = relative in _RUNTIME_LAUNCHERS or (
-            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        allowed = (
+            relative in _RUNTIME_LAUNCHERS
+            or relative == _SDK_LICENSE_ATTRIBUTION_PATH
+            or (
+                relative.startswith("lib/")
+                and "/" not in relative[4:]
+                and relative.endswith(".jar")
+            )
         )
         if not allowed:
             raise DecoderManifestError(f"Decoder runtime has an unexpected file: {relative}")
         files[relative] = _digest(path)
     return files
+
+
+def _validate_sdk_license_attribution(
+    manifest: Mapping[str, object],
+    runtime_files: Mapping[str, object],
+    *,
+    commit: str,
+) -> None:
+    attribution = manifest.get("sdk_license_attribution")
+    if (
+        not isinstance(attribution, dict)
+        or set(attribution)
+        != {
+            "relative_path",
+            "sha256",
+            "sdk_commit",
+            "purpose",
+            "is_acceptance_record",
+        }
+        or attribution.get("relative_path") != _SDK_LICENSE_ATTRIBUTION_PATH
+        or attribution.get("sdk_commit") != commit
+        or attribution.get("purpose") != "attribution"
+        or attribution.get("is_acceptance_record") is not False
+        or not _DIGEST_RE.fullmatch(str(attribution.get("sha256")))
+        or runtime_files.get(_SDK_LICENSE_ATTRIBUTION_PATH) != attribution.get("sha256")
+    ):
+        raise DecoderManifestError(
+            "Decoder manifest has invalid SDK licence attribution; rebuild with: "
+            "polar-ble sdk decoder build"
+        )
 
 
 def _recover_interrupted_promotion(cache: SdkCache, commit: str) -> Path:
@@ -220,11 +248,30 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         runtime = manifest["runtime"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise DecoderManifestError(f"Invalid decoder manifest at {manifest_path}.") from exc
+    if "license_material" in manifest:
+        raise DecoderManifestError(
+            "Legacy package-managed decoder cache is unsupported; rebuild with: "
+            "polar-ble sdk decoder build"
+        )
     if (
         manifest.get("manifest_version") != 1
         or manifest.get("sdk_commit") != commit
-        or manifest.get("decoder_protocol_version") != _PROTOCOL_VERSION
+        or manifest.get("decoder_protocol_version") != PROTOCOL_VERSION
         or manifest.get("verified") is not True
+        or manifest.get("platform") != runtime.get("platform")
+        or manifest.get("architecture") != runtime.get("architecture")
+        or manifest.get("java_version") != runtime.get("java_version")
+        or manifest.get("toolchain_descriptor_sha256") != runtime.get("toolchain_descriptor_sha256")
+        or not isinstance(manifest.get("gradle_version"), str)
+        or not isinstance(manifest.get("polar_ble_tools_version"), str)
+        or not isinstance(manifest.get("adapter_source_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("adapter_source_sha256")))
+        or not isinstance(manifest.get("java_archive_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("java_archive_sha256")))
+        or not isinstance(manifest.get("gradle_archive_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("gradle_archive_sha256")))
+        or not isinstance(manifest.get("toolchain_descriptor_sha256"), str)
+        or not _DIGEST_RE.fullmatch(str(manifest.get("toolchain_descriptor_sha256")))
         or not isinstance(relative, str)
         or not isinstance(expected_digest, str)
         or not isinstance(expected_runtime_files, dict)
@@ -237,6 +284,7 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
         raise DecoderManifestError(
             "Decoder manifest does not describe a verified protocol-v1 decoder."
         )
+    _validate_sdk_license_attribution(manifest, expected_runtime_files, commit=commit)
     executable = (root / relative).resolve()
     if (
         not _within(executable, root)
@@ -257,7 +305,7 @@ def _load_decoder(cache: SdkCache) -> _Decoder:
 
 
 def _handshake(decoder: _Decoder, environment: Mapping[str, str], command: str) -> None:
-    returncode, stdout, stderr = _run_sidecar(
+    returncode, stdout, stderr = run_sidecar(
         [str(decoder.executable), command], environment=environment, timeout_seconds=30
     )
     try:
@@ -269,13 +317,13 @@ def _handshake(decoder: _Decoder, environment: Mapping[str, str], command: str) 
         returncode != 0
         or not isinstance(status, dict)
         or status.get("status") != "ok"
-        or status.get("protocol_version") != _PROTOCOL_VERSION
+        or status.get("protocol_version") != PROTOCOL_VERSION
         or status.get("sdk_commit") != decoder.manifest["sdk_commit"]
         or not isinstance(expected_version, str)
         or status.get("decoder_version") != expected_version
     ):
         raise DecoderVerificationError(
-            f"REC decoder {command} handshake failed: {_diagnostic(stderr)}"
+            f"REC decoder {command} handshake failed: {diagnostic(stderr)}"
         )
 
 
@@ -310,169 +358,6 @@ def verify_active_decoder(*, cache: SdkCache | None = None) -> bool:
     return True
 
 
-def _diagnostic(value: str | bytes | None) -> str:
-    if not value:
-        return "no diagnostic output"
-    text = value.decode("utf-8", "replace") if isinstance(value, bytes) else value
-    return text.strip()[:_MAX_DIAGNOSTIC]
-
-
-def _drain_stream(stream, limit: int, sink: list[bytes | bool]) -> None:
-    payload = bytearray()
-    exceeded = False
-    while chunk := stream.read(8_192):
-        remaining = limit - len(payload)
-        if remaining > 0:
-            payload.extend(chunk[:remaining])
-        exceeded = exceeded or len(chunk) > remaining
-    sink.extend((bytes(payload), exceeded))
-
-
-def _run_sidecar(
-    command: list[str], *, environment: Mapping[str, str], timeout_seconds: float
-) -> tuple[int, bytes, bytes]:
-    process = subprocess.Popen(
-        command,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=environment,
-        start_new_session=os.name == "posix",
-    )
-    assert process.stdout is not None and process.stderr is not None
-    stdout: list[bytes | bool] = []
-    stderr: list[bytes | bool] = []
-    stdout_thread = Thread(
-        target=_drain_stream, args=(process.stdout, _MAX_STATUS_BYTES, stdout), daemon=True
-    )
-    stderr_thread = Thread(
-        target=_drain_stream, args=(process.stderr, _MAX_DIAGNOSTIC, stderr), daemon=True
-    )
-    stdout_thread.start()
-    stderr_thread.start()
-    try:
-        returncode = process.wait(timeout=timeout_seconds)
-    except subprocess.TimeoutExpired as exc:
-        if os.name == "posix":
-            os.killpg(process.pid, signal.SIGTERM)
-        else:
-            process.terminate()
-        try:
-            process.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            if os.name == "posix":
-                os.killpg(process.pid, signal.SIGKILL)
-            else:
-                process.kill()
-            process.wait(timeout=2)
-        raise DecoderTimeoutError("REC decoder timed out; retry with a larger timeout.") from exc
-    finally:
-        stdout_thread.join(timeout=2)
-        stderr_thread.join(timeout=2)
-    if stdout_thread.is_alive() or stderr_thread.is_alive():
-        raise DecoderProtocolError("REC decoder did not close its diagnostic streams.")
-    stdout_payload, stdout_exceeded = stdout
-    stderr_payload, _ = stderr
-    if stdout_exceeded:
-        raise DecoderProtocolError("REC decoder status exceeded the maximum size.")
-    return returncode, stdout_payload, stderr_payload
-
-
-def _reject_non_finite_constant(value: str) -> None:
-    raise ValueError(f"non-finite JSON constant: {value}")
-
-
-def _json_row(line: bytes, line_number: int) -> dict[str, Any]:
-    try:
-        value = json.loads(line, parse_constant=_reject_non_finite_constant)
-    except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
-        raise DecoderProtocolError(
-            f"Decoder output has invalid JSON on line {line_number}."
-        ) from exc
-    if not isinstance(value, dict):
-        raise DecoderProtocolError(f"Decoder output row {line_number} is not a JSON object.")
-    return value
-
-
-def _iter_json_rows(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
-    if not path.is_file() or path.is_symlink():
-        raise DecoderProtocolError("Decoder output is missing or unsafe.")
-    try:
-        with path.open("rb") as output:
-            for line_number, line in enumerate(output, start=1):
-                if len(line) > _MAX_JSONL_LINE_BYTES:
-                    raise DecoderProtocolError("Decoder output contains an oversized JSONL row.")
-                if line.strip():
-                    yield line_number, _json_row(line, line_number)
-    except OSError as exc:
-        raise DecoderProtocolError("Decoder output could not be read.") from exc
-
-
-def _validate_header(header: dict[str, Any], source_digest: str) -> None:
-    if (
-        header.get("type") != "header"
-        or header.get("protocol_version") != _PROTOCOL_VERSION
-        or header.get("source_sha256") != source_digest
-        or not isinstance(header.get("decoder_version"), str)
-        or not header["decoder_version"]
-        or not isinstance(header.get("sdk_commit"), str)
-        or not _COMMIT_RE.fullmatch(header["sdk_commit"])
-        or not isinstance(header.get("source_sha256"), str)
-        or not _DIGEST_RE.fullmatch(header["source_sha256"])
-    ):
-        raise DecoderProtocolError("Decoder output has an invalid protocol header.")
-
-
-def _validated_rows(path: Path, source_digest: str | None) -> tuple[dict[str, Any], dict[str, Any]]:
-    header: dict[str, Any] | None = None
-    summary: dict[str, Any] | None = None
-    counts: dict[str, int] = {}
-    record_count = 0
-    for line_number, record in _iter_json_rows(path):
-        if header is None:
-            expected_digest = source_digest or record.get("source_sha256")
-            if not isinstance(expected_digest, str):
-                raise DecoderProtocolError("Decoder output has an invalid protocol header.")
-            _validate_header(record, expected_digest)
-            header = record
-            continue
-        if summary is not None:
-            raise DecoderProtocolError(
-                f"Decoder output has a row after its summary (line {line_number})."
-            )
-        if record.get("type") == "summary":
-            summary = record
-            continue
-        if record.get("type") != "record":
-            raise DecoderProtocolError("Decoder output contains an invalid record.")
-        record_type, timestamp, payload = (
-            record.get("record_type"),
-            record.get("timestamp_ns"),
-            record.get("payload"),
-        )
-        if (
-            not isinstance(record_type, str)
-            or not _RECORD_TYPE_RE.fullmatch(record_type)
-            or not isinstance(payload, dict)
-        ):
-            raise DecoderProtocolError("Decoder record has an invalid envelope.")
-        if timestamp is not None and (
-            not isinstance(timestamp, int) or isinstance(timestamp, bool)
-        ):
-            raise DecoderProtocolError("Decoder record timestamp is invalid.")
-        counts[record_type] = counts.get(record_type, 0) + 1
-        record_count += 1
-    if header is None or summary is None:
-        raise DecoderProtocolError("Decoder output is missing protocol header or summary.")
-    if summary.get("record_count") != record_count or summary.get("record_types") != counts:
-        raise DecoderProtocolError("Decoder summary does not match its record stream.")
-    if not isinstance(summary.get("warnings"), list) or not all(
-        isinstance(warning, str) for warning in summary["warnings"]
-    ):
-        raise DecoderProtocolError("Decoder summary warnings are invalid.")
-    return header, summary
-
-
 def decode_recording(
     source: os.PathLike[str] | str,
     destination: os.PathLike[str] | str,
@@ -486,15 +371,7 @@ def decode_recording(
     )
     if not source_path.is_file() or source_path.is_symlink() or not os.access(source_path, os.R_OK):
         raise RecordingDecodeError("Input must be a readable, regular .REC file.")
-    resolved_destination = destination_path.resolve(strict=False)
-    if resolved_destination == source_path or (
-        destination_path.exists() and os.path.samefile(source_path, destination_path)
-    ):
-        raise RecordingDecodeError("Output must differ from the source recording.")
-    if destination_path.exists() and not overwrite:
-        raise RecordingDecodeError(
-            f"Output already exists: {destination_path}; pass overwrite=True to replace it."
-        )
+    preflight_destination(source_path, destination_path, overwrite=overwrite)
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     if not destination_path.parent.is_dir():
         raise RecordingDecodeError("Output parent is not a directory.")
@@ -508,7 +385,7 @@ def decode_recording(
     ) as directory:
         temporary = Path(directory) / "decoded.jsonl"
         try:
-            returncode, stdout, stderr = _run_sidecar(
+            returncode, stdout, stderr = run_sidecar(
                 [
                     str(decoder.executable),
                     "decode",
@@ -533,24 +410,19 @@ def decode_recording(
         if returncode:
             if status.get("status") != "error":
                 raise DecoderProtocolError("REC decoder failed without an error status object.")
-            raise RecordingDecodeError(f"REC decoder failed: {_diagnostic(stderr)}")
-        header, summary = _validated_rows(temporary, source_digest)
+            if status.get("error_code") == "unsupported_recording":
+                raise UnsupportedRecordingError(
+                    "The active official SDK parser does not support this recording."
+                )
+            raise RecordingDecodeError(f"REC decoder failed: {diagnostic(stderr)}")
+        header, summary = validated_rows(temporary, source_digest)
         if status.get("status") != "ok" or status.get("record_count") != summary["record_count"]:
             raise DecoderProtocolError("REC decoder status disagrees with the decoded stream.")
         if header.get("sdk_commit") != decoder.manifest["sdk_commit"]:
             raise DecoderProtocolError(
                 "REC decoder SDK provenance differs from its verified manifest."
             )
-        if overwrite:
-            os.replace(temporary, destination_path)
-        else:
-            try:
-                os.link(temporary, destination_path)
-            except FileExistsError as exc:
-                raise RecordingDecodeError(
-                    f"Output already exists: {destination_path}; pass overwrite=True to replace it."
-                ) from exc
-            temporary.unlink()
+        publish_decoded_output(temporary, destination_path, overwrite=overwrite)
     return DecodeReport(
         source_path=source_path,
         destination_path=destination_path.resolve(),
@@ -566,8 +438,8 @@ def decode_recording(
 
 def iter_decoded_records(decoded_jsonl: os.PathLike[str] | str) -> Iterator[RecRecord]:
     path = Path(decoded_jsonl)
-    _validated_rows(path, None)
-    for _, row in _iter_json_rows(path):
+    validated_rows(path, None)
+    for _, row in iter_json_rows(path):
         if row.get("type") == "record":
             yield RecRecord(row["record_type"], row["timestamp_ns"], dict(row["payload"]))
 
@@ -583,6 +455,7 @@ __all__ = [
     "RecDecodeError",
     "RecRecord",
     "RecordingDecodeError",
+    "UnsupportedRecordingError",
     "decode_recording",
     "decoder_status",
     "iter_decoded_records",

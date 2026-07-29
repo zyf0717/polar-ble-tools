@@ -2,28 +2,54 @@
 
 ## Supported devices
 
-`0.3.2` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+`0.4.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
 the controlled capability boundaries below.
 
 ## Polar Loop Gen 2
 
+The tested device reported `device_version` **6.1.19** from its official
+`/DEVICE.BPB` record on 2026-07-29. Earlier observations did not independently
+capture this field; unless stated otherwise, this repository assumes the same
+device remained on 6.1.19 throughout its controlled Loop Gen 2 testing.
+
 Controlled checks covered:
 
 - discovery, pairing, bonding, trust, connection handoff, and reconnect;
-- PMD availability, status, and accelerometer recording start/stop;
+- PMD availability and status, plus accelerometer recording start/stop;
 - PFTP raw `.REC` listing, retrieval, size checks, SHA-256 storage, and cleanup
   dry-run;
 - FTU profile application, status, and device settings;
-- passive daily-summary `.BPB` retrieval and hash storage;
-- daily-summary BPB decoding with a verified local schema cache.
+- passive activity-sample, daily-summary, and skin-temperature `.BPB`
+  retrieval, hash storage, and decoding with a verified local format-3 schema
+  cache.
 
 Controlled Linux aarch64/BlueZ validation confirmed discovery, durable pairing
 and bonding, and FTU profile application for Polar Loop Gen 2. This evidence
 does not extend the x86_64-only REC-decoder support claim.
 
-The cleanup check did not delete device data. Reconnect required bounded retries
-after repeated BlueZ activity and completed within the configured operation
-timeout.
+In a controlled 2026-07-27 observation, the target advertised ACC, HR, PPG, PPI,
+and SKIN_TEMPERATURE as available offline-recording types. Availability is not
+evidence that recording start/stop works for every advertised type; ACC remains
+the only Loop Gen 2 type with controlled start/stop evidence.
+
+Controlled 2026-07-29 validation retrieved, SHA-256-verified, and decoded seven
+logical days each of activity-sample, daily-summary, and skin-temperature BPB
+files: 21 real files with no unsupported or failed decodes. Raw and decoded
+digests, format-3 schema provenance, owner-private output permissions, and
+logical dates were verified. No sleep, nightly-recharge, or autos file was
+present in that bounded lookback; absence is not evidence that those domains
+are unsupported.
+
+A cleanup dry-run selected six verified daily-summary files; all six reached
+`dry_run`, none was deleted, and a corrupted temporary local copy was
+`blocked_unverified`. A two-session reconnect probe returned consistent PMD
+status within the configured operation timeout.
+
+Interpret cleanup outcomes by status rather than the test process exit code. A
+result with selected entries but `dry_run=0` and only blocked entries confirms
+the local-verification guard and non-deletion behavior; it does not exercise an
+eligible cleanup dry-run. Eligible dry-run evidence requires at least one
+verified local copy to reach the `dry_run` status.
 
 When a device is in its charging state, offline recording start may be rejected
 with the PMD typed response
@@ -33,6 +59,11 @@ Recording-control callers can inspect `PmdResponseError.response_code` to
 distinguish this condition.
 
 ## Polar Verity Sense
+
+The tested device reported `device_version` **3.0.16** from its official
+`/DEVICE.BPB` record on 2026-07-29. Earlier observations did not independently
+capture this field; unless stated otherwise, this repository assumes the same
+device remained on 3.0.16 throughout its controlled Verity Sense testing.
 
 Controlled Linux/BlueZ validation confirmed PMD availability and inactive
 status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
@@ -60,7 +91,7 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.3.2` capabilities.
+- Batch and protected REC decoding are not `0.4.0` capabilities.
 - The optional REC decoder is currently limited to Linux x86_64.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.
@@ -69,6 +100,13 @@ payload.
   carry no compatibility guarantee.
 - Device features absent from PMD/PFTP or unknown `.BPB` paths are reported as
   unsupported.
+
+The BPB registry has local official-binding parse/serialize contracts for every
+registered schema. That validates schema generation and runtime wiring only; it
+does not broaden device compatibility. Device-level decoding claims remain
+limited to the private fixtures and controlled hardware evidence stated above.
+BPB decoding uses generated Python protobuf bindings and never the REC JVM
+sidecar.
 
 SDK contracts use separately licensed input and are not part of ordinary public
 CI. A skipped SDK or hardware job is not evidence of device compatibility.

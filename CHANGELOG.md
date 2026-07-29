@@ -2,6 +2,68 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.0 — 2026-07-29
+
+### Fixed
+
+- Restored executable permissions on the expected Gradle launcher after safe
+  ZIP extraction so a freshly provisioned decoder toolchain can build.
+- Removed the SDK-tooling import cycle that could prevent `doctor` from loading
+  REC and schema status together.
+
+### Documentation
+
+- Documented device-scoped Loop Gen 2 evidence for advertised recording types
+  and activity-sample, daily-summary, and skin-temperature BPB retrieval and
+  decoding.
+- Recorded `/DEVICE.BPB` version evidence for the tested Loop Gen 2 and Verity
+  Sense devices.
+- Clarified that advertised types are not recording evidence, raw BPB retrieval
+  is not decoding evidence, and blocked cleanup candidates do not constitute an
+  eligible cleanup dry-run.
+- Added BlueZ disconnect-timeout diagnostics for bounded reconnect failures.
+- Split implemented single-file REC decoder tracking from deferred protected
+  and batch decoding specifications, and aligned protected-evidence tracking
+  with its current test and audit foundations.
+- Moved release preparation to `dev`; release branches now remove only
+  development controls, and TestPyPI candidates require a merged `main` tree
+  with consistent release metadata.
+
+### Added
+
+- Added official-schema BPB decoding provenance, bounded/symlink-safe input
+  handling, owner-private atomic JSON output, stable failure codes, and
+  all-registered-schema local SDK contracts.
+- Added passive-manifest BPB decoding and opt-in `passive collect --decode`,
+  including payload-date validation and additive version-2 decode evidence.
+- Added independent generated-schema status, verification, and activation,
+  plus format-3 cache manifests that remain verifiable after SDK-source
+  removal.
+- Added `sdk remove --retain-schemas` for verified format-3 caches.
+- Added immutable Linux x86_64/aarch64 REC-decoder toolchain descriptors,
+  architecture alias normalization, descriptor-bound offline cache reuse, and
+  actionable platform mismatch reporting.
+- SDK removal now accepts repeated exact commit SHAs or all revisions, supports
+  deterministic dry runs and bulk confirmation, and can explicitly include
+  corresponding decoder runtimes/workspaces while retaining the shared JDK.
+- Decoder builds now copy the pinned SDK's exact licence into the local runtime
+  as attribution-only material and bind its SHA-256 and SDK commit in the
+  manifest. The attribution file and compiled decoder remain excluded from
+  PyPI distributions.
+
+### Changed
+
+- `doctor` now reports a non-fatal active SDK/decoder commit mismatch and
+  suggests rebuilding the decoder without changing decoder availability.
+- Simplified Polar BLE SDK licence consent to one interactive `y/N` install
+  confirmation on every install/download invocation, with `-y`/`--yes` for
+  unattended use. Removed persisted content-bound acceptance and generated-cache
+  licence gates; decoder-local attribution is never treated as acceptance.
+- Decomposed REC decoding into cohesive model, sidecar process, protocol
+  validation, and publication modules, and split the JVM template into command,
+  SDK parsing, payload adaptation, JSON protocol, and publication modules
+  without changing the public API.
+
 ## 0.3.2 — 2026-07-27
 
 ### Fixed

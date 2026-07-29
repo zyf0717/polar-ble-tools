@@ -23,6 +23,10 @@ kotlin {
             kotlin.setIncludes(
                 listOf(
                     "DecoderMain.kt",
+                    "JsonProtocol.kt",
+                    "PayloadAdapter.kt",
+                    "Publication.kt",
+                    "RecordingDecoder.kt",
                     "BuildInfo.kt",
                     "com/polar/androidcommunications/api/ble/BleLogger.kt",
                     "com/polar/androidcommunications/api/ble/exceptions/*.kt",

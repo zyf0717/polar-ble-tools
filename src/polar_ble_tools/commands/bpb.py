@@ -9,6 +9,7 @@ from polar_ble_tools.bpb_decode import (
     BpbManifestError,
     decode_bpb_file,
     decode_bpb_manifest,
+    decode_passive_manifest,
 )
 
 
@@ -21,13 +22,21 @@ def bpb_main(argv: list[str] | None = None) -> int:
     manifest = commands.add_parser("decode-manifest")
     manifest.add_argument("--manifest", required=True)
     manifest.add_argument("--output-dir")
+    passive_manifest = commands.add_parser("decode-passive-manifest")
+    passive_manifest.add_argument("--manifest", required=True)
+    passive_manifest.add_argument("--output-dir")
     args = parser.parse_args(argv)
     try:
         if args.command == "decode":
             result = decode_bpb_file(args.path, device_path=args.device_path)
             print(json.dumps(result.to_jsonable(), sort_keys=True))
             return int(result.status == FAILED_STATUS)
-        result = decode_bpb_manifest(args.manifest, output_dir=args.output_dir)
+        decoder = (
+            decode_passive_manifest
+            if args.command == "decode-passive-manifest"
+            else decode_bpb_manifest
+        )
+        result = decoder(args.manifest, output_dir=args.output_dir)
         print(json.dumps(result.to_jsonable(), sort_keys=True))
         return int(not result.ok)
     except (BpbManifestError, ValueError) as exc:

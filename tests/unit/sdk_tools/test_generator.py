@@ -11,6 +11,7 @@ from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.generator import (
     GENERATED_MANIFEST,
     GENERATION_PLAN,
+    SchemaGenerationError,
     generate_schemas,
 )
 from polar_ble_tools.sdk_tools.schema_decoder import SchemaGenerationPlan
@@ -23,14 +24,13 @@ def _write_source(cache: SdkCache) -> Path:
     source = root / "source"
     proto = source / "proto"
     proto.mkdir(parents=True)
-    (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
-    (root / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
     (root / "download-manifest.json").write_text(
         json.dumps(
             {
                 "source_repository": "user-supplied",
                 "requested_ref": "toy-source",
                 "resolved_commit": COMMIT,
+                "source_content_sha256": "a" * 64,
             }
         ),
         encoding="utf-8",
@@ -65,6 +65,7 @@ def test_generator_writes_only_the_closure_and_a_complete_manifest(
         resolved_symbols={"toy.Child": "child.proto"},
     )
     monkeypatch.setattr(generator, "decode_schema_requirements", lambda *_args, **_kwargs: plan)
+    monkeypatch.setattr(generator, "source_content_sha256", lambda _source: "a" * 64)
 
     first = generate_schemas(
         resolved_commit=COMMIT,
@@ -81,9 +82,11 @@ def test_generator_writes_only_the_closure_and_a_complete_manifest(
     assert manifest["dependency_closure"] == ["base.proto", "child.proto"]
     assert manifest["resolved_symbols"] == {"toy.Child": "child.proto"}
     assert manifest["descriptor_sha256"]
+    assert manifest["format_version"] == 3
+    assert manifest["source_content_sha256"] == "a" * 64
     assert set(manifest["toolchain"]) == {"grpcio_tools", "protoc", "protobuf", "python"}
     assert sorted(manifest["generated_file_hashes"]) == manifest["generated_files"]
-    assert (root / "Polar_SDK_License.txt").is_file()
+    assert not (root / "Polar_SDK_License.txt").exists()
     assert json.loads((root / GENERATION_PLAN).read_text(encoding="utf-8")) == plan.to_dict()
 
     sys.path.insert(0, str(first.python_path))
@@ -102,3 +105,16 @@ def test_generator_writes_only_the_closure_and_a_complete_manifest(
     )
     assert second.plan.to_dict() == first.plan.to_dict()
     assert not cache.generated_path(COMMIT).with_name(f".{COMMIT}.previous").exists()
+
+
+def test_generator_rejects_source_content_drift(tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    source = _write_source(cache)
+
+    with pytest.raises(SchemaGenerationError, match="does not match"):
+        generate_schemas(
+            resolved_commit=COMMIT,
+            source=source,
+            features=("toy",),
+            cache=cache,
+        )

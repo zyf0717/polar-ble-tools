@@ -85,7 +85,7 @@ passive = await collect_passive_files(
 
 The package does not read an inventory unless the caller supplies its path.
 
-The `0.3.2` facade also exposes structured local readiness and the live FTU
+The `0.4.0` facade also exposes structured local readiness and the live FTU
 workflow without constructing CLI argument lists:
 
 ```python
@@ -99,10 +99,13 @@ complete = await ftu_status("AA:BB:CC:DD:EE:FF")
 ```
 
 `doctor()` is read-only and returns `DoctorReport`; its `to_dict()` is the same
-shape used by `polar-ble doctor`. FTU helpers own the device session and expose
-apply, status, physical configuration, settings read/update, and diagnostics.
-See the complete [Python API reference](python-api.md), including specialized
-SDK, BPB, REC, passive-file, and lower-level protocol modules.
+shape used by `polar-ble doctor`. A top-level `warnings` list remains
+non-fatal. When the active SDK and decoder commits differ, it reports both
+commits and suggests `polar-ble sdk decoder build`; decoder availability is
+unchanged. FTU helpers own the device session and expose apply, status, physical
+configuration, settings read/update, and diagnostics. See the complete
+[Python API reference](python-api.md), including specialized SDK, BPB, REC,
+passive-file, and lower-level protocol modules.
 
 ## REC decoder commands
 

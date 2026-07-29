@@ -24,19 +24,35 @@ class BpbDecodeResult:
     data: dict[str, Any] | None
     reason: str | None = None
     error: str | None = None
+    error_code: str | None = None
+    schema_commit: str | None = None
+    schema_manifest_format: int | None = None
+    descriptor_sha256: str | None = None
+    logical_date: str | None = None
+    logical_date_source: str | None = None
+    decoded_path: str | None = None
+    decoded_sha256: str | None = None
 
     def to_jsonable(self) -> dict[str, object]:
         return {
             "data": self.data,
             "device_path": self.device_path,
             "error": self.error,
+            "error_code": self.error_code,
             "file_size": self.file_size,
             "local_path": self.local_path,
             "message_type": self.message_type,
             "reason": self.reason,
             "schema_id": self.schema_id,
+            "schema_commit": self.schema_commit,
+            "schema_manifest_format": self.schema_manifest_format,
+            "descriptor_sha256": self.descriptor_sha256,
             "sha256": self.sha256,
             "status": self.status,
+            "logical_date": self.logical_date,
+            "logical_date_source": self.logical_date_source,
+            "decoded_path": self.decoded_path,
+            "decoded_sha256": self.decoded_sha256,
         }
 
 
@@ -48,7 +64,10 @@ class BpbManifestDecodeResult:
     decoded: int
     unsupported: int
     failed: int
-    results: list[BpbDecodeResult]
+    results: tuple[BpbDecodeResult, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "results", tuple(self.results))
 
     @property
     def ok(self) -> bool:

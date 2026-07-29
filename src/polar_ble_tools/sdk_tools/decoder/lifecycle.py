@@ -26,19 +26,18 @@ from polar_ble_tools.rec import (
 )
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.decoder.toolchain import (
-    GRADLE_ARCHIVE,
-    GRADLE_SHA256,
-    GRADLE_URL,
-    GRADLE_VERSION,
-    JDK_ARCHIVE,
-    JDK_SHA256,
-    JDK_URL,
-    JDK_VERSION,
+    ToolchainDescriptor,
     java_environment,
-    normalized_architecture,
-    normalized_platform,
+    java_executable,
+    java_home,
+    toolchain_descriptor,
+    toolchain_descriptor_digest,
 )
-from polar_ble_tools.sdk_tools.downloader import SUPPORTED_SDK_COMMIT, active_sdk_source
+from polar_ble_tools.sdk_tools.downloader import (
+    SDK_LICENSE_FILE,
+    SUPPORTED_SDK_COMMIT,
+    active_sdk_source,
+)
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
 
 
@@ -54,6 +53,18 @@ class DecoderBuildResult:
 
 
 _RUNTIME_LAUNCHERS = frozenset({"bin/polar-rec-decoder", "bin/polar-rec-decoder.bat"})
+_SDK_LICENSE_ATTRIBUTION_PATH = f"attribution/{SDK_LICENSE_FILE}"
+_TOOLCHAIN_MANIFEST = ".polar-rec-toolchain.json"
+_DECODER_PROJECT_FILES = (
+    "DecoderMain.kt",
+    "JsonProtocol.kt",
+    "PayloadAdapter.kt",
+    "Publication.kt",
+    "RecordingDecoder.kt",
+    "build.gradle.kts",
+    "gradle.lockfile",
+    "settings.gradle.kts",
+)
 
 
 def _digest(path: Path) -> str:
@@ -132,7 +143,7 @@ def _discard_decoder_backup(backup: Path | None) -> None:
 def _adapter_digest() -> str:
     hasher = hashlib.sha256()
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
-    for name in ("DecoderMain.kt", "build.gradle.kts", "settings.gradle.kts", "gradle.lockfile"):
+    for name in _DECODER_PROJECT_FILES:
         path = template.joinpath(name)
         if path.is_file():
             hasher.update(name.encode("utf-8"))
@@ -150,8 +161,14 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if path.is_symlink() or not path.is_file():
             raise DecoderBuildError(f"Decoder distribution has an unsafe entry: {path}")
         relative = path.relative_to(root).as_posix()
-        allowed = relative in _RUNTIME_LAUNCHERS or (
-            relative.startswith("lib/") and "/" not in relative[4:] and relative.endswith(".jar")
+        allowed = (
+            relative in _RUNTIME_LAUNCHERS
+            or relative == _SDK_LICENSE_ATTRIBUTION_PATH
+            or (
+                relative.startswith("lib/")
+                and "/" not in relative[4:]
+                and relative.endswith(".jar")
+            )
         )
         if not allowed:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
@@ -161,6 +178,28 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
             "Decoder distribution is missing its launcher or runtime libraries."
         )
     return files
+
+
+def _copy_sdk_license_attribution(source: Path, runtime: Path, *, commit: str) -> dict[str, object]:
+    """Copy exact SDK licence bytes as attribution, never as consent state."""
+    source_license = source / SDK_LICENSE_FILE
+    if not source_license.is_file() or source_license.is_symlink():
+        raise DecoderBuildError(
+            f"Pinned SDK checkout is missing a regular {SDK_LICENSE_FILE} file."
+        )
+    destination = runtime / _SDK_LICENSE_ATTRIBUTION_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_license, destination)
+    digest = _digest(destination)
+    if digest != _digest(source_license):
+        raise DecoderBuildError("SDK licence attribution copy failed integrity verification.")
+    return {
+        "relative_path": _SDK_LICENSE_ATTRIBUTION_PATH,
+        "sha256": digest,
+        "sdk_commit": commit,
+        "purpose": "attribution",
+        "is_acceptance_record": False,
+    }
 
 
 def _run(
@@ -199,10 +238,11 @@ def _decoder_source(source: Path) -> Path:
     return candidate
 
 
-def _java_environment(cache: SdkCache) -> dict[str, str]:
+def _java_environment(cache: SdkCache, descriptor: ToolchainDescriptor) -> dict[str, str]:
     try:
         return java_environment(
-            cache.rec_jvm_java_home(normalized_platform(), normalized_architecture(), JDK_VERSION)
+            java_home(cache, descriptor),
+            java_relative_path=descriptor.java_relative_path,
         )
     except RuntimeError as exc:
         raise DecoderBuildError(str(exc)) from exc
@@ -266,34 +306,124 @@ def _replace_incomplete_directory(staged: Path, target: Path, *, description: st
     staged.replace(target)
 
 
-def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) -> None:
-    if normalized_platform() != "linux" or normalized_architecture() != "x86_64":
-        raise DecoderBuildError("REC decoder builds currently require Linux x86_64.")
-    tools, downloads = build_root / "tools", build_root / "downloads"
-    java_home = cache.rec_jvm_java_home("linux", "x86_64", JDK_VERSION)
-    java, gradle = (
-        java_home / "bin" / "java",
-        tools / f"gradle-{GRADLE_VERSION}" / "bin" / "gradle",
+def _tool_entry_verified(
+    root: Path,
+    executable: Path,
+    descriptor: ToolchainDescriptor,
+    *,
+    kind: str,
+    archive_sha256: str,
+) -> bool:
+    manifest_path = root / _TOOLCHAIN_MANIFEST
+    if (
+        not root.is_dir()
+        or root.is_symlink()
+        or not executable.is_file()
+        or executable.is_symlink()
+        or not os.access(executable, os.X_OK)
+        or not manifest_path.is_file()
+        or manifest_path.is_symlink()
+    ):
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return manifest == {
+        "archive_sha256": archive_sha256,
+        "executable_relative_path": executable.relative_to(root).as_posix(),
+        "executable_sha256": _digest(executable),
+        "kind": kind,
+        "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
+    }
+
+
+def _write_tool_entry_manifest(
+    root: Path,
+    executable: Path,
+    descriptor: ToolchainDescriptor,
+    *,
+    kind: str,
+    archive_sha256: str,
+) -> None:
+    if not executable.is_file() or executable.is_symlink() or not os.access(executable, os.X_OK):
+        raise DecoderBuildError(f"Extracted {kind} executable is missing or unsafe.")
+    _write_json(
+        root / _TOOLCHAIN_MANIFEST,
+        {
+            "archive_sha256": archive_sha256,
+            "executable_relative_path": executable.relative_to(root).as_posix(),
+            "executable_sha256": _digest(executable),
+            "kind": kind,
+            "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
+        },
     )
-    if java.is_file() and gradle.is_file():
+
+
+def _make_extracted_executable(path: Path, *, kind: str) -> None:
+    """Restore execute bits only on the expected regular extracted launcher."""
+    if not path.is_file() or path.is_symlink():
+        raise DecoderBuildError(f"Extracted {kind} executable is missing or unsafe.")
+    path.chmod(path.stat().st_mode | 0o111)
+
+
+def _provision_toolchain(
+    cache: SdkCache,
+    build_root: Path,
+    descriptor: ToolchainDescriptor,
+    *,
+    offline: bool,
+) -> None:
+    tools, downloads = build_root / "tools", build_root / "downloads"
+    jdk_home = java_home(cache, descriptor)
+    java, gradle = (
+        java_executable(cache, descriptor),
+        tools / f"gradle-{descriptor.gradle_version}" / "bin" / "gradle",
+    )
+    jdk_ready = _tool_entry_verified(
+        jdk_home,
+        java,
+        descriptor,
+        kind="jdk",
+        archive_sha256=descriptor.jdk_sha256,
+    )
+    gradle_root = gradle.parent.parent
+    gradle_ready = _tool_entry_verified(
+        gradle_root,
+        gradle,
+        descriptor,
+        kind="gradle",
+        archive_sha256=descriptor.gradle_sha256,
+    )
+    if jdk_ready and gradle_ready:
         return
     if offline:
-        raise DecoderBuildError("Offline decoder build needs a pre-provisioned local toolchain.")
-    jdk_archive, gradle_archive = downloads / JDK_ARCHIVE, downloads / GRADLE_ARCHIVE
-    _download(JDK_URL, jdk_archive, JDK_SHA256)
-    _download(GRADLE_URL, gradle_archive, GRADLE_SHA256)
+        raise DecoderBuildError(
+            "Offline decoder build needs a complete descriptor-verified local toolchain."
+        )
+    jdk_archive = downloads / descriptor.jdk_archive_name
+    gradle_archive = downloads / descriptor.gradle_archive_name
+    _download(descriptor.jdk_url, jdk_archive, descriptor.jdk_sha256)
+    _download(descriptor.gradle_url, gradle_archive, descriptor.gradle_sha256)
     tools.mkdir(parents=True, exist_ok=True)
-    if not java.is_file():
-        java_home.parent.mkdir(parents=True, exist_ok=True)
-        with TemporaryDirectory(prefix=".jdk-", dir=java_home.parent) as temporary:
+    if not jdk_ready:
+        jdk_home.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix=".jdk-", dir=jdk_home.parent) as temporary:
             staged = Path(temporary) / "jdk"
             staged.mkdir()
             with tarfile.open(jdk_archive, "r:gz") as archive:
                 for member in archive.getmembers():
-                    if _safe_jdk_archive_member(member, f"jdk-{JDK_VERSION}"):
+                    if _safe_jdk_archive_member(member, descriptor.jdk_archive_root):
                         archive.extract(member, staged)
-            _replace_incomplete_directory(staged, java_home, description="JDK")
-    if not gradle.is_file():
+            _write_tool_entry_manifest(
+                staged,
+                staged / descriptor.java_relative_path,
+                descriptor,
+                kind="jdk",
+                archive_sha256=descriptor.jdk_sha256,
+            )
+            _replace_incomplete_directory(staged, jdk_home, description="JDK")
+    if not gradle_ready:
         with TemporaryDirectory(prefix=".gradle-", dir=tools) as temporary:
             with zipfile.ZipFile(gradle_archive) as archive:
                 for member in archive.infolist():
@@ -305,9 +435,18 @@ def _provision_toolchain(cache: SdkCache, build_root: Path, *, offline: bool) ->
                     ):
                         raise DecoderBuildError("Gradle archive contains an unsafe path.")
                     archive.extract(member, temporary)
+            staged_gradle = Path(temporary) / f"gradle-{descriptor.gradle_version}"
+            _make_extracted_executable(staged_gradle / "bin" / "gradle", kind="Gradle")
+            _write_tool_entry_manifest(
+                staged_gradle,
+                staged_gradle / "bin" / "gradle",
+                descriptor,
+                kind="gradle",
+                archive_sha256=descriptor.gradle_sha256,
+            )
             _replace_incomplete_directory(
-                Path(temporary) / f"gradle-{GRADLE_VERSION}",
-                gradle.parent.parent,
+                staged_gradle,
+                gradle_root,
                 description="Gradle",
             )
 
@@ -318,12 +457,12 @@ def _write_workspace(workspace: Path, *, commit: str) -> None:
     source = workspace / "src" / "main" / "kotlin"
     source.mkdir(parents=True)
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
-    for name, destination in (
-        ("settings.gradle.kts", workspace / "settings.gradle.kts"),
-        ("build.gradle.kts", workspace / "build.gradle.kts"),
-        ("gradle.lockfile", workspace / "gradle.lockfile"),
-        ("DecoderMain.kt", source / "DecoderMain.kt"),
-    ):
+    for name in _DECODER_PROJECT_FILES:
+        destination = (
+            workspace / name
+            if name.endswith(".kts") or name == "gradle.lockfile"
+            else source / name
+        )
         template_path = template.joinpath(name)
         if template_path.is_file():
             destination.write_bytes(template_path.read_bytes())
@@ -337,9 +476,19 @@ def _write_workspace(workspace: Path, *, commit: str) -> None:
     )
 
 
-def _verify_distribution(executable: Path, cache: SdkCache, *, commit: str) -> None:
+def _verify_distribution(
+    executable: Path,
+    cache: SdkCache,
+    descriptor: ToolchainDescriptor,
+    *,
+    commit: str,
+) -> None:
     for command in ([str(executable), "version"], [str(executable), "self-test"]):
-        completed = _run(list(command), timeout=30, environment=_java_environment(cache))
+        completed = _run(
+            list(command),
+            timeout=30,
+            environment=_java_environment(cache, descriptor),
+        )
         try:
             status = json.loads(completed.stdout)
         except json.JSONDecodeError as exc:
@@ -387,11 +536,15 @@ def build_decoder(
         raise DecoderBuildError(
             f"REC decoding currently supports only the pinned SDK revision {SUPPORTED_SDK_COMMIT}."
         )
+    try:
+        descriptor = toolchain_descriptor()
+    except RuntimeError as exc:
+        raise DecoderBuildError(str(exc)) from exc
     build_root = cache.decoder_build_path(commit)
-    _provision_toolchain(cache, build_root, offline=offline)
+    _provision_toolchain(cache, build_root, descriptor, offline=offline)
     workspace = build_root / "workspace"
     _write_workspace(workspace, commit=commit)
-    gradle = build_root / "tools" / f"gradle-{GRADLE_VERSION}" / "bin" / "gradle"
+    gradle = build_root / "tools" / f"gradle-{descriptor.gradle_version}" / "bin" / "gradle"
     command = [
         str(gradle),
         "--no-daemon",
@@ -402,19 +555,20 @@ def build_decoder(
     ]
     if offline:
         command.insert(1, "--offline")
-    environment = _java_environment(cache)
+    environment = _java_environment(cache, descriptor)
     environment["GRADLE_USER_HOME"] = str(build_root / "gradle-user-home")
     _run(command, timeout=900, environment=environment)
     distribution = workspace / "build" / "install" / "polar-rec-decoder"
     executable = distribution / "bin" / "polar-rec-decoder"
     if not executable.is_file() or executable.is_symlink():
         raise DecoderBuildError("Build did not produce the expected decoder executable.")
-    _verify_distribution(executable, cache, commit=commit)
+    _verify_distribution(executable, cache, descriptor, commit=commit)
     cache.decoder_root.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=f".{commit[:12]}-", dir=cache.decoder_root) as temporary:
         staged = Path(temporary) / "decoder"
         shutil.copytree(distribution, staged)
         staged_executable = staged / "bin" / "polar-rec-decoder"
+        sdk_license_attribution = _copy_sdk_license_attribution(source, staged, commit=commit)
         runtime_files = _runtime_file_digests(staged)
         manifest = {
             "manifest_version": 1,
@@ -424,33 +578,31 @@ def build_decoder(
             "polar_ble_tools_version": __version__,
             "build_mode": "jvm",
             "build_timestamp_utc": datetime.now(UTC).isoformat(),
-            "platform": normalized_platform(),
-            "architecture": normalized_architecture(),
-            "java_version": JDK_VERSION,
-            "gradle_version": GRADLE_VERSION,
+            "platform": descriptor.platform,
+            "architecture": descriptor.architecture,
+            "java_version": descriptor.jdk_version,
+            "java_archive_sha256": descriptor.jdk_sha256,
+            "gradle_version": descriptor.gradle_version,
+            "gradle_archive_sha256": descriptor.gradle_sha256,
+            "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
             "adapter_source_sha256": _adapter_digest(),
             "executable_relative_path": "bin/polar-rec-decoder",
             "executable_sha256": _digest(staged_executable),
             "verification_level": "handshake",
             "verified": True,
+            "sdk_license_attribution": sdk_license_attribution,
             "runtime_files": runtime_files,
             "runtime": {
                 "kind": "pinned-jvm",
-                "platform": normalized_platform(),
-                "architecture": normalized_architecture(),
-                "java_version": JDK_VERSION,
+                "platform": descriptor.platform,
+                "architecture": descriptor.architecture,
+                "java_version": descriptor.jdk_version,
                 "java_relative_cache_path": str(
-                    cache.rec_jvm_java_home(
-                        normalized_platform(), normalized_architecture(), JDK_VERSION
-                    ).relative_to(cache.root)
+                    java_home(cache, descriptor).relative_to(cache.root)
                 ),
-                "java_executable_sha256": _digest(
-                    cache.rec_jvm_java_home(
-                        normalized_platform(), normalized_architecture(), JDK_VERSION
-                    )
-                    / "bin"
-                    / "java"
-                ),
+                "java_relative_path": descriptor.java_relative_path,
+                "java_executable_sha256": _digest(java_executable(cache, descriptor)),
+                "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
             },
         }
         _write_json(staged / "manifest.json", manifest)

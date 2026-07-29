@@ -7,6 +7,7 @@ import pytest
 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.cli import main as sdk_main
+from polar_ble_tools.sdk_tools.decoder import DecoderBuildResult
 from polar_ble_tools.sdk_tools.discovery import ProtoDiscoveryError
 from polar_ble_tools.sdk_tools.downloader import (
     PINNED_SDK_COMMIT,
@@ -20,13 +21,12 @@ from polar_ble_tools.sdk_tools.downloader import (
 )
 from polar_ble_tools.sdk_tools.generator import SchemaGenerationError
 from polar_ble_tools.sdk_tools.proto_reader import ProtoReaderError
-from polar_ble_tools.sdk_tools.verifier import SchemaVerificationError
+from polar_ble_tools.sdk_tools.verifier import SchemaStatus, SchemaVerificationError
 
 
 def _make_sdk_source(tmp_path: Path) -> Path:
     source = tmp_path / "sdk-source"
     source.mkdir()
-    (source / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
     (source / "README.md").write_text("user supplied SDK\n", encoding="utf-8")
     return source
 
@@ -35,21 +35,10 @@ def _write_staged_sdk(cache: SdkCache, revision: str) -> Path:
     root = cache.sdk_path(revision)
     source = root / "source"
     source.mkdir(parents=True)
-    (source / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
-    (root / "Polar_SDK_License.txt").write_text("test licence\n", encoding="utf-8")
     (root / "download-manifest.json").write_text(
         json.dumps({"resolved_commit": revision}), encoding="utf-8"
     )
     return source
-
-
-def test_install_requires_explicit_licence_acceptance(tmp_path: Path) -> None:
-    with pytest.raises(SdkDownloadError, match="--accept-license"):
-        install_sdk(
-            accept_license=False,
-            sdk_path=_make_sdk_source(tmp_path),
-            cache=SdkCache(tmp_path / "cache"),
-        )
 
 
 def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) -> None:
@@ -58,7 +47,7 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     (source / "user.proto").write_text('syntax = "proto3";\n', encoding="utf-8")
     cache = SdkCache(tmp_path / "cache")
 
-    result = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    result = install_sdk(sdk_path=source, cache=cache)
 
     assert len(result.resolved_commit) == 40
     assert result.support_tier == "override"
@@ -70,26 +59,72 @@ def test_user_sdk_path_is_staged_as_supplied_and_can_be_removed(tmp_path: Path) 
     assert manifest["requested_ref"] == str(source.resolve())
     assert manifest["resolved_commit"] == result.resolved_commit
     assert manifest["source_content_sha256"].startswith(result.resolved_commit)
+    assert manifest["format_version"] == 4
+    assert "license_acceptance" not in manifest
     assert manifest["supported_commit"] == PINNED_SDK_COMMIT
     assert manifest["support_tier"] == "override"
     assert sdk_status(cache=cache).active_commit == result.resolved_commit
 
-    assert install_sdk(accept_license=True, sdk_path=source, cache=cache).reused is True
+    assert install_sdk(sdk_path=source, cache=cache).reused is True
     assert remove_sdk(result.resolved_commit, cache=cache) is True
     assert sdk_status(cache=cache).active_commit is None
 
 
-def test_local_source_requires_licence_file(tmp_path: Path) -> None:
+def test_local_source_does_not_require_a_licence_file(tmp_path: Path) -> None:
     source = tmp_path / "source-without-licence"
     source.mkdir()
-    with pytest.raises(SdkDownloadError, match="missing Polar_SDK_License"):
-        install_sdk(accept_license=True, sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+    result = install_sdk(sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+    assert result.source_path.is_dir()
+
+
+def test_reinstall_discards_legacy_acceptance_state(tmp_path: Path) -> None:
+    source = _make_sdk_source(tmp_path)
+    (source / "Polar_SDK_License.txt").write_text("upstream licence\n", encoding="utf-8")
+    cache = SdkCache(tmp_path / "cache")
+    installed = install_sdk(sdk_path=source, cache=cache)
+    manifest = json.loads(installed.manifest_path.read_text(encoding="utf-8"))
+    manifest.update(
+        {
+            "format_version": 5,
+            "license_acceptance": {"method": "cli_flag"},
+            "license_notice_present": True,
+        }
+    )
+    installed.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    legacy_copies = (
+        installed.manifest_path.parent / "Polar_SDK_License.txt",
+        cache.generated_path(installed.resolved_commit) / "Polar_SDK_License.txt",
+    )
+    for path in legacy_copies:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("legacy package copy\n", encoding="utf-8")
+
+    reused = install_sdk(sdk_path=source, cache=cache)
+
+    migrated = json.loads(reused.manifest_path.read_text(encoding="utf-8"))
+    assert reused.reused
+    assert migrated["format_version"] == 4
+    assert "license_acceptance" not in migrated
+    assert "license_notice_present" not in migrated
+    assert all(not path.exists() for path in legacy_copies)
+    assert (reused.source_path / "Polar_SDK_License.txt").is_file()
+
+
+def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
+    source = _make_sdk_source(tmp_path)
+    outside = tmp_path / "outside"
+    outside.write_text("private\n", encoding="utf-8")
+    (source / "linked").symlink_to(outside)
+
+    with pytest.raises(SdkDownloadError, match="symbolic link"):
+        install_sdk(sdk_path=source, cache=SdkCache(tmp_path / "cache"))
 
 
 def test_local_source_rejects_remote_ref(tmp_path: Path) -> None:
     with pytest.raises(SdkDownloadError, match="either an official --ref or --sdk-path"):
         install_sdk(
-            accept_license=True,
             ref="preview",
             sdk_path=_make_sdk_source(tmp_path),
             cache=SdkCache(tmp_path / "cache"),
@@ -100,9 +135,9 @@ def test_local_source_change_uses_a_new_cache_revision(tmp_path: Path) -> None:
     source = _make_sdk_source(tmp_path)
     cache = SdkCache(tmp_path / "cache")
 
-    first = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    first = install_sdk(sdk_path=source, cache=cache)
     (source / "README.md").write_text("changed local SDK\n", encoding="utf-8")
-    second = install_sdk(accept_license=True, sdk_path=source, cache=cache)
+    second = install_sdk(sdk_path=source, cache=cache)
 
     assert first.resolved_commit != second.resolved_commit
     assert sdk_status(cache=cache).installed_commits == tuple(
@@ -121,7 +156,6 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
         if args[0] == "clone":
             source = Path(args[-1])
             source.mkdir()
-            (source / "Polar_SDK_License.txt").write_text("licence\n", encoding="utf-8")
             return ""
         if args[0] == "checkout":
             checkouts.append(args[-1])
@@ -133,8 +167,8 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
     monkeypatch.setattr(downloader, "_run_git", fake_git)
     cache = SdkCache(tmp_path / "cache")
 
-    pinned = install_sdk(accept_license=True, cache=cache)
-    override = install_sdk(accept_license=True, ref="preview", cache=cache)
+    pinned = install_sdk(cache=cache)
+    override = install_sdk(ref="preview", cache=cache)
 
     assert checkouts == [PINNED_SDK_COMMIT, "preview"]
     assert pinned.support_tier == "pinned"
@@ -149,11 +183,120 @@ def test_official_install_defaults_to_supported_commit_and_marks_override(
     assert override.support_tier == "override"
 
 
+def test_cli_install_declines_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("builtins.input", lambda: "")
+
+    def unexpected_install(**_kwargs: object) -> object:
+        raise AssertionError("installation must not start")
+
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.install_sdk", unexpected_install)
+
+    assert sdk_main(["install"]) == 1
+    assert "Continue? [y/N]" in capsys.readouterr().err
+
+
+def test_cli_requests_fresh_consent_when_reusing_an_sdk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    responses = iter(("yes", "yes"))
+    prompts = 0
+
+    def confirm() -> str:
+        nonlocal prompts
+        prompts += 1
+        return next(responses)
+
+    result = SdkInstallResult(
+        "candidate",
+        "c" * 40,
+        "user-supplied",
+        tmp_path / "source",
+        tmp_path / "manifest",
+        True,
+        "override",
+    )
+    monkeypatch.setattr("builtins.input", confirm)
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.install_sdk", lambda **_kwargs: result)
+
+    assert sdk_main(["download"]) == 0
+    assert sdk_main(["download"]) == 0
+    assert prompts == 2
+
+
+def test_cli_decoder_build_warns_against_apache_only_redistribution(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    result = DecoderBuildResult("c" * 40, tmp_path / "decoder", True)
+    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.build_decoder", lambda **_kwargs: result)
+
+    assert sdk_main(["decoder", "build"]) == 0
+
+    captured = capsys.readouterr()
+    assert "built REC decoder" in captured.out
+    assert "do not redistribute" in captured.err
+    assert "Apache-2.0 licence alone" in captured.err
+
+
+def test_cli_install_proceeds_when_confirmed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import polar_ble_tools.sdk_tools.cli as cli
+
+    monkeypatch.setattr("builtins.input", lambda: "yes")
+    result = SdkInstallResult(
+        "candidate",
+        "c" * 40,
+        "user-supplied",
+        tmp_path / "source",
+        tmp_path / "manifest",
+        False,
+        "override",
+    )
+    monkeypatch.setattr(cli, "install_sdk", lambda **_kwargs: result)
+    monkeypatch.setattr(cli, "inspect_sdk", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "generate_schemas", lambda **_kwargs: object())
+    monkeypatch.setattr(cli, "verify_schemas", lambda **_kwargs: tmp_path / "generated")
+    monkeypatch.setattr(cli, "activate_sdk", lambda _revision: None)
+    monkeypatch.setattr(cli, "activate_schemas", lambda _revision: None)
+
+    assert sdk_main(["install"]) == 0
+
+
+def test_cli_exposes_independent_schema_status_and_activation(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import polar_ble_tools.sdk_tools.cli as cli
+
+    commit = "a" * 40
+    monkeypatch.setattr(
+        cli,
+        "schema_status",
+        lambda: SchemaStatus(commit, (commit,), 3, True),
+    )
+    activated: list[str] = []
+    monkeypatch.setattr(cli, "activate_schemas", activated.append)
+
+    assert sdk_main(["schemas", "status"]) == 0
+    assert json.loads(capsys.readouterr().out)["source_independent"] is True
+    assert sdk_main(["schemas", "activate", "--commit", commit]) == 0
+    assert activated == [commit]
+
+
 def test_cli_warns_for_an_explicit_unsupported_override(
     monkeypatch, capsys, tmp_path: Path
 ) -> None:
     from polar_ble_tools.sdk_tools.downloader import SdkInstallResult
 
+    monkeypatch.setattr(
+        "builtins.input", lambda: (_ for _ in ()).throw(AssertionError("-y must skip the prompt"))
+    )
     monkeypatch.setattr(
         "polar_ble_tools.sdk_tools.cli.install_sdk",
         lambda **_kwargs: SdkInstallResult(
@@ -167,7 +310,7 @@ def test_cli_warns_for_an_explicit_unsupported_override(
         ),
     )
 
-    assert sdk_main(["download", "--ref", "override", "--accept-license"]) == 0
+    assert sdk_main(["download", "--ref", "override", "-y"]) == 0
     assert "warning: SDK revision" in capsys.readouterr().err
 
 
@@ -176,7 +319,7 @@ def test_cli_rejects_combining_remote_ref_and_local_path(tmp_path: Path) -> None
         sdk_main(
             [
                 "download",
-                "--accept-license",
+                "-y",
                 "--ref",
                 "preview",
                 "--sdk-path",
@@ -237,13 +380,13 @@ def test_cli_install_failure_preserves_previously_active_revision(
     monkeypatch.setattr(cli, failed_stage, fail_stage)
 
     with pytest.raises(SystemExit) as exc_info:
-        sdk_main(["install", "--accept-license"])
+        sdk_main(["install", "-y"])
 
     assert exc_info.value.code == 2
     stderr = capsys.readouterr().err
     assert "Traceback" not in stderr
     assert 'pip install "polar-ble-tools[sdk]"' in stderr
-    assert "polar-ble sdk install --accept-license" in stderr
+    assert "polar-ble sdk install" in stderr
     assert activations == []
     assert sdk_status(cache=cache).active_commit == active_revision
     assert active_sdk_source(cache=cache) == (active_revision, active_source)
@@ -281,7 +424,7 @@ def test_cli_normalizes_schema_setup_failures_without_traceback(
     stderr = capsys.readouterr().err
     assert "Traceback" not in stderr
     assert 'pip install "polar-ble-tools[sdk]"' in stderr
-    assert "polar-ble sdk install --accept-license" in stderr
+    assert "polar-ble sdk install" in stderr
 
 
 def test_cli_install_activates_only_after_all_stages_succeed(
@@ -314,13 +457,24 @@ def test_cli_install_activates_only_after_all_stages_succeed(
     real_activate = cli.activate_sdk
 
     def activate(revision: str) -> None:
-        events.append("activate")
+        events.append("activate_sdk")
         real_activate(revision, cache=cache)
 
     monkeypatch.setattr(cli, "activate_sdk", activate)
+    monkeypatch.setattr(
+        cli,
+        "activate_schemas",
+        lambda revision: events.append("activate_schemas"),
+    )
 
-    assert sdk_main(["install", "--accept-license"]) == 0
-    assert events == ["inspect_sdk", "generate_schemas", "verify_schemas", "activate"]
+    assert sdk_main(["install", "-y"]) == 0
+    assert events == [
+        "inspect_sdk",
+        "generate_schemas",
+        "verify_schemas",
+        "activate_sdk",
+        "activate_schemas",
+    ]
     assert sdk_status(cache=cache).active_commit == candidate_revision
 
 
@@ -337,8 +491,89 @@ def test_remove_all_sdk_cache_removes_sdk_generated_and_active_state(tmp_path: P
     assert not cache.active_manifest_path.exists()
 
 
-def test_remove_all_cli_dispatches_explicit_cleanup(monkeypatch, capsys) -> None:
-    monkeypatch.setattr("polar_ble_tools.sdk_tools.cli.remove_all_sdk_cache", lambda: True)
+def test_remove_all_cli_requires_confirmation_before_cleanup(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+    monkeypatch.setattr("builtins.input", lambda: "")
 
-    assert sdk_main(["remove", "--all"]) == 0
-    assert "removed all Polar SDK and generated-schema cache entries" in capsys.readouterr().out
+    assert sdk_main(["remove", "--all"]) == 1
+    assert cache.sdk_path(commit).is_dir()
+    assert "Continue? [y/N]" in capsys.readouterr().err
+
+
+def test_remove_cli_accepts_many_commits_and_optional_decoders(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commits = ("a" * 40, "b" * 40)
+    for commit in commits:
+        cache.sdk_path(commit).mkdir(parents=True)
+        cache.decoder_path(commit).mkdir(parents=True)
+        cache.decoder_build_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    assert (
+        sdk_main(
+            [
+                "remove",
+                "--commit",
+                commits[0],
+                "--commit",
+                commits[1],
+                "--include-decoders",
+                "--yes",
+            ]
+        )
+        == 0
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["include_decoders"] is True
+    assert [record["commit"] for record in output["records"]] == list(commits)
+    assert all(record["decoder_runtime"] == "removed" for record in output["records"])
+
+
+def test_remove_one_commit_retains_decoder_without_prompt(
+    monkeypatch, capsys, tmp_path: Path
+) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    cache.decoder_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    def unexpected_prompt() -> str:
+        raise AssertionError("one exact revision must preserve non-interactive behavior")
+
+    monkeypatch.setattr("builtins.input", unexpected_prompt)
+
+    assert sdk_main(["remove", "--commit", commit]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["records"][0]["sdk_source"] == "removed"
+    assert output["records"][0]["decoder_runtime"] == "retained"
+    assert not cache.sdk_path(commit).exists()
+    assert cache.decoder_path(commit).is_dir()
+
+
+def test_remove_cli_dry_run_never_prompts_or_mutates(monkeypatch, capsys, tmp_path: Path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    cache.sdk_path(commit).mkdir(parents=True)
+    monkeypatch.setattr(SdkCache, "default", classmethod(lambda _cls: cache))
+
+    def unexpected_prompt() -> str:
+        raise AssertionError("dry-run must not prompt")
+
+    monkeypatch.setattr("builtins.input", unexpected_prompt)
+
+    assert sdk_main(["remove", "--all", "--dry-run"]) == 0
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["dry_run"] is True
+    assert output["records"][0]["sdk_source"] == "would_remove"
+    assert cache.sdk_path(commit).is_dir()

@@ -36,7 +36,7 @@ DEFAULT_MATRIX_ROOT = Path(".local/polar-ble-live-matrix")
 PASSIVE_LOOKBACK_DAYS = 14
 LIVE_OPERATION_TIMEOUT_SECONDS = 60.0
 RECONNECT_ATTEMPTS = 3
-RECONNECT_ATTEMPT_TIMEOUT_SECONDS = 15.0
+RECONNECT_SEQUENCE_TIMEOUT_SECONDS = 30.0
 RECONNECT_RETRY_DELAY_SECONDS = 2.0
 T = TypeVar("T")
 
@@ -165,7 +165,7 @@ async def _probe_reconnect_and_pmd(mac_address: str) -> dict[str, object]:
         try:
             return await asyncio.wait_for(
                 _probe_reconnect_and_pmd_once(mac_address),
-                timeout=RECONNECT_ATTEMPT_TIMEOUT_SECONDS,
+                timeout=RECONNECT_SEQUENCE_TIMEOUT_SECONDS,
             )
         except Exception as exc:
             last_error = exc

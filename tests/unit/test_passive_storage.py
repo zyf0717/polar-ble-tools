@@ -46,6 +46,26 @@ def test_passive_store_rejects_size_mismatch_and_escaping_path(tmp_path: Path) -
         store.local_file_path("AA:BB:CC:DD:EE:FF", "/U/../../escape.BPB")
 
 
+def test_passive_store_rejects_symlinked_device_directory(tmp_path: Path) -> None:
+    store = PassiveFileStore(tmp_path / "store")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    store.root.mkdir()
+    (store.root / "AABBCCDDEEFF").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(PassiveFileStoreError, match="contains a symlink"):
+        store.persist_file(
+            "AA:BB:CC:DD:EE:FF",
+            domain="daily_summary",
+            device_path="/U/0/20260625/DSUM/DSUM.BPB",
+            device_size=3,
+            payload=b"raw",
+            logical_date="2026-06-25",
+        )
+
+    assert tuple(outside.iterdir()) == ()
+
+
 def test_passive_store_writes_payload_free_deletion_audit(tmp_path: Path) -> None:
     store = PassiveFileStore(tmp_path)
     store.append_deletion_audit(

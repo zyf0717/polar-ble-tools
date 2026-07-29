@@ -18,6 +18,7 @@ from polar_ble_tools.polar.pmd import (
 from polar_ble_tools.rec import DecoderStatus
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.downloader import SdkStatus
+from polar_ble_tools.sdk_tools.verifier import SchemaStatus
 
 
 def test_doctor_returns_structured_unavailable_optional_features(monkeypatch, tmp_path) -> None:
@@ -33,8 +34,66 @@ def test_doctor_returns_structured_unavailable_optional_features(monkeypatch, tm
     report = doctor(cache=cache)
 
     assert not report.schemas.ready
-    assert report.schemas.remediation == "polar-ble sdk install --accept-license"
+    assert report.schemas.remediation == "polar-ble sdk install"
     assert report.to_dict()["decoder"]["reason"] == "not built"
+    assert report.warnings == ()
+
+
+def test_doctor_warns_without_invalidating_mismatched_decoder(monkeypatch, tmp_path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    sdk_commit, decoder_commit = "a" * 40, "b" * 40
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.downloader.sdk_status",
+        lambda *, cache: SdkStatus(sdk_commit, (sdk_commit,)),
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.verify_active_schemas",
+        lambda *, cache: tmp_path / "schemas",
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.schema_status",
+        lambda *, cache: SchemaStatus(sdk_commit, (sdk_commit,), 3, True),
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.rec.decoder_status",
+        lambda *, cache: DecoderStatus(True, True, decoder_commit, 1, "handshake", None),
+    )
+
+    report = doctor(cache=cache)
+
+    assert report.decoder.available
+    assert len(report.warnings) == 1
+    assert sdk_commit in report.warnings[0]
+    assert decoder_commit in report.warnings[0]
+    assert "polar-ble sdk decoder build" in report.warnings[0]
+    assert report.to_dict()["warnings"] == list(report.warnings)
+
+
+def test_doctor_reports_retained_active_schemas_without_sdk_source(monkeypatch, tmp_path) -> None:
+    cache = SdkCache(tmp_path / "cache")
+    commit = "a" * 40
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.downloader.sdk_status",
+        lambda *, cache: SdkStatus(None, ()),
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.schema_status",
+        lambda *, cache: SchemaStatus(commit, (commit,), 3, True),
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.sdk_tools.verifier.verify_active_schemas",
+        lambda *, cache: tmp_path / "schemas",
+    )
+    monkeypatch.setattr(
+        "polar_ble_tools.rec.decoder_status",
+        lambda *, cache: DecoderStatus(False, False, None, None, None, "not built"),
+    )
+
+    report = doctor(cache=cache)
+
+    assert report.sdk.active_commit is None
+    assert report.schemas.ready is True
+    assert report.schemas.active_commit == commit
 
 
 def test_apply_ftu_owns_session_and_applies_initial_settings(monkeypatch) -> None:

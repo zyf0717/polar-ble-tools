@@ -7,14 +7,24 @@ retrieval remains independent of it. The sidecar accepts only unencrypted
 recordings in the compatibility matrix; encrypted and unvalidated categories
 are unsupported.
 
-`0.3.2` supports only explicit single-file decoding on Linux x86_64. Linux
-aarch64, protected recordings, tree/manifest batch decoding, and expanded
-adapter certification are deferred to SPEC-004 and SPEC-005.
+The public compatibility claim remains explicit unprotected decoding on Linux
+x86_64. The lifecycle implementation now has pinned Linux aarch64 descriptors
+and equivalent synthetic safety contracts, but a real aarch64 build/run remains
+a protected validation gate. Protected recordings remain deferred to SPEC-006.
+Explicit adapter implementation remains open in SPEC-004 and its certification
+is governed by SPEC-005. Batch decoding is deferred to SPEC-007.
 
 The project uses a local JVM sidecar because Polar's official REC parser is in
 the separately licensed SDK. This keeps SDK classes, source, and binaries out
 of the Python runtime and release artifacts while retaining a versioned,
 project-owned JSONL boundary.
+
+The Python implementation keeps public models and errors, sidecar process
+control, JSONL validation, and constrained publication in separate modules.
+The public API continues to be exported from `polar_ble_tools.rec`. The JVM
+template independently separates command dispatch, official-SDK parsing,
+payload adaptation, JSONL encoding, and atomic publication; all template inputs
+remain bound by the adapter source digest.
 
 ## Prerequisites
 
@@ -22,12 +32,17 @@ Use Linux x86_64, install the SDK extra, and explicitly stage the supported SDK:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
-polar-ble sdk install --accept-license
+polar-ble sdk install
 ```
 
-The first decoder build provisions checksum-verified Temurin JDK 21.0.12+8 and
-Gradle 9.4.1 in the user cache. Nothing is downloaded, built, or activated on
-import or by `sdk install`.
+Proceeding at each install/download prompt accepts the Polar BLE SDK licence for
+that invocation, including cache reuse; use `-y` for unattended installation.
+No acceptance record is stored.
+
+The first decoder build provisions architecture-specific, checksum-verified
+Temurin JDK 21.0.12+8 and Gradle 9.4.1 in the user cache. Reuse requires a
+descriptor-bound local manifest and unchanged executable digest. Nothing is
+downloaded, built, or activated on import or by `sdk install`.
 
 ## Build and activate the local decoder
 
@@ -41,6 +56,18 @@ Builds create an isolated per-commit workspace. The JDK is persistent and
 shared across commits. Activation executes the sidecar `version` and
 `self-test` handshakes and preserves the previously active decoder on failure.
 Use `--offline` only after the toolchain and Gradle dependencies are cached.
+
+The build copies the exact `Polar_SDK_License.txt` from the pinned local SDK
+checkout into the decoder runtime as attribution material. Its SHA-256 and SDK
+commit are recorded in the decoder manifest. This is not an acceptance record
+and does not replace fresh consent on any later SDK install/download invocation.
+Older package-managed decoder caches without this attribution contract must be
+rebuilt. Manually or externally managed sidecars are outside this package's
+lifecycle and compatibility scope.
+
+> **Redistribution warning:** Do not redistribute the locally compiled decoder
+> under the `polar-ble-tools` Apache-2.0 licence alone. The local build contains
+> or links material governed by the Polar BLE SDK licence.
 
 ## Check status
 
@@ -59,11 +86,16 @@ explicit overwrite option, publication uses atomic no-clobber semantics.
 Timeouts terminate the full sidecar process group.
 Decoding rejects an output that resolves to, or is a hard link to, the source
 recording, even with `--overwrite`; the source `.REC` is never modified.
+Overwrite accepts only an existing project-owned decoded JSONL stream that
+passes header, record, and summary validation.
 
 ## Python API
 
 ```python
-from polar_ble_tools.rec import decode_recording, iter_decoded_records
+from polar_ble_tools.rec import (
+    decode_recording,
+    iter_decoded_records,
+)
 
 report = decode_recording("PPI0.REC", "PPI0.jsonl")
 for record in iter_decoded_records("PPI0.jsonl"):
@@ -97,12 +129,18 @@ Decoder commands accept only a full lowercase 40-character SDK commit SHA.
 Removal is constrained to the decoder cache and also removes that commit's
 workspace; it never removes the shared JDK automatically.
 
+`polar-ble sdk remove` retains decoders by default. Use repeated `--commit`
+arguments or `--all` together with `--include-decoders` to remove corresponding
+decoder runtimes and workspaces in the same guarded plan. Add `--dry-run` to
+inspect the plan first. The shared JDK remains untouched; per-commit Gradle
+files are removed with the selected workspace.
+
 ## Security and distribution boundary
 
 Manifests record digests for every runtime file and the JDK executable. The
 project distributes only its Kotlin and Gradle templates. It does not distribute
-Polar SDK source, recordings, generated schemas, JARs, classes, or a decoder
-binary.
+Polar SDK source, `Polar_SDK_License.txt`, recordings, generated schemas, JARs,
+classes, or a decoder binary in PyPI artifacts.
 
 ## Compatibility and limitations
 

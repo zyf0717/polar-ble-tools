@@ -13,7 +13,7 @@ from tempfile import TemporaryDirectory
 
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.discovery import ProtoLayout, discover_proto_layout
-from polar_ble_tools.sdk_tools.downloader import active_sdk_source
+from polar_ble_tools.sdk_tools.downloader import active_sdk_source, source_content_sha256
 from polar_ble_tools.sdk_tools.inspector import inspect_descriptor_set
 from polar_ble_tools.sdk_tools.proto_reader import build_descriptor_set
 from polar_ble_tools.sdk_tools.requirement_scan import reconcile_schema_requirements
@@ -109,6 +109,17 @@ def generate_schemas(
     source_manifest = json.loads(
         (cache.sdk_path(commit) / "download-manifest.json").read_text(encoding="utf-8")
     )
+    recorded_source_digest = source_manifest.get("source_content_sha256")
+    source_digest = source_content_sha256(source)
+    if (
+        isinstance(recorded_source_digest, str)
+        and len(recorded_source_digest) == 64
+        and all(character in "0123456789abcdef" for character in recorded_source_digest)
+        and recorded_source_digest != source_digest
+    ):
+        raise SchemaGenerationError(
+            "Staged SDK source content does not match its download manifest."
+        )
     with TemporaryDirectory(prefix="polar-ble-generate-") as temporary:
         descriptor_path = Path(temporary) / "selected.desc"
         descriptor_set = build_descriptor_set(layout, descriptor_path)
@@ -127,11 +138,12 @@ def generate_schemas(
                 path.relative_to(staged_root).as_posix() for path in python_path.rglob("*_pb2.py")
             )
             manifest = {
-                "format_version": 2,
+                "format_version": 3,
                 "vendor": "polar",
                 "source_repository": source_manifest["source_repository"],
                 "requested_ref": source_manifest["requested_ref"],
                 "resolved_commit": commit,
+                "source_content_sha256": source_digest,
                 "generated_at": datetime.now(UTC).isoformat(),
                 "toolchain": _toolchain(),
                 "required_features": list(plan.features),
@@ -143,10 +155,6 @@ def generate_schemas(
                 },
                 "descriptor_sha256": _sha256(staged_root / "descriptor.desc"),
             }
-            shutil.copy2(
-                cache.sdk_path(commit) / "Polar_SDK_License.txt",
-                staged_root / "Polar_SDK_License.txt",
-            )
             (staged_root / GENERATED_MANIFEST).write_text(
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )

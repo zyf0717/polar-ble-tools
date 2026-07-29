@@ -28,11 +28,11 @@ def _manager_with_roots(
 
     monkeypatch.setattr(
         "polar_ble_tools.schemas.runtime.verify_schemas",
-        lambda *, cache: roots[active["commit"]],
+        lambda *, commit, cache: roots[commit],
     )
     monkeypatch.setattr(
-        "polar_ble_tools.sdk_tools.downloader.active_sdk_source",
-        lambda *, cache: (active["commit"], cache.sdk_path(active["commit"]) / "source"),
+        "polar_ble_tools.schemas.runtime.active_schema_commit",
+        lambda *, cache: active["commit"],
     )
     return schema_activation_manager(cache), roots, active
 
@@ -51,6 +51,8 @@ def test_activation_rejects_commit_switch_after_generated_module_load(
         active["commit"] = "b" * 40
         with pytest.raises(SchemaUnavailableError, match="start a new process"):
             manager.require("switch_pb2")
+        with pytest.raises(SchemaUnavailableError, match="start a new process"):
+            manager.ensure_activatable("b" * 40)
 
         assert sys.modules["switch_pb2"] is loaded
         assert manager.active_commit == "a" * 40

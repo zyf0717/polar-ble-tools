@@ -59,6 +59,7 @@ class DoctorReport:
     sdk: SdkStatus
     schemas: DoctorSchemaStatus
     decoder: DecoderStatus
+    warnings: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -69,6 +70,7 @@ class DoctorReport:
             },
             "schemas": self.schemas.to_dict(),
             "decoder": asdict(self.decoder),
+            "warnings": list(self.warnings),
         }
 
 
@@ -224,33 +226,45 @@ def doctor(*, cache: SdkCache | None = None) -> DoctorReport:
     """Return core, SDK-schema, and REC-decoder readiness without mutation."""
     from polar_ble_tools.rec import decoder_status
     from polar_ble_tools.schemas.cache import SdkCache
-    from polar_ble_tools.sdk_tools.downloader import SdkDownloadError, sdk_status
+    from polar_ble_tools.sdk_tools.downloader import sdk_status
     from polar_ble_tools.sdk_tools.verifier import (
         SchemaVerificationError,
+        schema_status,
         verify_active_schemas,
     )
 
     cache = cache or SdkCache.default()
     sdk = sdk_status(cache=cache)
-    if sdk.active_commit is None:
-        schemas = DoctorSchemaStatus(
-            ready=False, remediation="polar-ble sdk install --accept-license"
-        )
+    schema_state = schema_status(cache=cache)
+    if schema_state.active_commit is None:
+        schemas = DoctorSchemaStatus(ready=False, remediation="polar-ble sdk install")
     else:
         try:
             schema_root = verify_active_schemas(cache=cache)
-        except (SdkDownloadError, SchemaVerificationError, OSError, ValueError) as exc:
+        except (SchemaVerificationError, OSError, ValueError) as exc:
             schemas = DoctorSchemaStatus(
                 ready=False,
-                active_commit=sdk.active_commit,
+                active_commit=schema_state.active_commit,
                 error=str(exc),
-                remediation="polar-ble sdk verify",
+                remediation="polar-ble sdk schemas verify",
             )
         else:
             schemas = DoctorSchemaStatus(
-                ready=True, active_commit=sdk.active_commit, path=schema_root
+                ready=True, active_commit=schema_state.active_commit, path=schema_root
             )
-    return DoctorReport(sdk=sdk, schemas=schemas, decoder=decoder_status(cache=cache))
+    decoder = decoder_status(cache=cache)
+    warnings = ()
+    if (
+        sdk.active_commit is not None
+        and decoder.sdk_commit is not None
+        and sdk.active_commit != decoder.sdk_commit
+    ):
+        warnings = (
+            f"Active SDK {sdk.active_commit} differs from active REC decoder SDK "
+            f"{decoder.sdk_commit}. The decoder remains usable; rebuild it against "
+            "the active SDK if that revision is supported: polar-ble sdk decoder build",
+        )
+    return DoctorReport(sdk=sdk, schemas=schemas, decoder=decoder, warnings=warnings)
 
 
 async def apply_ftu(

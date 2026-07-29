@@ -64,8 +64,12 @@ decoding:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
-polar-ble sdk install --accept-license
+polar-ble sdk install
 ```
+
+The installer asks for a simple `y/N` confirmation that proceeding accepts the
+Polar BLE SDK licence. This happens on every install/download invocation,
+including cache reuse. Use `-y` for non-interactive installation.
 
 ## Quick start
 
@@ -142,7 +146,7 @@ for the evidence-backed matrix.
 - [Contributor guide](https://github.com/zyf0717/polar-ble-tools/blob/main/CONTRIBUTING.md)
 - [Development](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/development.md)
 - [Release process](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/releasing.md)
-- [0.3.2 release notes](https://github.com/zyf0717/polar-ble-tools/blob/main/RELEASE_NOTES.md)
+- [0.4.0 release notes](https://github.com/zyf0717/polar-ble-tools/blob/main/RELEASE_NOTES.md)
 
 ## Licence and trademarks
 

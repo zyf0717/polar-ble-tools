@@ -87,13 +87,21 @@ def test_unknown_bpb_normalized_result_contract(tmp_path: Path) -> None:
 
     assert result == {
         "data": None,
+        "decoded_path": None,
+        "decoded_sha256": None,
+        "descriptor_sha256": None,
         "device_path": "/SYS/UNKNOWN.BPB",
         "error": None,
+        "error_code": None,
         "file_size": 3,
         "local_path": "UNKNOWN.BPB",
         "message_type": None,
+        "logical_date": None,
+        "logical_date_source": None,
         "reason": "No registered protobuf schema matches this BPB path.",
+        "schema_commit": None,
         "schema_id": None,
+        "schema_manifest_format": None,
         "sha256": "d7439bee24773bcbfa2d0a97947ee36227b10d1022b1a55847e928965bb6bfde",
         "status": UNSUPPORTED_STATUS,
     }
