@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.4.0 — 2026-07-29
 
 ### Fixed
 
@@ -16,6 +16,8 @@ All notable changes to this project are documented here.
 - Documented device-scoped Loop Gen 2 evidence for advertised recording types
   and activity-sample, daily-summary, and skin-temperature BPB retrieval and
   decoding.
+- Recorded `/DEVICE.BPB` version evidence for the tested Loop Gen 2 and Verity
+  Sense devices.
 - Clarified that advertised types are not recording evidence, raw BPB retrieval
   is not decoding evidence, and blocked cleanup candidates do not constitute an
   eligible cleanup dry-run.
@@ -23,6 +25,9 @@ All notable changes to this project are documented here.
 - Split implemented single-file REC decoder tracking from deferred protected
   and batch decoding specifications, and aligned protected-evidence tracking
   with its current test and audit foundations.
+- Moved release preparation to `dev`; release branches now remove only
+  development controls, and TestPyPI candidates require a merged `main` tree
+  with consistent release metadata.
 
 ### Added
 

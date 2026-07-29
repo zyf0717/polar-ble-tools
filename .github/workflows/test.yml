@@ -41,6 +41,6 @@ jobs:
           ruff check .
           ruff format --check .
       - name: Run SDK-free unit and contract tests
-        run: python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py
+        run: python -m pytest -q tests/unit tests/contracts
       - name: Verify opt-in live tests skip outside protected hardware
         run: python -m pytest -q tests/live

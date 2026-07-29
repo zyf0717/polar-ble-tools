@@ -85,7 +85,7 @@ passive = await collect_passive_files(
 
 The package does not read an inventory unless the caller supplies its path.
 
-The `0.3.2` facade also exposes structured local readiness and the live FTU
+The `0.4.0` facade also exposes structured local readiness and the live FTU
 workflow without constructing CLI argument lists:
 
 ```python

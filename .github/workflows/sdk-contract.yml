@@ -24,16 +24,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[dev,sdk]"
       - name: Install the immutable licensed SDK input
-        run: polar-ble sdk install --accept-license
+        run: polar-ble sdk install --yes
       - name: Verify the resolved supported commit
         run: |
-          test "$(polar-ble sdk status | sed -n 's/^active: //p')" = "$EXPECTED_SDK_COMMIT"
+          test "$(polar-ble sdk status | sed -n 's/^active SDK source: //p')" = "$EXPECTED_SDK_COMMIT"
+          test "$(polar-ble sdk status | sed -n 's/^active schemas: //p')" = "$EXPECTED_SDK_COMMIT"
       - name: Run SDK and schema-dependent contracts
         run: python -m pytest -q tests/sdk_contract tests/contracts
       - name: Remove SDK and generated cache material
         if: always()
         run: |
-          polar-ble sdk remove --all
+          polar-ble sdk remove --all --yes
           test ! -e "$XDG_DATA_HOME/polar-ble-tools/sdk/polar"
           test ! -e "$XDG_DATA_HOME/polar-ble-tools/generated/polar"
           test ! -e "$XDG_DATA_HOME/polar-ble-tools/active-sdk.json"
+          test ! -e "$XDG_DATA_HOME/polar-ble-tools/active-schemas.json"

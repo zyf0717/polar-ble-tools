@@ -2,10 +2,15 @@
 
 ## Supported devices
 
-`0.3.2` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+`0.4.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
 the controlled capability boundaries below.
 
 ## Polar Loop Gen 2
+
+The tested device reported `device_version` **6.1.19** from its official
+`/DEVICE.BPB` record on 2026-07-29. Earlier observations did not independently
+capture this field; unless stated otherwise, this repository assumes the same
+device remained on 6.1.19 throughout its controlled Loop Gen 2 testing.
 
 Controlled checks covered:
 
@@ -55,6 +60,11 @@ distinguish this condition.
 
 ## Polar Verity Sense
 
+The tested device reported `device_version` **3.0.16** from its official
+`/DEVICE.BPB` record on 2026-07-29. Earlier observations did not independently
+capture this field; unless stated otherwise, this repository assumes the same
+device remained on 3.0.16 throughout its controlled Verity Sense testing.
+
 Controlled Linux/BlueZ validation confirmed PMD availability and inactive
 status reporting for ACC, GYRO, HR, MAGNETOMETER, PPG, and PPI. Bounded
 offline-recording start/stop and exact raw REC retrieval were exercised for all
@@ -81,7 +91,7 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.3.2` capabilities.
+- Batch and protected REC decoding are not `0.4.0` capabilities.
 - The optional REC decoder is currently limited to Linux x86_64.
 - Multi-device locking is covered by unit tests but not validated with two
   physical devices.

@@ -35,9 +35,14 @@ python -m pip install -e ".[dev,sdk]"
 
 ## Release branches and pull requests
 
-* When creating a release branch or pull request, keep `specs/` and `AGENTS.md`
-  out of scope: do not stage, commit, or include changes to either in the
-  release diff.
+* Make `dev` release-ready before branching: version metadata, changelog,
+  release notes, product code, documentation, and validation evidence belong
+  on `dev`.
+* Create release branches from the verified `origin/dev` tip. The only release
+  branch tree change is deletion of development-only `specs/` and `AGENTS.md`;
+  do not make product or release-metadata changes there.
+* Confirm that neither development-only path appears in the release pull
+  request tree or final `main` tree.
 
 ## Required checks
 

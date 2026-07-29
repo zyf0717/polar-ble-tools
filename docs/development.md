@@ -81,34 +81,50 @@ Use `dev` as the integration branch and keep `main` linear through pull
 requests:
 
 1. Develop and integrate changes on `dev`.
-2. Create a release branch from the current `origin/main`.
-3. Replay only the curated release changes onto the release branch.
-4. Merge the release pull request using rebase or squash.
-5. Merge the updated `origin/main` back into `dev`.
-6. Rebuild and force-update `dev` only when accumulated duplicate history
+2. Make `dev` release-ready: finalize the version, dated changelog, release
+   notes, product documentation, and required evidence; commit and push them.
+3. Create the release branch from the verified `origin/dev` tip.
+4. Delete only `AGENTS.md` and `specs/` on the release branch.
+5. Merge the release pull request into `main` using rebase or squash.
+6. Merge the updated `origin/main` back into `dev`, then restore the
+   development-only controls from the pre-merge `dev` tip.
+7. Rebuild and force-update `dev` only when accumulated duplicate history
    warrants compaction.
 
-Start each release from the released tip rather than from `dev`:
-
-```bash
-git fetch origin
-git switch -c release/<version> origin/main
-```
-
-Replay cohesive commits with `git cherry-pick`. When the release boundary does
-not align with commit boundaries, apply and review a targeted patch instead.
-Run the required checks and inspect the complete `origin/main...HEAD` diff
-before opening the pull request.
-
-After the pull request is merged, synchronize its rebase or squash result back
-into `dev`. This merge commit remains on `dev`; it does not alter the linear
-history of `main`:
+Do not use a release branch to curate or finish product changes. If `dev`
+contains work that is not ready, revert or finish it on `dev` before branching.
+Prepare the release tree as follows:
 
 ```bash
 git fetch origin
 git switch dev
 git pull --ff-only origin dev
+git switch -c release/<version> origin/dev
+git rm -r -- AGENTS.md specs
+git commit -m "chore: prepare <version> release tree"
+git diff --name-status origin/dev...HEAD
+```
+
+The final command must show only deletion of `AGENTS.md` and `specs/` relative
+to `origin/dev`. Run the required checks and inspect the complete
+`origin/main...HEAD` product diff before opening the pull request. Product,
+documentation, workflow, version, changelog, and release-note edits on the
+release branch indicate that `dev` was not release-ready and must be corrected
+there instead.
+
+After the pull request is merged, synchronize its rebase or squash result back
+into `dev`. Preserve the pre-merge `dev` tip so its development-only controls
+can be restored after accepting the released product tree from `main`:
+
+```bash
+git fetch origin
+git switch dev
+git pull --ff-only origin dev
+dev_tip="$(git rev-parse HEAD)"
 git merge --no-ff origin/main
+git restore --source="$dev_tip" -- AGENTS.md specs
+git add AGENTS.md specs
+git commit -m "chore: restore development controls after <version>"
 git push origin dev
 ```
 

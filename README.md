@@ -146,7 +146,7 @@ for the evidence-backed matrix.
 - [Contributor guide](https://github.com/zyf0717/polar-ble-tools/blob/main/CONTRIBUTING.md)
 - [Development](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/development.md)
 - [Release process](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/releasing.md)
-- [0.3.2 release notes](https://github.com/zyf0717/polar-ble-tools/blob/main/RELEASE_NOTES.md)
+- [0.4.0 release notes](https://github.com/zyf0717/polar-ble-tools/blob/main/RELEASE_NOTES.md)
 
 ## Licence and trademarks
 
