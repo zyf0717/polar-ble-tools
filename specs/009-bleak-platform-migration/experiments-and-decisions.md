@@ -180,3 +180,50 @@ payload fetch, or deletion.
   successfully across managed Bleak sessions on this device.
 - No final verdict is assigned until the remaining decision-matrix evidence
   and second supported Linux device coverage are complete.
+
+## Downstream Loop Gen 2 evidence — 2026-07-29
+
+The same authorized device was used to extend coverage beyond connection
+readiness. Initial discovery and pairing were not exercised. No bond reset,
+device reset, or device-file deletion was performed. The initial downstream
+run inspected existing FTU state; a subsequent, separately authorized run
+applied the tracked documentation profile described below.
+
+| Workflow | Result | Evidence and limitation |
+| --- | --- | --- |
+| FTU state and configuration reads | Passed | FTU reported complete; physical configuration, user-device settings, and setup diagnostics were read successfully. Only field counts were logged; values were not retained. |
+| PMD/PFTP status reads | Passed | Five recording types and five status entries were observed; trigger configuration, disk-space invariants, and raw recording listing succeeded. No configuration was changed. |
+| ACC recording start/stop | Passed | One inactive ACC recording was started with device-reported minimum settings, confirmed active, recorded for four seconds, and stopped in a bounded `finally`-guarded workflow. |
+| REC materialization and retrieval | Passed | A later managed session observed the new `ACC0` recording, fetched it, persisted it atomically beneath the ignored local root, and verified its manifest size and SHA-256. |
+| Eligible cleanup dry-run | Passed | The newly verified recording was selected with status `dry_run`; the deletion count remained zero and the device file was retained. |
+| FTU application and settings write | Passed with explicitly authorized documentation input | The maintainer approved `docs/ftu-profile.example.json` as sound hardware-test input. `apply_ftu()` completed, wrote its settings patch, and 14 declared physical/settings fields were read back and verified without logging their values. |
+
+The final postcondition check reported no active recordings and a disconnected
+BlueZ device while preserving the existing paired, bonded, and trusted state.
+
+The reusable harness is:
+
+```bash
+POLAR_BLE_SPEC009=1 \
+POLAR_BLE_LIVE_MAC="<authorized identifier>" \
+pytest -q -s tests/live/test_spec009_device_workflows.py
+```
+
+The FTU and PMD/PFTP read tests are non-mutating. The ACC test additionally
+requires `POLAR_BLE_SPEC009_MUTATING=1`; it creates and retains one recording
+and still performs cleanup only as a dry-run.
+
+Applying the tracked documentation profile is separately gated:
+
+```bash
+POLAR_BLE_SPEC009=1 \
+POLAR_BLE_SPEC009_FTU_APPLY=1 \
+POLAR_BLE_LIVE_MAC="<authorized identifier>" \
+pytest -q -s \
+  tests/live/test_spec009_device_workflows.py::test_spec009_apply_documented_ftu_profile
+```
+
+These results establish representative FTU-read, PMD-control, PFTP listing,
+raw retrieval, local verification, and guarded-cleanup behavior across managed
+sessions. The documented FTU input is now verified on the authorized Loop Gen
+2. Actual deletion remains outside the current authorization.

@@ -18,6 +18,11 @@ selects their applicable verdict.
   workflows.
 - [x] Add a reproducible opt-in, non-reset live harness for structured
   discovery, native reconnect, cancellation cleanup, and recovery.
+- [x] Add downstream Loop Gen 2 evidence and an opt-in harness for FTU/config
+  reads, PMD/PFTP status, ACC start/stop, verified REC retrieval, and eligible
+  cleanup dry-run.
+- [x] Apply the maintainer-approved `docs/ftu-profile.example.json` input and
+  verify FTU completion plus every declared physical/settings field.
 - [ ] Obtain separately authorized fresh-preparation evidence; no device reset
   or bond removal is authorized by the initial experiment.
 
