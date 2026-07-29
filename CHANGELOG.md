@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## 0.4.1 — 2026-07-29
+
+### Documentation
+
+- Reworked the root quick start into explicit first-time setup, passive BPB,
+  and offline REC workflows.
+- Promoted raw REC recording and collection to a first-class workflow shared
+  by Polar Loop Gen 2 and Polar Verity Sense.
+- Added the complete common ACC sequence for inspecting settings, starting and
+  stopping a recording, and collecting the resulting REC file.
+- Removed duplicated collection guidance, incomplete raw commands, and advanced
+  SDK/REC details that obscured the primary onboarding paths.
+- Consolidated advanced and contributor material behind focused documentation
+  links without changing runtime behavior or compatibility claims.
+
 ## 0.4.0 — 2026-07-29
 
 ### Fixed
