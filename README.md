@@ -80,6 +80,38 @@ polar-ble discover --scan-seconds 15 --name Polar
 polar-ble pair --mac-address AA:BB:CC:DD:EE:FF --scan-seconds 15
 ```
 
+### Polar Loop Gen 2 FTU
+
+For a Loop Gen 2 that has not completed first-time setup, copy the
+[example FTU profile](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/ftu-profile.example.json)
+to a private location and replace every value. The profile contains personal
+physical data and must not be committed or placed in shared logs. FTU requires
+the optional generated-schema cache installed above.
+
+Validate the profile without contacting the device, then apply it and confirm
+completion:
+
+```bash
+polar-ble ftu dry-run \
+  --profile ~/.config/polar-ble-tools/ftu-profile.json
+polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
+  --profile ~/.config/polar-ble-tools/ftu-profile.json
+polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
+```
+
+### Collect passive data from Polar Loop Gen 2
+
+After the device has accumulated data, replace the example dates with the
+bounded range to retrieve. Collection persists and hashes the raw `.BPB` files
+before optional decoding:
+
+```bash
+polar-ble passive --mac-address AA:BB:CC:DD:EE:FF \
+  --from-date 2026-07-23 --to-date 2026-07-29 collect --decode
+```
+
+Omit `--decode` to collect raw passive files without an active schema cache.
+
 List device-resident files:
 
 ```bash
