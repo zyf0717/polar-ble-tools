@@ -25,19 +25,6 @@ out of scope for this project.
 > `polar-ble-tools` is an unofficial community project. It is not affiliated
 > with, endorsed by, sponsored by, or maintained by Polar Electro Oy.
 
-## Data collection workflow
-
-The package supports a device-resident collection lifecycle:
-
-1. discover, pair, and prepare a supported wearable through Linux BlueZ;
-2. inspect supported PMD recording capabilities and configure an offline recording;
-3. allow the wearable to collect data into its own storage;
-4. reconnect over BLE and enumerate files through PFTP;
-5. retrieve `.REC` or `.BPB` files into local storage;
-6. verify retrieved files using recorded size and SHA-256 metadata;
-7. review guarded cleanup decisions before removing verified device files;
-8. decode supported formats locally when the required optional tooling is available.
-
 ## Capabilities
 
 - manage supported PMD offline recordings and recording settings;
@@ -80,7 +67,7 @@ polar-ble discover --scan-seconds 15 --name Polar
 polar-ble pair --mac-address AA:BB:CC:DD:EE:FF --scan-seconds 15
 ```
 
-### Polar Loop Gen 2 FTU
+### First-time setup for Polar Loop Gen 2
 
 For a Loop Gen 2 that has not completed first-time setup, copy the
 [example FTU profile](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/ftu-profile.example.json)
@@ -99,7 +86,7 @@ polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
 polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
 ```
 
-### Collect passive data from Polar Loop Gen 2
+### Passive data from Polar Loop Gen 2
 
 After the device has accumulated data, replace the example dates with the
 bounded range to retrieve. Collection persists and hashes the raw `.BPB` files
@@ -112,28 +99,32 @@ polar-ble passive --mac-address AA:BB:CC:DD:EE:FF \
 
 Omit `--decode` to collect raw passive files without an active schema cache.
 
-List device-resident files:
+### Offline REC recordings
+
+Polar Loop Gen 2 and Polar Verity Sense both support the raw REC workflow.
+Inspect the device-supported types and settings, start an ACC recording, then
+stop and collect it after the desired duration:
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF list
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF types
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+  settings --type ACC --full
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+  start --type ACC --setting sample_rate=52
+# Run the stop command after the desired recording duration.
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF stop --type ACC
+polar-ble raw --mac-address AA:BB:CC:DD:EE:FF collect --type ACC
 ```
 
-Collect raw recordings:
+Raw REC collection is SDK-free. Structured REC decoding is a separate,
+experimental workflow requiring the optional local sidecar.
 
-```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF collect
-```
-
-Review a cleanup without deleting device files:
-
-```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF cleanup --all --dry-run
-```
-
-See [device setup](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/device-setup.md),
+See [device setup](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/device-setup.md)
+for the complete FTU workflow. See
 [offline recording](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/offline-recording.md),
-and [raw retrieval](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/raw-file-retrieval.md)
-before performing device mutations.
+[raw retrieval](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/raw-file-retrieval.md),
+and [REC decoding](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/rec-decoding.md)
+for the complete REC workflows and supported types.
 
 ## Compatibility
 
@@ -143,42 +134,28 @@ work but are not confirmed for this release. See
 [compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
 for the verified capability matrix and limitations.
 
-## Optional SDK-assisted functionality
+## Optional SDK functionality
 
 The package does not distribute the Polar BLE SDK, Polar SDK schema files, or
 artefacts generated from those files. Optional SDK-assisted functionality uses
-an SDK copy separately obtained and licensed by the user.
+an SDK copy separately obtained and licensed by the user. SDK operations are
+explicit commands; package installation and import never download, generate,
+or activate SDK material. Structured REC decoding additionally requires a
+locally built optional sidecar. See
+[SDK integration](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/sdk-integration.md),
+[REC decoding](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/rec-decoding.md),
+and [compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
+for prerequisites and evidence-backed limitations.
 
-SDK download, inspection, generation, verification, activation, and removal are
-explicit `polar-ble sdk` commands. Package installation and import never perform
-those operations. See
-[SDK integration](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/sdk-integration.md).
+## Documentation
 
-REC decoding is optional and local-only. It requires a separately installed SDK
-and a user-built decoder; no SDK source or decoder binary is distributed:
-
-```bash
-polar-ble sdk decoder build
-polar-ble rec status
-polar-ble rec decode PPI0.REC --output PPI0.jsonl
-```
-
-See [REC decoding](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/rec-decoding.md)
-for prerequisites, protocol, cache, security boundary, and limitations; see
-[compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
-for the evidence-backed matrix.
-
-## Documentation and development
-
+- [Device setup](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/device-setup.md)
 - [Configuration and CLI](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/configuration.md)
 - [CLI reference](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/cli-reference.md)
 - [Python API reference](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/python-api.md)
-- [Architecture](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/architecture.md)
+- [Compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
 - [Troubleshooting](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/troubleshooting.md)
 - [Contributor guide](https://github.com/zyf0717/polar-ble-tools/blob/main/CONTRIBUTING.md)
-- [Development](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/development.md)
-- [Release process](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/releasing.md)
-- [0.4.0 release notes](https://github.com/zyf0717/polar-ble-tools/blob/main/RELEASE_NOTES.md)
 
 ## Licence and trademarks
 
