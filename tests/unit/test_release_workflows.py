@@ -26,6 +26,13 @@ def test_candidate_requires_merged_release_tree_and_consistent_metadata() -> Non
     assert "^## Unreleased$" in workflow
 
 
+def test_sdk_free_workflows_run_only_sdk_free_contracts() -> None:
+    command = "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py"
+
+    for workflow_name in ("test.yml", "testpypi-candidate.yml"):
+        assert command in (WORKFLOWS / workflow_name).read_text()
+
+
 def test_sdk_workflows_clean_sdk_owned_paths_without_requiring_an_empty_app_root() -> None:
     for workflow_name in ("sdk-contract.yml", "testpypi-candidate.yml"):
         workflow = (WORKFLOWS / workflow_name).read_text()

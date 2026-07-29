@@ -40,7 +40,7 @@ jobs:
           python -m pip install ".[dev,sdk]"
           ruff check .
           ruff format --check .
-          python -m pytest -q tests/unit tests/contracts
+          python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py
   package-audit:
     needs: release-preflight
     runs-on: ubuntu-latest
