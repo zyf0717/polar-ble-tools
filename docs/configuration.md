@@ -42,7 +42,7 @@ in logs, fixtures, or support requests.
 | `polar-ble raw` | List, collect, and safely clean raw `.REC` files. |
 | `polar-ble passive` | List and collect passive `.BPB` files without schemas. |
 | `polar-ble bpb` | Decode local BPB files through the verified schema cache. |
-| `polar-ble ftu` | Validate or apply FTU data and inspect setup state. |
+| `polar-ble ftu` | Validate or apply device-specific FTU data and inspect setup state. |
 | `polar-ble sdk` | Explicitly manage local SDK source and generated schemas. |
 | `polar-ble rec` | Check or invoke the local structured REC decoder. |
 | `polar-ble doctor` | Report core and optional-schema readiness without mutation. |
@@ -103,7 +103,11 @@ shape used by `polar-ble doctor`. A top-level `warnings` list remains
 non-fatal. When the active SDK and decoder commits differ, it reports both
 commits and suggests `polar-ble sdk decoder build`; decoder availability is
 unchanged. FTU helpers own the device session and expose apply, status, physical
-configuration, settings read/update, and diagnostics. See the complete
+configuration, settings read/update, and diagnostics. `load_ftu_profile()`
+dispatches the Loop Gen 2 `FtuProfile` and Verity Sense
+`VeritySenseFtuProfile`; `apply_ftu()` accepts either. The
+[Verity Sense FTU sample](verity-sense-ftu-profile.example.json) applies only
+wear location and rejects unsupported pool-length input. See the complete
 [Python API reference](python-api.md), including specialized SDK, BPB, REC,
 passive-file, and lower-level protocol modules.
 

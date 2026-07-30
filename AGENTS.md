@@ -17,6 +17,14 @@
 * Preserve guarded cleanup: exact device paths, inactive-recording checks where applicable, verified local size and SHA-256, dry-run support, and deterministic audit logs.
 * Use atomic writes and constrain stored paths to configured roots.
 * Do not broaden device or protocol compatibility claims without reproducible evidence.
+* Keep device setup profiles explicit: `loop-gen2-ftu-profile.example.json`
+  uses `FtuProfile`; `verity-sense-ftu-profile.example.json` uses
+  `VeritySenseFtuProfile`; `load_ftu_profile()` performs device-family
+  dispatch. Verity FTU is intentionally limited to the verified wear-location
+  patch through `UDEVSET.BPB`. The observed `/U/USENSET.BPB` pool-settings
+  candidate rejects reads, and the verified SDK exposes neither its root schema
+  nor a pool-length write operation. Verity profiles must reject pool length;
+  do not infer a write from `PbSwimmingPoolInfo` alone.
 
 ## Development workflow
 

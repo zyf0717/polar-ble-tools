@@ -18,6 +18,8 @@ from polar_ble_tools.polar.setup import (
     SetupError,
     SetupValidationError,
     UserDeviceSettingsPatch,
+    VeritySenseFtuProfile,
+    load_ftu_profile,
 )
 
 if TYPE_CHECKING:
@@ -100,11 +102,12 @@ async def _open_setup_client(
 
 
 async def _apply_ftu(args: argparse.Namespace) -> int:
-    profile = FtuProfile.from_json_file(args.profile)
+    profile = load_ftu_profile(args.profile)
     settings_patch = profile.user_device_settings
     device, setup_client = await _open_setup_client(args.mac_address)
     try:
-        await setup_client.do_first_time_use(profile)
+        if isinstance(profile, FtuProfile):
+            await setup_client.do_first_time_use(profile)
         settings_updated = False
         if settings_patch is not None and settings_patch.has_changes:
             await setup_client.set_user_device_settings(settings_patch)
@@ -170,8 +173,24 @@ async def _diagnose_ftu(args: argparse.Namespace) -> int:
 
 
 def _dry_run_ftu(args: argparse.Namespace) -> int:
-    profile = FtuProfile.from_json_file(args.profile)
+    profile = load_ftu_profile(args.profile)
     settings_patch = profile.user_device_settings
+    if isinstance(profile, VeritySenseFtuProfile):
+        _print_json(
+            {
+                "valid": True,
+                "profile": {
+                    "path": args.profile,
+                    "fields": ["device_family", "device_location"],
+                },
+                "operations": [
+                    "GET /U/0/S/UDEVSET.BPB",
+                    "PUT /U/0/S/UDEVSET.BPB",
+                ],
+                "payload_sizes": "requires generated schemas",
+            }
+        )
+        return 0
     operations = [
         "REQUEST_SYNCHRONIZATION",
         "INITIALIZE_SESSION",

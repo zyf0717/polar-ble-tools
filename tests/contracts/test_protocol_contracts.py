@@ -170,6 +170,35 @@ def test_ftu_validation_and_dry_run_cli_contract(
     assert "80" not in str(error.value)
 
 
+def test_verity_ftu_dry_run_contract(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    profile = tmp_path / "verity.json"
+    profile.write_text(
+        json.dumps(
+            {
+                "device_family": "POLAR_VERITY_SENSE",
+                "device_location": "UPPER_ARM_LEFT",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert ftu_main(["dry-run", "--profile", str(profile)]) == 0
+    output = json.loads(capsys.readouterr().out)
+    output["profile"]["path"] = "<profile>"
+    assert output == {
+        "operations": [
+            "GET /U/0/S/UDEVSET.BPB",
+            "PUT /U/0/S/UDEVSET.BPB",
+        ],
+        "payload_sizes": "requires generated schemas",
+        "profile": {
+            "fields": ["device_family", "device_location"],
+            "path": "<profile>",
+        },
+        "valid": True,
+    }
+
+
 def test_primary_bpb_cli_exit_and_structured_output_contract(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

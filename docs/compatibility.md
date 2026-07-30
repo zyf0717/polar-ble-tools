@@ -74,6 +74,14 @@ Passive collection over the canonical domains returned no files; Verity Sense
 passive activity, sleep, wellness, or related domain support is not claimed.
 No destructive deletion was performed.
 
+`VeritySenseFtuProfile` supports wear-location-only FTU through
+`UDEVSET.BPB`; controlled Bleak testing applied and read-back verified that
+setting. The profile rejects all other fields. In particular, the observed
+protected `/U/USENSET.BPB` settings file rejected reads, and the verified SDK
+does not provide its root schema or a pool-length write operation. Pool length
+therefore remains unsupported. Loop physical data and user-identifier writes
+remain isolated in the Loop Gen 2 `FtuProfile` path.
+
 Other devices exposing compatible PMD and PFTP services should be treated as
 untested until their capability matrix passes on controlled hardware.
 

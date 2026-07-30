@@ -1,9 +1,9 @@
 """Opt-in downstream device workflows for SPEC-009.
 
 Read-only probes inspect FTU, PMD, and PFTP state. Separately gated probes
-apply the maintainer-approved documentation FTU profile or create one short
-ACC recording. They never pair, reset, stop an existing recording, or delete
-device data.
+apply one explicitly selected, maintainer-approved device-specific FTU profile
+or create one short ACC recording. They never pair, reset, stop an existing
+recording, or delete device data.
 """
 
 from __future__ import annotations
@@ -33,17 +33,23 @@ from polar_ble_tools.polar.pmd import (
     PmdSetting,
     PolarDeviceDataType,
 )
-from polar_ble_tools.polar.setup import FtuProfile
+from polar_ble_tools.polar.setup import (
+    FtuProfile,
+    VeritySenseFtuProfile,
+    load_ftu_profile,
+)
 from polar_ble_tools.raw_data.collector import RawRecordingCollector
 from polar_ble_tools.raw_data.storage import RawRecordingStore
 
 SPEC009_LIVE_ENV = "POLAR_BLE_SPEC009"
 SPEC009_MUTATING_ENV = "POLAR_BLE_SPEC009_MUTATING"
 SPEC009_FTU_APPLY_ENV = "POLAR_BLE_SPEC009_FTU_APPLY"
+SPEC009_FTU_FAMILY_ENV = "POLAR_BLE_SPEC009_FTU_FAMILY"
 LIVE_MAC_ENV = "POLAR_BLE_LIVE_MAC"
 LIVE_RAW_ROOT_ENV = "POLAR_BLE_LIVE_RAW_ROOT"
 TEST_DEVICES_FILE = Path("test_devices.yaml")
-DOCUMENTED_FTU_PROFILE = Path("docs/ftu-profile.example.json")
+LOOP_GEN2_FTU_PROFILE = Path("docs/loop-gen2-ftu-profile.example.json")
+VERITY_SENSE_FTU_PROFILE = Path("docs/verity-sense-ftu-profile.example.json")
 DEFAULT_RAW_ROOT = Path(".local/polar-ble-spec009-raw")
 OPERATION_TIMEOUT_SECONDS = 60.0
 SMOKE_DURATION_SECONDS = 4.0
@@ -98,20 +104,42 @@ def test_spec009_pmd_and_pftp_status_reads() -> None:
     )
 
 
-def test_spec009_apply_documented_ftu_profile() -> None:
+def test_spec009_apply_loop_gen2_ftu_profile() -> None:
     config = _load_config()
     if os.environ.get(SPEC009_FTU_APPLY_ENV) != "1":
         pytest.skip(f"{SPEC009_FTU_APPLY_ENV}=1 is required.")
-    profile = FtuProfile.from_json_file(DOCUMENTED_FTU_PROFILE)
+    if os.environ.get(SPEC009_FTU_FAMILY_ENV) != FtuProfile.device_family:
+        pytest.skip(f"{SPEC009_FTU_FAMILY_ENV}={FtuProfile.device_family} is required.")
+    profile = FtuProfile.from_json_file(LOOP_GEN2_FTU_PROFILE)
     verified_fields = asyncio.run(
         asyncio.wait_for(
-            _apply_and_verify_documented_ftu(config, profile),
+            _apply_and_verify_loop_gen2_ftu(config, profile),
             timeout=OPERATION_TIMEOUT_SECONDS,
         )
     )
 
     assert verified_fields > 0
     print(f"spec009_ftu_apply=passed verified_fields={verified_fields}")
+
+
+def test_spec009_apply_verity_sense_ftu_profile() -> None:
+    config = _load_config()
+    if os.environ.get(SPEC009_FTU_APPLY_ENV) != "1":
+        pytest.skip(f"{SPEC009_FTU_APPLY_ENV}=1 is required.")
+    if os.environ.get(SPEC009_FTU_FAMILY_ENV) != VeritySenseFtuProfile.device_family:
+        pytest.skip(f"{SPEC009_FTU_FAMILY_ENV}={VeritySenseFtuProfile.device_family} is required.")
+    profile = load_ftu_profile(VERITY_SENSE_FTU_PROFILE)
+    if not isinstance(profile, VeritySenseFtuProfile):
+        raise AssertionError("The documented Verity FTU profile has the wrong family.")
+    verified_fields = asyncio.run(
+        asyncio.wait_for(
+            _apply_and_verify_verity_sense_ftu(config, profile),
+            timeout=OPERATION_TIMEOUT_SECONDS,
+        )
+    )
+
+    assert verified_fields == 1
+    print(f"spec009_verity_ftu_apply=passed verified_fields={verified_fields}")
 
 
 def test_spec009_acc_record_fetch_verify_and_cleanup_dry_run() -> None:
@@ -195,7 +223,7 @@ async def _read_pmd_and_pftp_status(
     }
 
 
-async def _apply_and_verify_documented_ftu(
+async def _apply_and_verify_loop_gen2_ftu(
     config: Spec009WorkflowConfig,
     profile: FtuProfile,
 ) -> int:
@@ -226,7 +254,7 @@ async def _apply_and_verify_documented_ftu(
 
     patch = profile.user_device_settings
     if patch is None or not patch.has_changes:
-        raise AssertionError("The documented FTU profile has no settings patch.")
+        raise AssertionError("The Loop Gen 2 FTU profile has no settings patch.")
     settings = await user_device_settings(config.target)
     verified_settings = 0
     for field_name in (
@@ -242,6 +270,19 @@ async def _apply_and_verify_documented_ftu(
             assert getattr(settings, field_name) == expected
             verified_settings += 1
     return len(physical_expectations) + 2 + verified_settings
+
+
+async def _apply_and_verify_verity_sense_ftu(
+    config: Spec009WorkflowConfig,
+    profile: VeritySenseFtuProfile,
+) -> int:
+    result = await apply_ftu(config.target, profile)
+    assert result.ftu_applied is True
+    assert result.settings_updated is True
+
+    settings = await user_device_settings(config.target)
+    assert settings.device_location is profile.device_location
+    return 1
 
 
 async def _record_fetch_verify_and_dry_run(

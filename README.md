@@ -70,7 +70,7 @@ polar-ble pair --mac-address AA:BB:CC:DD:EE:FF --scan-seconds 15
 ### First-time setup for Polar Loop Gen 2
 
 For a Loop Gen 2 that has not completed first-time setup, copy the
-[example FTU profile](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/ftu-profile.example.json)
+[Loop Gen 2 FTU profile example](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/loop-gen2-ftu-profile.example.json)
 to a private location and replace every value. The profile contains personal
 physical data and must not be committed or placed in shared logs. FTU requires
 the optional generated-schema cache installed above.
@@ -85,6 +85,15 @@ polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
   --profile ~/.config/polar-ble-tools/ftu-profile.json
 polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
 ```
+
+### First-time setup for Polar Verity Sense
+
+Copy the
+[Verity Sense FTU profile example](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/verity-sense-ftu-profile.example.json)
+to a private location and select the wear location. Validate and apply it with
+the same `ftu dry-run` and `ftu apply` commands. Verity FTU currently applies
+wear location only; pool length is rejected because its device write contract
+is not supported.
 
 ### Passive data from Polar Loop Gen 2
 

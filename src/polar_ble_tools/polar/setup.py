@@ -22,6 +22,7 @@ from polar_ble_tools.polar.setup_types import (
     USER_IDENTIFIER_PATH,
     DeviceLocation,
     FtuProfile,
+    FtuProfileInput,
     Gender,
     PhysicalConfiguration,
     SetupDeviceResponseError,
@@ -33,6 +34,8 @@ from polar_ble_tools.polar.setup_types import (
     TypicalDay,
     UserDeviceSettings,
     UserDeviceSettingsPatch,
+    VeritySenseFtuProfile,
+    load_ftu_profile,
 )
 
 # Polar PFTP's explicit unsupported-operation response.  Do not turn timeout,
@@ -42,6 +45,7 @@ SYSTEM_TIME_UNSUPPORTED_ERROR_CODE = 6
 __all__ = [
     "DeviceLocation",
     "FtuProfile",
+    "FtuProfileInput",
     "Gender",
     "PhysicalConfiguration",
     "PolarSetupClient",
@@ -54,6 +58,7 @@ __all__ = [
     "TypicalDay",
     "UserDeviceSettings",
     "UserDeviceSettingsPatch",
+    "VeritySenseFtuProfile",
     "apply_user_device_settings_patch",
     "build_local_time_payload",
     "build_physical_data_payload",
@@ -61,6 +66,7 @@ __all__ = [
     "build_system_time_payload",
     "build_user_identifier_payload",
     "is_user_identifier_present",
+    "load_ftu_profile",
     "parse_physical_configuration",
     "parse_user_device_settings",
     "profile_payload_sizes",

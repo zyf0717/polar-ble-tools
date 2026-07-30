@@ -21,17 +21,56 @@ selects their applicable verdict.
 - [x] Add downstream Loop Gen 2 evidence and an opt-in harness for FTU/config
   reads, PMD/PFTP status, ACC start/stop, verified REC retrieval, and eligible
   cleanup dry-run.
-- [x] Apply the maintainer-approved `docs/ftu-profile.example.json` input and
-  verify FTU completion plus every declared physical/settings field.
+- [x] Apply the maintainer-approved
+  `docs/loop-gen2-ftu-profile.example.json` input and verify FTU completion
+  plus every declared physical/settings field.
 - [x] Obtain separately authorized fresh Loop Gen 2 preparation evidence after
   device reset and exact host-record removal: Bleak required a BlueZ
   authentication agent, then paired, verified PMD/PFTP, disconnected, and
   persisted across new-client and new-process reconnects.
-- [x] Re-establish FTU from the tracked documentation profile after reset and
-  pass the Bleak FTU/PMD/PFTP/ACC/retrieval/verification/cleanup-dry-run E2E
-  from the freshly paired state.
+- [x] Re-establish FTU from the tracked Loop Gen 2 documentation profile after
+  reset and pass the Bleak FTU/PMD/PFTP/ACC/retrieval/verification and cleanup
+  dry-run E2E from the freshly paired state.
+- [x] Reapply the Loop Gen 2 profile twice after FTU completion and verify all
+  14 declared fields after each application. Treat this as a repeat-safe
+  semantic outcome, not no-write idempotence.
+- [x] Repeat applicable evidence on an authorized Verity Sense after exact
+  Bleak `unpair()`: reproduce the missing-agent failure, pass agent-assisted
+  preparation, and pass agent-free reconnect, cancellation recovery, and
+  read-only PMD/PFTP workflows.
+- [x] Repeat Verity Sense preparation after a documented device factory reset:
+  reconfirm the Linux agent requirement, pass agent-assisted pairing and
+  agent-free new-process reconnect, and verify the Loop-style FTU marker
+  remains absent.
+- [x] Attempt the tracked FTU profile on factory-reset Verity Sense; record two
+  bounded PFTP response timeouts, a present physical configuration, incomplete
+  FTU, clean disconnects, and stop further writes pending protocol diagnosis.
+- [x] Reclassify that attempt as an inapplicable Loop-style FTU workflow:
+  Verity setup uses wear location and default pool length, current settings
+  expose only wear location, and no pool-length write contract is verified.
+- [x] Split the tracked examples into Loop Gen 2 and wear-location-only Verity
+  Sense FTU profiles; add device-family dispatch and tests that prevent routing
+  the Verity sample through Loop physical-data writes.
+- [x] Apply and independently read-back verify the Verity sample's
+  `UPPER_ARM_LEFT` component through Bleak-backed `UDEVSET.BPB` settings.
+- [x] Identify the protected `/U/USENSET.BPB` pool-settings candidate, record
+  its `OPERATION_NOT_PERMITTED` read result, and stop before an unverified
+  pool-length write.
+- [x] Pass Verity PMD/PFTP readiness and ACC
+  start/stop/retrieval/verification/cleanup-dry-run E2E despite the absent
+  Loop-style FTU marker.
+- [x] Define and contract-test device-specific Verity wear-location FTU through
+  the existing generated `UDEVSET.BPB` schema and settings patch.
+- [x] Pass the narrowed tracked Verity profile through public CLI apply and
+  independent Bleak read-back; add a family-gated reproducible live test.
+- [x] Validate Verity system/local time update and independent read-back through
+  Bleak: both writes succeeded without fallback, timezone offset was retained,
+  and the clock advanced across a new managed session.
+- [ ] Define and contract-test Verity pool length through generated SDK tooling;
+  do not infer a pool-setting write path from schemas alone.
 - [ ] Design and contract-test the narrow Linux authentication-agent boundary;
-  fresh Loop Gen 2 preparation is a Bleak-plus-OS-adapter candidate.
+  fresh Loop Gen 2 and factory-reset Verity Sense preparation are
+  Bleak-plus-OS-adapter candidates.
 
 ## Phase 2 — transport and lifecycle
 
