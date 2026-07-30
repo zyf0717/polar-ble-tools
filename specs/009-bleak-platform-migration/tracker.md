@@ -23,8 +23,15 @@ selects their applicable verdict.
   cleanup dry-run.
 - [x] Apply the maintainer-approved `docs/ftu-profile.example.json` input and
   verify FTU completion plus every declared physical/settings field.
-- [ ] Obtain separately authorized fresh-preparation evidence; no device reset
-  or bond removal is authorized by the initial experiment.
+- [x] Obtain separately authorized fresh Loop Gen 2 preparation evidence after
+  device reset and exact host-record removal: Bleak required a BlueZ
+  authentication agent, then paired, verified PMD/PFTP, disconnected, and
+  persisted across new-client and new-process reconnects.
+- [x] Re-establish FTU from the tracked documentation profile after reset and
+  pass the Bleak FTU/PMD/PFTP/ACC/retrieval/verification/cleanup-dry-run E2E
+  from the freshly paired state.
+- [ ] Design and contract-test the narrow Linux authentication-agent boundary;
+  fresh Loop Gen 2 preparation is a Bleak-plus-OS-adapter candidate.
 
 ## Phase 2 — transport and lifecycle
 

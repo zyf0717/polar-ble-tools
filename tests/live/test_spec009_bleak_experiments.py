@@ -1,8 +1,11 @@
-"""Opt-in, non-reset Bleak experiments for SPEC-009.
+"""Opt-in Bleak experiments for SPEC-009.
 
-These probes require an already prepared device in the ignored private
-inventory. They never request pairing, remove a bond, write device settings,
-control recordings, fetch payloads, or delete device data.
+The default probes require an already prepared device in the ignored private
+inventory. Fresh preparation is separately gated and assumes the maintainer
+has reset the device, removed its exact host-side bond, and, on Linux,
+registered an appropriate BlueZ authentication agent. These probes never remove
+a bond, write device settings, control recordings, fetch payloads, or delete
+device data.
 """
 
 from __future__ import annotations
@@ -18,13 +21,34 @@ from polar_ble_tools.inventory import InventoryError, load_allowed_mac_addresses
 from polar_ble_tools.polar.uuids import PFTP_SERVICE, PMD_SERVICE
 
 SPEC009_LIVE_ENV = "POLAR_BLE_SPEC009"
+SPEC009_FRESH_PREPARATION_ENV = "POLAR_BLE_SPEC009_FRESH_PREPARATION"
 LIVE_MAC_ENV = "POLAR_BLE_LIVE_MAC"
 TEST_DEVICES_FILE = Path("test_devices.yaml")
 DISCOVERY_TIMEOUT_SECONDS = 10.0
 CONNECT_TIMEOUT_SECONDS = 20.0
+PAIRING_TIMEOUT_SECONDS = 45.0
 TEST_TIMEOUT_SECONDS = 60.0
+FRESH_PREPARATION_TEST_TIMEOUT_SECONDS = 90.0
 REPEAT_CONNECTIONS = 3
 MISSING_DEVICE_ADDRESS = "00:00:00:00:00:00"
+
+
+def test_spec009_fresh_bleak_preparation() -> None:
+    target = _load_authorized_target()
+    if os.environ.get(SPEC009_FRESH_PREPARATION_ENV) != "1":
+        pytest.skip(f"{SPEC009_FRESH_PREPARATION_ENV}=1 is required.")
+    result = asyncio.run(
+        asyncio.wait_for(
+            _fresh_bleak_preparation(target),
+            timeout=FRESH_PREPARATION_TEST_TIMEOUT_SECONDS,
+        )
+    )
+
+    assert result["initial_connection_ready"] is True
+    assert result["initial_final_connected"] is False
+    assert result["reconnect_ready"] is True
+    assert result["reconnect_final_connected"] is False
+    print("spec009_fresh_bleak_preparation=passed connections=2")
 
 
 def test_spec009_structured_discovery_and_native_reconnect() -> None:
@@ -125,6 +149,52 @@ async def _structured_discovery_and_native_reconnect(target: str) -> dict[str, o
         "local_name_present": bool(advertisement.local_name),
         "rssi_present": isinstance(advertisement.rssi, int),
         "service_uuid_count": len(advertisement.service_uuids),
+    }
+
+
+async def _fresh_bleak_preparation(target: str) -> dict[str, bool]:
+    device = await BleakScanner.find_device_by_address(
+        target,
+        timeout=DISCOVERY_TIMEOUT_SECONDS,
+    )
+    if device is None:
+        raise AssertionError("The reset SPEC-009 target was not observed.")
+
+    initial_client = BleakClient(
+        device,
+        pair=True,
+        timeout=PAIRING_TIMEOUT_SECONDS,
+    )
+    try:
+        await initial_client.connect()
+        _assert_required_services(initial_client)
+        initial_connection_ready = initial_client.is_connected
+    finally:
+        await initial_client.disconnect()
+
+    reconnect_device = await BleakScanner.find_device_by_address(
+        target,
+        timeout=DISCOVERY_TIMEOUT_SECONDS,
+    )
+    if reconnect_device is None:
+        raise AssertionError("The prepared SPEC-009 target was not resolved for reconnect.")
+    reconnect_client = BleakClient(
+        reconnect_device,
+        pair=False,
+        timeout=CONNECT_TIMEOUT_SECONDS,
+    )
+    try:
+        await reconnect_client.connect()
+        _assert_required_services(reconnect_client)
+        reconnect_ready = reconnect_client.is_connected
+    finally:
+        await reconnect_client.disconnect()
+
+    return {
+        "initial_connection_ready": initial_connection_ready,
+        "initial_final_connected": initial_client.is_connected,
+        "reconnect_ready": reconnect_ready,
+        "reconnect_final_connected": reconnect_client.is_connected,
     }
 
 

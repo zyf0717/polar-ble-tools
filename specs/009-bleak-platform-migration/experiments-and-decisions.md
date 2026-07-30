@@ -155,10 +155,11 @@ POLAR_BLE_LIVE_MAC="<authorized identifier>" \
 pytest -q -s tests/live/test_spec009_bleak_experiments.py
 ```
 
-The initial controlled run passed both tests in 35.88 seconds, including three
-native-resolution connection cycles. The test module always uses `pair=False`
-and performs no bond removal, device reset, FTU write, recording control,
-payload fetch, or deletion.
+The initial controlled run passed both default tests in 35.88 seconds,
+including three native-resolution connection cycles. Those default tests
+always use `pair=False` and perform no bond removal, device reset, FTU write,
+recording control, payload fetch, or deletion. The separately gated fresh
+preparation test added below uses `pair=True`.
 
 ### Provisional conclusions
 
@@ -227,3 +228,85 @@ These results establish representative FTU-read, PMD-control, PFTP listing,
 raw retrieval, local verification, and guarded-cleanup behavior across managed
 sessions. The documented FTU input is now verified on the authorized Loop Gen
 2. Actual deletion remains outside the current authorization.
+
+## Fresh Loop Gen 2 preparation evidence — 2026-07-30
+
+The maintainer reset the authorized Loop Gen 2 and explicitly authorized
+removal of its exact host-side BLE cache record. The device was disconnected
+before each removal. The host-side setup and probes did not change an
+adapter-wide cache, another device record, FTU data, recordings, or device
+files.
+
+The host environment remained Bleak 3.0.2, BlueZ 5.72, Python 3.13.14, and
+Linux x86_64.
+
+| Experiment | Result | Evidence and limitation |
+| --- | --- | --- |
+| Exact BlueZ record removal | Passed | The prior paired, bonded, trusted, disconnected record was removed and `bluetoothctl info` reported the exact device unavailable before the fresh probe. This established the uncached host precondition; removal itself is test setup, not a proposed package workflow. |
+| Fresh Bleak preparation without an authentication agent | Failed; missing dependency identified | Structured Bleak resolution found the reset device, but `BleakClient(BLEDevice, pair=True)` failed in 11.39 seconds with `org.bluez.Error.AuthenticationFailed`. BlueZ reported that no agent was available for authentication request type 2. The failed attempt ended unpaired, unbonded, trusted, and disconnected; Bleak had set trust before requesting pairing. |
+| First agent-assisted retry | Failed and recovered | With an ephemeral BlueZ `KeyboardDisplay` agent requested, the first bounded retry failed in 7.84 seconds with `org.bluez.Error.ConnectionAttemptFailed: Page Timeout`. It did not reach authentication and ended unpaired and disconnected. The exact record was removed again before the controlled retry. |
+| Fresh Bleak preparation with a confirmed default authentication agent | Passed | After confirming the ephemeral `KeyboardDisplay` agent was registered and default, the exact device record was absent. The same Bleak probe resolved the device, paired with `pair=True`, exposed PMD and PFTP, disconnected, re-resolved it, reconnected through a new `pair=False` client, verified services, and disconnected. The two-connection probe passed in 22.65 seconds. |
+| New-process persistence without an agent | Passed | After the agent exited, a separate pytest process performed structured discovery and three `pair=False` client cycles. All exposed PMD/PFTP and disconnected; the run passed in 36.03 seconds with seven advertised services. |
+| Durable postcondition | Passed as Linux diagnostic evidence | BlueZ reported paired, bonded, trusted, unblocked, and disconnected after the agent had exited and all Bleak reconnects completed. |
+
+The separately gated fresh-preparation probe is:
+
+```bash
+POLAR_BLE_SPEC009=1 \
+POLAR_BLE_SPEC009_FRESH_PREPARATION=1 \
+POLAR_BLE_LIVE_MAC="<authorized identifier>" \
+pytest -q -s \
+  tests/live/test_spec009_bleak_experiments.py::test_spec009_fresh_bleak_preparation
+```
+
+On Linux this command assumes the exact host bond is absent, the device is in
+its fresh pairing window, and a suitable BlueZ authentication agent is already
+registered. The harness itself does not remove bonds or register an agent.
+
+### Fresh-preparation conclusion
+
+- Fresh Loop Gen 2 preparation is a **Bleak plus OS adapter candidate**, not a
+  Bleak-only candidate on a Linux host without an existing authentication
+  agent. Bleak owned discovery, trust request, pairing request, service
+  readiness, disconnect, and reconnect, but did not supply the BlueZ
+  authentication-agent callback required by this device.
+- The demonstrated missing outcome is narrowly scoped to Linux authentication
+  agent registration and bounded interaction. Any adapter must be typed,
+  injectable, independently tested, and limited to that OS-owned concern; it
+  must not own scanning, connection, PMD, or PFTP.
+- Once prepared, discovery, readiness, disconnect, same-process reconnect, and
+  new-process reconnect remained Bleak-only and did not require the agent.
+- A transient `Page Timeout` remains part of the recovery matrix. One bounded
+  clean-precondition retry succeeded; retry limits and typed failure mapping
+  remain to be decided.
+- macOS and Windows preparation behavior remains pending and must not inherit
+  this Linux-specific mechanism.
+
+## Post-reset FTU and Bleak E2E evidence — 2026-07-30
+
+After fresh pairing, BlueZ reported the authorized Loop Gen 2 paired, bonded,
+trusted, and disconnected. A Bleak-backed `ftu_status()` call reported
+`false`, confirming that successful BLE preparation did not imply completed
+Polar first-time use.
+
+The maintainer-authorized `docs/ftu-profile.example.json` was then applied
+through the Bleak-backed FTU workflow. FTU completion and all 14 declared
+physical/settings fields were read back and verified in 40.22 seconds without
+logging their values.
+
+The post-FTU Bleak E2E passed:
+
+| Workflow | Result |
+| --- | --- |
+| FTU/config/settings diagnostics | Passed; FTU complete, seven settings fields and four diagnostic fields observed. |
+| PMD/PFTP readiness | Passed; five available recording types, five status entries, trigger configuration, disk-space invariants, and raw listing verified. |
+| ACC recording lifecycle | Passed; one short ACC recording was started, observed active, stopped, and materialized as `ACC0`. |
+| Raw retrieval and local verification | Passed; the new recording was fetched, atomically persisted beneath the ignored local root, and verified by manifest size and SHA-256. |
+| Guarded cleanup | Passed in dry-run mode; the verified recording was selected, zero device files were deleted, and the recording was retained. |
+
+The combined E2E run passed three tests with one independently gated FTU-apply
+test skipped in 49.12 seconds. Final independent checks reported FTU complete,
+zero active recordings, and paired, bonded, trusted, unblocked, disconnected
+BlueZ state. The authentication agent was not required after fresh pairing;
+all FTU, PMD, PFTP, recording, retrieval, and verification operations used the
+package's Bleak transport.
