@@ -9,6 +9,9 @@ All notable changes to this project are documented here.
 - Scoped FTU profiles by device family and added a Verity Sense FTU path that
   sets runtime system/local time, applies wear location, and rejects
   unsupported pool-length input.
+- Selected and contract-tested the Bleak dependency range
+  `bleak>=1.0,<3.1`; simultaneous two-device operation uses one structured
+  scan and native `BLEDevice` client construction.
 
 ## 0.4.1 — 2026-07-29
 

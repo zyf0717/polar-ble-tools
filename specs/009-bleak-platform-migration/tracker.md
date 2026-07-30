@@ -11,7 +11,8 @@ selects their applicable verdict.
 - [ ] Baseline current supported Linux package outcomes.
 - [ ] Run discovery, resolution, preparation, readiness, reconnect, failure,
   concurrency, and Bleak-version experiments.
-- [ ] Record the selected Bleak dependency range.
+- [x] Record `bleak>=1.0,<3.1` after isolated full unit/contract passes on
+  Bleak 1.0.0 and current PyPI release 3.0.2; hardware evidence uses 3.0.2.
 - [x] Record initial non-reset Loop Gen 2 evidence for structured discovery,
   existing-device preparation, explicit resolution, readiness, cancellation,
   disconnect, same-host/new-process reconnect, and representative PMD/PFTP
@@ -70,6 +71,13 @@ selects their applicable verdict.
 - [x] **FR-090** — Integrate the verified time and wear-location operations as
   one protocol-client path; pass both public Python and CLI application with
   independent time/location read-back on authorized Verity hardware.
+- [x] Prove deterministic same-device serialization and distinct-device
+  overlap; record the current string-address concurrent-scan failure and pass
+  three shared-scan/native-object simultaneous PMD/PFTP cycles on both
+  configured devices.
+- [x] Cancel one of two simultaneous native connects, verify the other reaches
+  readiness, clean both clients, and pass concurrent PMD/PFTP recovery on both
+  configured devices.
 - [ ] Define and contract-test Verity pool length through generated SDK tooling;
   do not infer a pool-setting write path from schemas alone.
 - [ ] Design and contract-test the narrow Linux authentication-agent boundary;

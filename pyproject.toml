@@ -42,7 +42,7 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 dependencies = [
-    "bleak>=1.0,<4.0",
+    "bleak>=1.0,<3.1",
     "cryptography>=49,<50",
     "platformdirs>=4,<5",
     "protobuf>=6.33.5,<7.0",

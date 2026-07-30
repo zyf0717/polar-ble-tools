@@ -512,3 +512,78 @@ a read-only session verified both outcomes with device time 1.608 seconds
 outside the host query interval, within the five-second PFTP-latency bound.
 Both runs ended paired, bonded, trusted, unblocked, and disconnected. No Loop
 setup file, recording, or profile file was changed.
+
+## Two-device concurrency evidence — 2026-07-30
+
+The maintainer authorized simultaneous read-only use of both configured device
+categories. The first package-level probe opened two `open_polar_device()`
+sessions concurrently. It failed immediately and cleanly because each current
+string-address `BleakClient` attempted its own implicit scan; BlueZ rejected
+the competing scan with `org.bluez.Error.InProgress`. Both devices remained
+paired, bonded, trusted, unblocked, and disconnected. This is negative evidence
+against string-address client construction under concurrency.
+
+The candidate probe performed one structured Bleak discovery with
+`return_adv=True`, selected both explicitly authorized observations, and
+constructed each `BleakClient` from its current-context native `BLEDevice`.
+Both clients then connected concurrently, and each performed PMD available-type
+and PFTP disk-space reads while both connections were active. The initial
+candidate probe passed in 16.299 seconds.
+
+The reproducible SPEC-009 live gate repeated that native-object sequence for
+three consecutive simultaneous connect/read/disconnect cycles. All six PMD
+reads and all six PFTP reads passed; after every cycle, both clients reported
+disconnected. The final-source run passed in 31.85 seconds, and final Linux
+diagnostics for both devices were paired, bonded, trusted, unblocked, and
+disconnected. No
+pairing, FTU, recording control, payload retrieval, or device-file mutation was
+performed.
+
+A separate simultaneous cancellation probe started both native connections,
+cancelled one after 250 milliseconds, and allowed the other to reach service
+readiness. Cleanup disconnected both clients. Two fresh native clients then
+connected concurrently, passed PMD/PFTP reads, and disconnected. The
+reproducible test passed in 22.03 seconds. This covers one-branch connect
+cancellation and shared-adapter recovery; deterministic cancellation during
+the other lifecycle phases remains a synthetic matrix requirement.
+
+```bash
+POLAR_BLE_SPEC009=1 \
+POLAR_BLE_LIVE_MAC="<authorized primary identifier>" \
+POLAR_BLE_LIVE_SECONDARY_MAC="<authorized secondary identifier>" \
+pytest -q -s \
+  tests/live/test_spec009_bleak_experiments.py::test_spec009_shared_scan_two_device_concurrency
+```
+
+The simultaneous cancellation/recovery gate uses the same environment and:
+
+```bash
+pytest -q -s \
+  tests/live/test_spec009_bleak_experiments.py::test_spec009_two_device_connect_cancellation_and_recovery
+```
+
+Deterministic workflow-runner contracts additionally prove that normalized
+aliases of one device serialize and that two distinct device identities enter
+their workflows concurrently. The **Multiple devices** verdict is
+**Bleak-only with shared discovery/native resolution**. Concurrent
+string-address construction is rejected because it creates competing hidden
+scans. The current controlled evidence is limited to one Linux/BlueZ adapter,
+two devices, three consecutive cycles, and read-only PMD/PFTP operations;
+long-duration stress and physical multi-adapter behavior remain outside this
+verdict.
+
+## Bleak version-range evidence — 2026-07-30
+
+PyPI reported Bleak 3.0.2 as the newest published release. The minimum existing
+project constraint, Bleak 1.0.0, and newest release 3.0.2 each passed eight
+focused injected backend, managed-device, and workflow concurrency tests.
+Isolated environments with the complete `dev,sdk` dependency set then passed
+all 263 unit and contract tests at both endpoints.
+
+Controlled Linux hardware evidence, including the simultaneous two-device
+probe above, used Bleak 3.0.2. The selected dependency range is
+`bleak>=1.0,<3.1`: it retains the verified minimum, admits the tested 3.0 patch
+line, and does not imply compatibility with an untested future 3.1+ API.
+Versions between the tested endpoints are admitted by the package contract but
+were not each run individually; macOS and Windows hardware remain SPEC-005
+evidence.
