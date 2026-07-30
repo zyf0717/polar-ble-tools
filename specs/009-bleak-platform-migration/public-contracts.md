@@ -73,6 +73,15 @@ async with open_polar_device(identifier) as device:
     ...
 ```
 
+## Device-specific FTU
+
+`apply_ftu(identifier, profile)` selects an explicit setup path from the
+validated profile family. Loop Gen 2 writes its physical profile and
+user-identifier contract. Verity Sense derives current timezone-aware host time
+after connection, writes system/local time, and patches wear location through
+`UDEVSET.BPB`. The Verity profile contains only device family and wear
+location; it rejects Loop fields and unverified pool-length input.
+
 ## CLI
 
 `polar-ble` remains canonical:

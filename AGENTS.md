@@ -20,11 +20,14 @@
 * Keep device setup profiles explicit: `loop-gen2-ftu-profile.example.json`
   uses `FtuProfile`; `verity-sense-ftu-profile.example.json` uses
   `VeritySenseFtuProfile`; `load_ftu_profile()` performs device-family
-  dispatch. Verity FTU is intentionally limited to the verified wear-location
-  patch through `UDEVSET.BPB`. The observed `/U/USENSET.BPB` pool-settings
-  candidate rejects reads, and the verified SDK exposes neither its root schema
-  nor a pool-length write operation. Verity profiles must reject pool length;
-  do not infer a write from `PbSwimmingPoolInfo` alone.
+  dispatch. Verity FTU captures timezone-aware host time after connection,
+  writes system/local time, and applies the verified wear-location patch
+  through `UDEVSET.BPB`; it must not write Loop physical data or user
+  identifiers. Runtime time is not profile input. The observed
+  `/U/USENSET.BPB` pool-settings candidate rejects reads, and the verified SDK
+  exposes neither its root schema nor a pool-length write operation. Verity
+  profiles must reject pool length; do not infer a write from
+  `PbSwimmingPoolInfo` alone.
 
 ## Development workflow
 

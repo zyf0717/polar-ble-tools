@@ -59,13 +59,17 @@ selects their applicable verdict.
 - [x] Pass Verity PMD/PFTP readiness and ACC
   start/stop/retrieval/verification/cleanup-dry-run E2E despite the absent
   Loop-style FTU marker.
-- [x] Define and contract-test device-specific Verity wear-location FTU through
-  the existing generated `UDEVSET.BPB` schema and settings patch.
+- [x] Define and contract-test device-specific Verity FTU: runtime
+  system/local-time setup followed by the generated `UDEVSET.BPB`
+  wear-location patch, with no Loop physical-data or user-identifier writes.
 - [x] Pass the narrowed tracked Verity profile through public CLI apply and
   independent Bleak read-back; add a family-gated reproducible live test.
 - [x] Validate Verity system/local time update and independent read-back through
   Bleak: both writes succeeded without fallback, timezone offset was retained,
   and the clock advanced across a new managed session.
+- [x] **FR-090** — Integrate the verified time and wear-location operations as
+  one protocol-client path; pass both public Python and CLI application with
+  independent time/location read-back on authorized Verity hardware.
 - [ ] Define and contract-test Verity pool length through generated SDK tooling;
   do not infer a pool-setting write path from schemas alone.
 - [ ] Design and contract-test the narrow Linux authentication-agent boundary;

@@ -13,7 +13,6 @@ from polar_ble_tools.commands.common import (
 )
 from polar_ble_tools.polar.setup import (
     DeviceLocation,
-    FtuProfile,
     PolarSetupClient,
     SetupError,
     SetupValidationError,
@@ -106,10 +105,14 @@ async def _apply_ftu(args: argparse.Namespace) -> int:
     settings_patch = profile.user_device_settings
     device, setup_client = await _open_setup_client(args.mac_address)
     try:
-        if isinstance(profile, FtuProfile):
+        if isinstance(profile, VeritySenseFtuProfile):
+            await setup_client.do_verity_sense_first_time_use(profile)
+        else:
             await setup_client.do_first_time_use(profile)
         settings_updated = False
-        if settings_patch is not None and settings_patch.has_changes:
+        if isinstance(profile, VeritySenseFtuProfile):
+            settings_updated = True
+        elif settings_patch is not None and settings_patch.has_changes:
             await setup_client.set_user_device_settings(settings_patch)
             settings_updated = True
         _print_json(
@@ -184,6 +187,8 @@ def _dry_run_ftu(args: argparse.Namespace) -> int:
                     "fields": ["device_family", "device_location"],
                 },
                 "operations": [
+                    "SET_SYSTEM_TIME",
+                    "SET_LOCAL_TIME",
                     "GET /U/0/S/UDEVSET.BPB",
                     "PUT /U/0/S/UDEVSET.BPB",
                 ],

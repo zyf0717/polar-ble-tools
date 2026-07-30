@@ -91,9 +91,10 @@ polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
 Copy the
 [Verity Sense FTU profile example](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/verity-sense-ftu-profile.example.json)
 to a private location and select the wear location. Validate and apply it with
-the same `ftu dry-run` and `ftu apply` commands. Verity FTU currently applies
-wear location only; pool length is rejected because its device write contract
-is not supported.
+the same `ftu dry-run` and `ftu apply` commands. Verity FTU sets system/local
+time from the timezone-aware host clock after connecting, then applies wear
+location. Time is runtime state and is not stored in the profile. Pool length
+is rejected because its device write contract is not supported.
 
 ### Passive data from Polar Loop Gen 2
 

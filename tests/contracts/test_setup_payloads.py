@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 
 import pytest
 
+from polar_ble_tools.polar.pftp import PftpQuery
 from polar_ble_tools.polar.setup import (
     FtuProfile,
     Gender,
+    PolarSetupClient,
+    SetupStateError,
     TypicalDay,
     build_local_time_payload,
     build_physical_data_payload,
     build_system_time_payload,
     build_user_identifier_payload,
+    parse_local_time_payload,
 )
 
 # Digests preserve exact payload bytes for the synthetic input below without
@@ -58,3 +63,24 @@ def test_setup_payload_bytes_match_contract(name: str, payload: object) -> None:
 
     assert len(value) == expected_size
     assert sha256(value).hexdigest() == expected_digest
+
+
+def test_local_time_payload_round_trip_contract() -> None:
+    assert parse_local_time_payload(build_local_time_payload(FIXED_TIME)) == FIXED_TIME
+
+
+def test_local_time_payload_rejects_malformed_response() -> None:
+    with pytest.raises(SetupStateError, match="local-time data"):
+        parse_local_time_payload(b"\xff")
+
+
+def test_setup_client_reads_local_time_contract() -> None:
+    class FakePftpClient:
+        async def query(self, query: PftpQuery, payload: bytes | None = None) -> bytes:
+            assert query is PftpQuery.GET_LOCAL_TIME
+            assert payload is None
+            return build_local_time_payload(FIXED_TIME)
+
+    client = PolarSetupClient(FakePftpClient())
+
+    assert asyncio.run(client.get_local_time()) == FIXED_TIME

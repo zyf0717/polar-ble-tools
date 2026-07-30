@@ -16,6 +16,8 @@ Bleak-first, platform-neutral design:
 - bounded service-readiness probing and managed connection ownership;
 - disconnect, reconnect, cancellation, timeout, and failure cleanup;
 - shared orchestration for PMD, PFTP, raw, passive, and FTU workflows;
+- parallel device-specific FTU paths that keep Loop physical setup isolated
+  from Verity runtime-time and wear-location setup;
 - platform-neutral identifiers, public models, commands, and inventories;
 - automated portability contracts for Linux, macOS, and Windows;
 - controlled Linux hardware validation for the currently supported devices.

@@ -416,9 +416,10 @@ Verity setup remained unmodeled pending a device-specific contract.
   controlled Linux devices.
 - Factory-reset Verity evidence confirms that the Linux agent requirement was
   not an artifact of a retained device-side bond.
-- The current Loop-style FTU workflow is inapplicable to Verity. Verity's
-  device-specific setup remains unmodeled, while its Bleak-backed
-  PMD/PFTP/ACC/retrieval workflow passes independently.
+- The Loop physical-data/user-identifier FTU workflow is inapplicable to
+  Verity. Verity instead has a device-specific system/local-time and
+  wear-location path, while its Bleak-backed PMD/PFTP/ACC/retrieval workflow
+  passes independently.
 
 ### Sample-backed Verity setup probe
 
@@ -445,11 +446,10 @@ recordings and paired, bonded, trusted, unblocked, disconnected BlueZ state.
 The maintainer subsequently selected the verified subset as the package's
 current Verity FTU contract. The tracked sample was narrowed to
 `device_family` and `device_location`; `VeritySenseFtuProfile` and
-`load_ftu_profile()` now validate and dispatch it. CLI and Python application
-perform only the Bleak-backed `UDEVSET.BPB` read/modify/write. Pool length and
-all other fields are rejected during offline validation. This makes the
-supported wear-location profile executable without broadening the protected
-pool-settings contract.
+`load_ftu_profile()` now validate and dispatch it. Pool length and all other
+fields are rejected during offline validation. This makes the supported
+wear-location profile executable without broadening the protected pool-settings
+contract.
 
 The exact narrowed tracked sample then passed the public CLI apply path on the
 authorized Verity Sense. The command reported FTU applied and settings updated.
@@ -487,6 +487,28 @@ The final host postcondition remained paired, bonded, trusted, unblocked, and
 disconnected. No recording or profile file was changed. This establishes
 Bleak-backed system/local time setup as a Verity workflow candidate. Time is
 runtime state derived immediately after connection from the timezone-aware host
-clock; it does not belong in the Verity profile JSON. The current public Verity
-profile application still changes only `UDEVSET.BPB` wear location pending
-integration of this verified operation.
+clock; it does not belong in the Verity profile JSON.
+
+### Integrated Verity FTU path
+
+The verified time operation was then integrated with wear-location setup as a
+first-class `PolarSetupClient` path. Both public entry points dispatch
+`VeritySenseFtuProfile` to the same sequence within one managed Bleak session:
+
+1. capture current timezone-aware host time after connection readiness;
+2. send `SET_SYSTEM_TIME` and `SET_LOCAL_TIME`;
+3. read, patch, and write wear location in `UDEVSET.BPB`;
+4. disconnect through managed cleanup.
+
+The path never writes Loop `PHYSDATA.BPB` or `USERID.BPB`. A time failure
+reports that clock state may be partial; a later settings failure reports a
+partial FTU after time setup. `GET_LOCAL_TIME` parsing and readback are exposed
+through the setup client for verification.
+
+The family-gated public Python hardware test passed in 20.78 seconds and
+verified both runtime time and `UPPER_ARM_LEFT` in subsequent managed sessions.
+The public CLI path then independently applied the documented Verity profile;
+a read-only session verified both outcomes with device time 1.608 seconds
+outside the host query interval, within the five-second PFTP-latency bound.
+Both runs ended paired, bonded, trusted, unblocked, and disconnected. No Loop
+setup file, recording, or profile file was changed.

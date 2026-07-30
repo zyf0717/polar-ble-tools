@@ -77,7 +77,10 @@ polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
   --profile ~/.config/polar-ble-tools/verity-sense-ftu-profile.json
 ```
 
-Verity application reads, patches, and writes `UDEVSET.BPB` through Bleak. It
-does not execute Loop physical-data or user-identifier writes. Pool length is
-not supported and is rejected during profile validation. Do not add missing
-Loop demographic fields or pass the Loop profile to Verity Sense.
+Verity application captures the timezone-aware host time after the Bleak
+connection is ready, writes system and local time, then reads, patches, and
+writes wear location in `UDEVSET.BPB`. Time is runtime state and must not be
+added to the JSON profile. The workflow does not execute Loop physical-data or
+user-identifier writes. Pool length is not supported and is rejected during
+profile validation. Do not add missing Loop demographic fields or pass the
+Loop profile to Verity Sense.

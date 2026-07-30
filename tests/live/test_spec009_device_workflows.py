@@ -13,6 +13,7 @@ import math
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -138,7 +139,7 @@ def test_spec009_apply_verity_sense_ftu_profile() -> None:
         )
     )
 
-    assert verified_fields == 1
+    assert verified_fields == 2
     print(f"spec009_verity_ftu_apply=passed verified_fields={verified_fields}")
 
 
@@ -282,7 +283,23 @@ async def _apply_and_verify_verity_sense_ftu(
 
     settings = await user_device_settings(config.target)
     assert settings.device_location is profile.device_location
-    return 1
+
+    async with open_polar_device(config.target) as device:
+        query_started = datetime.now().astimezone()
+        device_time = await device.services.setup.get_local_time()
+        query_finished = datetime.now().astimezone()
+    if device_time.utcoffset() != query_started.utcoffset():
+        raise AssertionError("Verity Sense timezone offset does not match the host.")
+    device_utc = device_time.astimezone(timezone.utc)
+    start_utc = query_started.astimezone(timezone.utc)
+    finish_utc = query_finished.astimezone(timezone.utc)
+    clock_interval_error = max(
+        (start_utc - device_utc).total_seconds(),
+        (device_utc - finish_utc).total_seconds(),
+        0.0,
+    )
+    assert clock_interval_error <= 5.0
+    return 2
 
 
 async def _record_fetch_verify_and_dry_run(

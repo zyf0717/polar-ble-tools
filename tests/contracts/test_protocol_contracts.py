@@ -187,6 +187,8 @@ def test_verity_ftu_dry_run_contract(tmp_path: Path, capsys: pytest.CaptureFixtu
     output["profile"]["path"] = "<profile>"
     assert output == {
         "operations": [
+            "SET_SYSTEM_TIME",
+            "SET_LOCAL_TIME",
             "GET /U/0/S/UDEVSET.BPB",
             "PUT /U/0/S/UDEVSET.BPB",
         ],

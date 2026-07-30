@@ -6,8 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
-- Scoped FTU profiles by device family and added an executable Verity Sense
-  wear-location profile that rejects unsupported pool-length input.
+- Scoped FTU profiles by device family and added a Verity Sense FTU path that
+  sets runtime system/local time, applies wear location, and rejects
+  unsupported pool-length input.
 
 ## 0.4.1 — 2026-07-29
 

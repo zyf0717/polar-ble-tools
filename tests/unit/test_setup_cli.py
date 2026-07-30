@@ -118,7 +118,7 @@ def test_ftu_dry_run_includes_profile_settings_without_values(tmp_path, capsys) 
     assert captured.err == ""
 
 
-def test_verity_ftu_dry_run_contains_only_verified_settings_operations(
+def test_verity_ftu_dry_run_contains_verified_time_and_settings_operations(
     tmp_path,
     capsys,
 ) -> None:
@@ -135,6 +135,8 @@ def test_verity_ftu_dry_run_contains_only_verified_settings_operations(
         "fields": ["device_family", "device_location"],
     }
     assert output["operations"] == [
+        "SET_SYSTEM_TIME",
+        "SET_LOCAL_TIME",
         "GET /U/0/S/UDEVSET.BPB",
         "PUT /U/0/S/UDEVSET.BPB",
     ]
@@ -206,7 +208,7 @@ def test_ftu_apply_patches_profile_user_device_settings(
     assert captured.err == ""
 
 
-def test_verity_ftu_apply_only_patches_verified_device_location(
+def test_verity_ftu_apply_uses_device_specific_setup_path(
     tmp_path,
     capsys,
     monkeypatch,
@@ -223,8 +225,8 @@ def test_verity_ftu_apply_only_patches_verified_device_location(
         async def do_first_time_use(self, _profile: object) -> None:
             raise AssertionError("Verity FTU must not use Loop physical-data writes.")
 
-        async def set_user_device_settings(self, patch: object) -> None:
-            calls.append(("settings", patch))
+        async def do_verity_sense_first_time_use(self, profile: object) -> None:
+            calls.append(("verity_ftu", profile))
 
     async def fake_open_setup_client(mac_address: str) -> tuple[object, object]:
         calls.append(("open", mac_address))
@@ -244,6 +246,6 @@ def test_verity_ftu_apply_only_patches_verified_device_location(
         "settings_updated": True,
     }
     assert calls[0] == ("open", "AA:BB:CC:DD:EE:FF")
-    assert calls[1][0] == "settings"
+    assert calls[1][0] == "verity_ftu"
     assert calls[2] == ("disconnect",)
     assert captured.err == ""

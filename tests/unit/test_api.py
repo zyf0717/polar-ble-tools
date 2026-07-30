@@ -124,15 +124,15 @@ def test_apply_ftu_owns_session_and_applies_initial_settings(monkeypatch) -> Non
     assert calls == [("workflow", "AA:BB:CC:DD:EE:FF"), ("apply", profile), ("settings", patch)]
 
 
-def test_apply_verity_ftu_only_updates_verified_settings(monkeypatch) -> None:
+def test_apply_verity_ftu_uses_device_specific_setup_path(monkeypatch) -> None:
     calls: list[object] = []
 
     class Setup:
         async def do_first_time_use(self, _profile: object) -> None:
             raise AssertionError("Verity FTU must not use Loop physical-data writes.")
 
-        async def set_user_device_settings(self, patch: object) -> None:
-            calls.append(("settings", patch))
+        async def do_verity_sense_first_time_use(self, profile: object) -> None:
+            calls.append(("verity_ftu", profile))
 
     class Device:
         services = SimpleNamespace(setup=Setup())
@@ -148,8 +148,7 @@ def test_apply_verity_ftu_only_updates_verified_settings(monkeypatch) -> None:
 
     assert result.ftu_applied and result.settings_updated
     assert calls[0] == ("workflow", "AA:BB:CC:DD:EE:FF")
-    assert calls[1][0] == "settings"
-    assert calls[1][1].device_location is DeviceLocation.UPPER_ARM_LEFT
+    assert calls[1] == ("verity_ftu", profile)
 
 
 def test_recording_control_apis_use_one_workflow_and_immutable_results(

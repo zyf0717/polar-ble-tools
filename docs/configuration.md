@@ -106,8 +106,10 @@ unchanged. FTU helpers own the device session and expose apply, status, physical
 configuration, settings read/update, and diagnostics. `load_ftu_profile()`
 dispatches the Loop Gen 2 `FtuProfile` and Verity Sense
 `VeritySenseFtuProfile`; `apply_ftu()` accepts either. The
-[Verity Sense FTU sample](verity-sense-ftu-profile.example.json) applies only
-wear location and rejects unsupported pool-length input. See the complete
+[Verity Sense FTU sample](verity-sense-ftu-profile.example.json) causes
+`apply_ftu()` to set current host system/local time after connecting and then
+apply wear location. Runtime time is intentionally absent from the profile.
+Unsupported pool-length input is rejected. See the complete
 [Python API reference](python-api.md), including specialized SDK, BPB, REC,
 passive-file, and lower-level protocol modules.
 

@@ -280,7 +280,7 @@ async def apply_ftu(
         setup = device.services.setup
         patch = profile.user_device_settings
         if isinstance(profile, VeritySenseFtuProfile):
-            await setup.set_user_device_settings(patch)
+            await setup.do_verity_sense_first_time_use(profile)
             return FtuApplyResult(ftu_applied=True, settings_updated=True)
         await setup.do_first_time_use(profile)
         if patch is not None and patch.has_changes:

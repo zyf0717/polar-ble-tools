@@ -57,6 +57,17 @@ information. Timeouts are bounded, partial connections are cleaned up, and
 diagnostics do not expose inventories, captures, payloads, or unnecessary
 device metadata.
 
+## Device-specific FTU
+
+**FR-090** — `apply_ftu()` dispatches a validated device-family profile to one
+explicit setup path under the managed Bleak connection. Loop Gen 2 retains its
+system/local time, physical-data, user-identifier, and optional settings
+workflow. Verity Sense captures current timezone-aware host time after
+connection, writes system/local time, and applies wear location through
+`UDEVSET.BPB`; it never writes Loop physical data or user identifiers. Verity
+runtime time is not profile input, and pool length remains rejected until a
+complete generated-schema read/modify/write contract is verified.
+
 ## Public contract, evidence, and release
 
 **FR-087** — `0.5.0` replaces MAC-specific and persistent-connection public

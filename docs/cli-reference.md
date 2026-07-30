@@ -54,8 +54,10 @@ direct Python API is available.
 | `rec decode` | Decode local REC into JSONL | `decode_recording()` |
 | `doctor` | Report core/SDK/decoder readiness | `doctor()` |
 
-Verity Sense FTU applies only the verified wear-location setting. Its profile
-rejects pool length because no supported device write contract is available.
+Verity Sense FTU sets current timezone-aware host system/local time after
+connecting, then applies the verified wear-location setting. Time remains
+runtime state rather than profile input. The profile rejects pool length
+because no supported device write contract is available.
 
 The command wrappers remain available as `*_main(argv)` functions and
 `polar_ble_tools.commands.main.main(argv)`, but they are intended for process

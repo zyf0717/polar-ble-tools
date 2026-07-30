@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from google.protobuf.message import DecodeError, EncodeError
@@ -120,6 +120,32 @@ def build_local_time_payload(device_time: datetime) -> bytes:
     offset = aware.utcoffset()
     message.tz_offset = int(offset.total_seconds() // 60) if offset else 0
     return message.SerializeToString()
+
+
+def parse_local_time_payload(data: bytes) -> datetime:
+    message = pftp_request_pb2.PbPFtpSetLocalTimeParams()
+    try:
+        message.ParseFromString(data)
+    except DecodeError as exc:
+        raise SetupStateError("Local time response is not valid local-time data.") from exc
+    if not message.IsInitialized():
+        raise SetupStateError("Local time response is missing required fields.")
+    try:
+        local_timezone = timezone(timedelta(minutes=message.tz_offset))
+        return datetime(
+            message.date.year,
+            message.date.month,
+            message.date.day,
+            message.time.hour,
+            message.time.minute,
+            message.time.seconds,
+            message.time.millis * 1000,
+            tzinfo=local_timezone,
+        )
+    except ValueError as exc:
+        raise SetupStateError(
+            "Local time response contains an invalid date, time, or offset."
+        ) from exc
 
 
 def build_system_datetime(device_time: datetime | None = None) -> types_pb2.PbSystemDateTime:

@@ -48,6 +48,9 @@ On Polar Loop Gen 2 and Polar Verity Sense, validate:
 6. managed disconnect and reconnect with a new client;
 7. reconnect from a new process when preparation persistence is required;
 8. bounded timeout/failure cleanup and a later successful recovery.
+9. device-family FTU dispatch: Loop physical/user setup remains isolated, while
+   Verity sets runtime system/local time and wear location with independent
+   read-back.
 
 Fresh preparation remains incomplete when no authorized unprepared state is
 available. A skipped hardware case is not evidence.

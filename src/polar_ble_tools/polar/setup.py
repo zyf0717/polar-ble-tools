@@ -11,6 +11,7 @@ from polar_ble_tools.polar.setup_payloads import (
     build_system_time_payload,
     build_user_identifier_payload,
     is_user_identifier_present,
+    parse_local_time_payload,
     parse_physical_configuration,
     parse_user_device_settings,
     profile_payload_sizes,
@@ -67,6 +68,7 @@ __all__ = [
     "build_user_identifier_payload",
     "is_user_identifier_present",
     "load_ftu_profile",
+    "parse_local_time_payload",
     "parse_physical_configuration",
     "parse_user_device_settings",
     "profile_payload_sizes",
@@ -122,6 +124,28 @@ class PolarSetupClient:
             PftpQuery.SET_LOCAL_TIME,
             build_local_time_payload(device_time),
         )
+
+    async def get_local_time(self) -> datetime:
+        return parse_local_time_payload(await self.pftp_client.query(PftpQuery.GET_LOCAL_TIME))
+
+    async def do_verity_sense_first_time_use(
+        self,
+        profile: VeritySenseFtuProfile,
+    ) -> None:
+        try:
+            # Capture runtime state only after the managed BLE connection is
+            # ready so connection latency is not written into the device clock.
+            await self.set_local_time(datetime.now().astimezone())
+        except Exception as exc:
+            raise SetupDeviceResponseError(
+                "Verity Sense FTU time setup failed; device time state may be partial."
+            ) from exc
+        try:
+            await self.set_user_device_settings(profile.user_device_settings)
+        except Exception as exc:
+            raise SetupPartialWriteError(
+                "Verity Sense FTU failed after setting device time; device state may be partial."
+            ) from exc
 
     async def is_ftu_done(self) -> bool:
         data = await self.pftp_client.get_file(USER_IDENTIFIER_PATH)

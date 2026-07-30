@@ -29,10 +29,12 @@ next phase's verdict.
    owner.
 2. Route PMD, PFTP, raw, passive, and FTU commands through shared workflow
    orchestration.
-3. Replace persistent connect/release behavior and remove obsolete
+3. Dispatch Loop Gen 2 and Verity Sense FTU through isolated protocol-client
+   paths, including runtime time setup for Verity Sense.
+4. Replace persistent connect/release behavior and remove obsolete
    `bluetoothctl` parsing, models, arguments, and entry points according to the
    accepted verdicts.
-4. Publish the platform-neutral asynchronous Python and CLI contracts.
+5. Publish the platform-neutral asynchronous Python and CLI contracts.
 
 ## Phase 4 — validation and `0.5.x` release
 
