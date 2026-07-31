@@ -3,8 +3,15 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
-from typing import TYPE_CHECKING
 
+from polar_ble_tools.api import (
+    apply_ftu,
+    diagnose_ftu,
+    ftu_status,
+    physical_configuration,
+    update_user_device_settings,
+    user_device_settings,
+)
 from polar_ble_tools.commands.common import (
     print_json as _print_json,
 )
@@ -13,15 +20,12 @@ from polar_ble_tools.commands.common import (
 )
 from polar_ble_tools.polar.setup import (
     DeviceLocation,
-    FtuProfile,
-    PolarSetupClient,
     SetupError,
     SetupValidationError,
     UserDeviceSettingsPatch,
+    VeritySenseFtuProfile,
+    load_ftu_profile,
 )
-
-if TYPE_CHECKING:
-    from polar_ble_tools.device import PolarDeviceSession
 
 
 def build_ftu_parser() -> argparse.ArgumentParser:
@@ -29,8 +33,8 @@ def build_ftu_parser() -> argparse.ArgumentParser:
         description="Apply and inspect Polar first-time-use setup over BLE."
     )
     parser.add_argument(
-        "--mac-address",
-        help="Target paired Polar BLE device MAC address or platform identifier.",
+        "--device-identifier",
+        help="Target Polar BLE platform identifier.",
     )
     parser.add_argument(
         "--devices-file",
@@ -87,91 +91,68 @@ def build_ftu_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def _open_setup_client(
-    mac_address: str,
-) -> tuple[PolarDeviceSession, PolarSetupClient]:
-    # Device orchestration remains independently importable from offline FTU
-    # validation; only live commands require this optional subsystem.
-    from polar_ble_tools.device import open_polar_device
-
-    device = open_polar_device(mac_address)
-    await device.__aenter__()
-    return device, device.services.setup
-
-
 async def _apply_ftu(args: argparse.Namespace) -> int:
-    profile = FtuProfile.from_json_file(args.profile)
-    settings_patch = profile.user_device_settings
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        await setup_client.do_first_time_use(profile)
-        settings_updated = False
-        if settings_patch is not None and settings_patch.has_changes:
-            await setup_client.set_user_device_settings(settings_patch)
-            settings_updated = True
-        _print_json(
-            {
-                "ftu_applied": True,
-                "settings_updated": settings_updated,
-            }
-        )
-    finally:
-        await device.aclose()
+    profile = load_ftu_profile(args.profile)
+    result = await apply_ftu(args.device_identifier, profile)
+    _print_json(
+        {
+            "ftu_applied": result.ftu_applied,
+            "settings_updated": result.settings_updated,
+        }
+    )
     return 0
 
 
 async def _status_ftu(args: argparse.Namespace) -> int:
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        _print_json({"ftu_done": await setup_client.is_ftu_done()})
-    finally:
-        await device.aclose()
+    _print_json({"ftu_done": await ftu_status(args.device_identifier)})
     return 0
 
 
 async def _physical_config_ftu(args: argparse.Namespace) -> int:
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        config = await setup_client.get_physical_configuration()
-        _print_json(config.to_jsonable() if config is not None else None)
-    finally:
-        await device.aclose()
+    config = await physical_configuration(args.device_identifier)
+    _print_json(config.to_jsonable() if config is not None else None)
     return 0
 
 
 async def _settings_get_ftu(args: argparse.Namespace) -> int:
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        settings = await setup_client.get_user_device_settings()
-        _print_json(settings.to_jsonable())
-    finally:
-        await device.aclose()
+    settings = await user_device_settings(args.device_identifier)
+    _print_json(settings.to_jsonable())
     return 0
 
 
 async def _settings_set_ftu(args: argparse.Namespace) -> int:
     patch = _settings_patch_from_args(args)
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        await setup_client.set_user_device_settings(patch)
-        _print_json({"settings_updated": True})
-    finally:
-        await device.aclose()
+    await update_user_device_settings(args.device_identifier, patch)
+    _print_json({"settings_updated": True})
     return 0
 
 
 async def _diagnose_ftu(args: argparse.Namespace) -> int:
-    device, setup_client = await _open_setup_client(args.mac_address)
-    try:
-        _print_json(await setup_client.diagnose_setup())
-    finally:
-        await device.aclose()
+    _print_json(await diagnose_ftu(args.device_identifier))
     return 0
 
 
 def _dry_run_ftu(args: argparse.Namespace) -> int:
-    profile = FtuProfile.from_json_file(args.profile)
+    profile = load_ftu_profile(args.profile)
     settings_patch = profile.user_device_settings
+    if isinstance(profile, VeritySenseFtuProfile):
+        _print_json(
+            {
+                "valid": True,
+                "profile": {
+                    "path": args.profile,
+                    "fields": ["device_family", "device_location"],
+                },
+                "operations": [
+                    "SET_SYSTEM_TIME",
+                    "SET_LOCAL_TIME",
+                    "GET /U/0/S/UDEVSET.BPB",
+                    "PUT /U/0/S/UDEVSET.BPB",
+                ],
+                "payload_sizes": "requires generated schemas",
+            }
+        )
+        return 0
     operations = [
         "REQUEST_SYNCHRONIZATION",
         "INITIALIZE_SESSION",

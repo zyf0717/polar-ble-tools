@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  linux:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -28,7 +28,7 @@ jobs:
       - name: Install clean test environment
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ".[dev,sdk]"
+          python -m pip install ".[dev]"
       - name: Verify schema-free package and primary CLI boundary
         run: |
           python -c "import polar_ble_tools"
@@ -41,6 +41,31 @@ jobs:
           ruff check .
           ruff format --check .
       - name: Run SDK-free unit and contract tests
-        run: python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py
+        run: python -m pytest -q tests/unit tests/contracts
       - name: Verify opt-in live tests skip outside protected hardware
         run: python -m pytest -q tests/live
+
+  bleak-endpoints:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bleak-version: ["1.0.0", "3.0.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install exact Bleak endpoint
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+          python -m pip install "bleak==${{ matrix.bleak-version }}"
+      - name: Run injected Bleak lifecycle contracts
+        run: >-
+          python -m pytest -q
+          tests/unit/test_bleak_backend.py
+          tests/unit/test_ble_operations.py
+          tests/unit/test_bluez_agent.py
+          tests/unit/test_device.py
+          tests/unit/test_workflows.py

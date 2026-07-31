@@ -1,13 +1,135 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol
 
 NotifyCallback = Callable[[str, bytes], None]
+AsyncNotifyCallback = Callable[[str, bytes], Awaitable[None]]
 
 
-class BleTransportError(RuntimeError):
+class DevicePlatform(StrEnum):
+    LINUX = "linux"
+    MACOS = "macos"
+    WINDOWS = "windows"
+
+
+class PreparationOutcome(StrEnum):
+    READY = "ready"
+    ALREADY_READY = "already_ready"
+    NOT_REQUIRED = "not_required"
+
+
+class ReconnectPersistence(StrEnum):
+    VERIFIED = "verified"
+    NOT_REQUIRED = "not_required"
+    NOT_TESTED = "not_tested"
+
+
+class LifecyclePhase(StrEnum):
+    DISCOVERY = "discovery"
+    AUTHORIZATION = "authorization"
+    RESOLUTION = "resolution"
+    PREPARATION = "preparation"
+    CONNECT = "connect"
+    SERVICE_READINESS = "service_readiness"
+    DISCONNECT = "disconnect"
+    CANCELLED = "cancelled"
+    UNSUPPORTED = "unsupported"
+
+
+@dataclass(frozen=True)
+class LifecycleTimeouts:
+    discovery: float = 10.0
+    resolution: float = 10.0
+    preparation: float = 45.0
+    connect: float = 30.0
+    service_readiness: float = 10.0
+    disconnect: float = 10.0
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "discovery",
+            "resolution",
+            "preparation",
+            "connect",
+            "service_readiness",
+            "disconnect",
+        ):
+            if getattr(self, field_name) <= 0:
+                raise ValueError(f"{field_name} timeout must be greater than zero.")
+
+
+@dataclass(frozen=True)
+class DiscoveredDevice:
+    identifier: str
+    platform: DevicePlatform
+    name: str | None
+    rssi: int | None
+    service_uuids: tuple[str, ...]
+
+    def to_jsonable(self) -> dict[str, object]:
+        return {
+            "identifier": self.identifier,
+            "platform": self.platform.value,
+            "name": self.name,
+            "rssi": self.rssi,
+            "service_uuids": list(self.service_uuids),
+        }
+
+
+@dataclass(frozen=True)
+class PreparationResult:
+    identifier: str
+    platform: DevicePlatform
+    outcome: PreparationOutcome
+    readiness_verified: bool
+    reconnect_persistence: ReconnectPersistence
+    final_connected: bool
+
+    def to_jsonable(self) -> dict[str, object]:
+        return {
+            "identifier": self.identifier,
+            "platform": self.platform.value,
+            "outcome": self.outcome.value,
+            "readiness_verified": self.readiness_verified,
+            "reconnect_persistence": self.reconnect_persistence.value,
+            "final_connected": self.final_connected,
+        }
+
+
+@dataclass(frozen=True)
+class ProbeResult:
+    identifier: str
+    platform: DevicePlatform
+    readiness_verified: bool
+    service_uuids: tuple[str, ...]
+    final_connected: bool
+
+    def to_jsonable(self) -> dict[str, object]:
+        return {
+            "identifier": self.identifier,
+            "platform": self.platform.value,
+            "readiness_verified": self.readiness_verified,
+            "service_uuids": list(self.service_uuids),
+            "final_connected": self.final_connected,
+        }
+
+
+class DeviceLifecycleError(RuntimeError):
+    """Stable lifecycle failure with a redacted public phase."""
+
+    def __init__(
+        self,
+        phase: LifecyclePhase,
+        message: str,
+    ) -> None:
+        self.phase = phase
+        super().__init__(message)
+
+
+class BleTransportError(DeviceLifecycleError):
     """Base error for BLE backend failures."""
 
 
@@ -17,38 +139,6 @@ class BleConnectionError(BleTransportError):
 
 class BleServiceNotFound(BleTransportError):
     """Raised when a required BLE service or characteristic is absent."""
-
-
-@dataclass(frozen=True)
-class BluetoothDevice:
-    mac_address: str
-    name: str
-    rssi: int | None = None
-    details: object | None = None
-    metadata: dict[str, object] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class PairingStatus:
-    mac_address: str
-    paired: bool
-    bonded: bool
-    trusted: bool
-    connected: bool
-    raw_info: str
-
-    @property
-    def ready(self) -> bool:
-        return self.paired and self.bonded and self.trusted and self.connected
-
-    @property
-    def can_skip_pairing(self) -> bool:
-        return self.paired and self.bonded and self.trusted
-
-    @property
-    def ready_for_other_actions(self) -> bool:
-        """Whether another command can safely take connection ownership."""
-        return self.can_skip_pairing and not self.connected
 
 
 class BleSession(Protocol):
@@ -84,12 +174,9 @@ class BleTransport(Protocol):
         self,
         *,
         timeout: float,
-        service_uuids: Sequence[str] | None = None,
-    ) -> list[BluetoothDevice]: ...
+        name_substring: str | None = None,
+    ) -> tuple[DiscoveredDevice, ...]: ...
 
-    async def connect(self, identifier: str) -> BleSession: ...
+    async def connect(self, identifier: str, *, pair: bool = False) -> BleSession: ...
 
     async def disconnect(self, session: BleSession) -> None: ...
-
-
-AsyncNotifyCallback = Callable[[str, bytes], Awaitable[None]]

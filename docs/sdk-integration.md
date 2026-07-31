@@ -1,7 +1,8 @@
 # SDK integration
 
-Discovery, pairing, PMD/PFTP operations, raw `.REC` retrieval, passive `.BPB`
-retrieval, hashing, storage, and cleanup do not require the Polar BLE SDK.
+Discovery, BLE preparation, PMD/PFTP operations, raw `.REC` retrieval, passive
+`.BPB` retrieval, hashing, storage, and cleanup do not require the Polar BLE
+SDK.
 Schema-backed FTU payload encoding and BPB decoding require a verified local
 schema cache.
 

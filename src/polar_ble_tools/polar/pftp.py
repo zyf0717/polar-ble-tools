@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import IntEnum
 
-from polar_ble_tools.ble.transport import BleServiceNotFound, BleSession
+from polar_ble_tools.ble.transport import BleServiceNotFound, BleSession, LifecyclePhase
 from polar_ble_tools.polar import uuids
 from polar_ble_tools.polar._protobuf import (
     PftpCommand,
@@ -155,7 +155,10 @@ class PftpClient:
     def ensure_pftp_service(self) -> None:
         normalized = {service.lower() for service in self.session.services}
         if normalized and not normalized.intersection(uuids.PFTP_SERVICE_ALIASES):
-            raise BleServiceNotFound("Polar PFTP service was not discovered.")
+            raise BleServiceNotFound(
+                LifecyclePhase.SERVICE_READINESS,
+                "Polar PFTP service was not discovered.",
+            )
 
     async def start_notifications(self) -> None:
         if self._notifications_started:

@@ -1,6 +1,6 @@
 # Offline recording
 
-`0.4.0` exposes offline-recording control through high-level one-operation APIs
+`0.5.0` exposes offline-recording control through high-level one-operation APIs
 and matching `polar-ble raw` commands.
 
 ## Inspect capabilities
@@ -9,10 +9,10 @@ Query the target before selecting a type or settings; support varies by device
 and firmware.
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF types
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF status
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF settings --type ACC --full
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF disk-space
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF types
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF status
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF settings --type ACC --full
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF disk-space
 ```
 
 ```python
@@ -30,9 +30,9 @@ status = await recording_status(target)
 ## Start and stop
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   start --type ACC --setting sample_rate=52
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF stop --type ACC
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF stop --type ACC
 ```
 
 ```python

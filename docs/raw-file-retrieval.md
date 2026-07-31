@@ -4,10 +4,10 @@ Raw `.REC` listing and retrieval do not require the Polar SDK or generated
 schemas.
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF list
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF list
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   fetch --path /U/0/20260727/R/112233/ACC0.REC --output ACC0.REC
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   --root .local/polar-ble-raw collect --type ACC
 ```
 
@@ -29,7 +29,7 @@ Cleanup requires either one or more `--type` selectors or `--all`. Review a dry
 run first:
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   --root .local/polar-ble-raw cleanup --type ACC --dry-run
 ```
 

@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from polar_ble_tools.api import FtuApplyResult
 from polar_ble_tools.commands.ftu import ftu_main
+from polar_ble_tools.polar.setup import FtuProfile, VeritySenseFtuProfile
 
 
 def write_profile(path: Path, **overrides: object) -> None:
@@ -19,6 +21,15 @@ def write_profile(path: Path, **overrides: object) -> None:
         "typical_day": "MOSTLY_STANDING",
         "sleep_goal_minutes": 480,
         "device_time": "2026-06-25T10:15:30+08:00",
+    }
+    profile.update(overrides)
+    path.write_text(json.dumps(profile))
+
+
+def write_verity_profile(path: Path, **overrides: object) -> None:
+    profile = {
+        "device_family": "POLAR_VERITY_SENSE",
+        "device_location": "UPPER_ARM_LEFT",
     }
     profile.update(overrides)
     path.write_text(json.dumps(profile))
@@ -109,6 +120,45 @@ def test_ftu_dry_run_includes_profile_settings_without_values(tmp_path, capsys) 
     assert captured.err == ""
 
 
+def test_verity_ftu_dry_run_contains_verified_time_and_settings_operations(
+    tmp_path,
+    capsys,
+) -> None:
+    profile = tmp_path / "verity.json"
+    write_verity_profile(profile)
+
+    exit_code = ftu_main(["dry-run", "--profile", str(profile)])
+
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert exit_code == 0
+    assert output["profile"] == {
+        "path": str(profile),
+        "fields": ["device_family", "device_location"],
+    }
+    assert output["operations"] == [
+        "SET_SYSTEM_TIME",
+        "SET_LOCAL_TIME",
+        "GET /U/0/S/UDEVSET.BPB",
+        "PUT /U/0/S/UDEVSET.BPB",
+    ]
+    assert "UPPER_ARM_LEFT" not in captured.out
+    assert captured.err == ""
+
+
+def test_verity_ftu_dry_run_rejects_unsupported_pool_length(tmp_path, capsys) -> None:
+    profile = tmp_path / "verity.json"
+    write_verity_profile(profile, default_pool_length_meters=50.0)
+
+    exit_code = ftu_main(["dry-run", "--profile", str(profile)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "default_pool_length_meters" in captured.err
+    assert "50" not in captured.err
+    assert captured.out == ""
+
+
 def test_ftu_apply_patches_profile_user_device_settings(
     tmp_path,
     capsys,
@@ -124,37 +174,50 @@ def test_ftu_apply_patches_profile_user_device_settings(
     )
     calls: list[object] = []
 
-    class FakeDevice:
-        async def aclose(self) -> None:
-            calls.append(("disconnect",))
+    async def fake_apply_ftu(identifier: str, loaded_profile: object) -> FtuApplyResult:
+        calls.append((identifier, loaded_profile))
+        return FtuApplyResult(ftu_applied=True, settings_updated=True)
 
-    class FakeSetupClient:
-        async def do_first_time_use(self, ftu_profile: object) -> None:
-            calls.append(("ftu", ftu_profile))
+    monkeypatch.setattr("polar_ble_tools.commands.ftu.apply_ftu", fake_apply_ftu)
 
-        async def set_user_device_settings(self, patch: object) -> None:
-            calls.append(("settings", patch))
-
-    device = FakeDevice()
-    setup_client = FakeSetupClient()
-
-    async def fake_open_setup_client(mac_address: str) -> tuple[object, object]:
-        calls.append(("open", mac_address))
-        return device, setup_client
-
-    monkeypatch.setattr(
-        "polar_ble_tools.commands.ftu._open_setup_client",
-        fake_open_setup_client,
+    exit_code = ftu_main(
+        ["--device-identifier", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)]
     )
-
-    exit_code = ftu_main(["--mac-address", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)])
 
     captured = capsys.readouterr()
     output = json.loads(captured.out)
     assert exit_code == 0
     assert output == {"ftu_applied": True, "settings_updated": True}
-    assert calls[0] == ("open", "AA:BB:CC:DD:EE:FF")
-    assert calls[1][0] == "ftu"
-    assert calls[2][0] == "settings"
-    assert calls[3] == ("disconnect",)
+    assert calls[0][0] == "AA:BB:CC:DD:EE:FF"
+    assert isinstance(calls[0][1], FtuProfile)
+    assert captured.err == ""
+
+
+def test_verity_ftu_apply_uses_device_specific_setup_path(
+    tmp_path,
+    capsys,
+    monkeypatch,
+) -> None:
+    profile = tmp_path / "verity.json"
+    write_verity_profile(profile)
+    calls: list[object] = []
+
+    async def fake_apply_ftu(identifier: str, loaded_profile: object) -> FtuApplyResult:
+        calls.append((identifier, loaded_profile))
+        return FtuApplyResult(ftu_applied=True, settings_updated=True)
+
+    monkeypatch.setattr("polar_ble_tools.commands.ftu.apply_ftu", fake_apply_ftu)
+
+    exit_code = ftu_main(
+        ["--device-identifier", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(captured.out) == {
+        "ftu_applied": True,
+        "settings_updated": True,
+    }
+    assert calls[0][0] == "AA:BB:CC:DD:EE:FF"
+    assert isinstance(calls[0][1], VeritySenseFtuProfile)
     assert captured.err == ""

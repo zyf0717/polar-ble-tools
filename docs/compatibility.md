@@ -2,8 +2,12 @@
 
 ## Supported devices
 
-`0.4.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+`0.5.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
 the controlled capability boundaries below.
+
+Linux preparation, probe, managed sessions, PMD/PFTP workflows, and
+device-specific FTU have controlled hardware evidence. macOS and Windows
+workflows and physical certification are deferred and support is not claimed.
 
 ## Polar Loop Gen 2
 
@@ -14,7 +18,8 @@ device remained on 6.1.19 throughout its controlled Loop Gen 2 testing.
 
 Controlled checks covered:
 
-- discovery, pairing, bonding, trust, connection handoff, and reconnect;
+- structured discovery, fresh/existing preparation, bounded readiness,
+  disconnect, and agent-free reconnect;
 - PMD availability and status, plus accelerometer recording start/stop;
 - PFTP raw `.REC` listing, retrieval, size checks, SHA-256 storage, and cleanup
   dry-run;
@@ -74,6 +79,17 @@ Passive collection over the canonical domains returned no files; Verity Sense
 passive activity, sleep, wellness, or related domain support is not claimed.
 No destructive deletion was performed.
 
+`VeritySenseFtuProfile` supports device-specific FTU by setting system/local
+time from the timezone-aware host clock after connection and applying wear
+location through `UDEVSET.BPB`. Controlled Bleak testing independently
+read-back verified both operations. Runtime time is absent from the profile.
+The profile rejects all fields except device family and wear location. In
+particular, the observed protected `/U/USENSET.BPB` settings file rejected
+reads, and the verified SDK does not provide its root schema or a pool-length
+write operation. Pool length therefore remains unsupported. Loop physical data
+and user-identifier writes remain isolated in the Loop Gen 2 `FtuProfile`
+path.
+
 Other devices exposing compatible PMD and PFTP services should be treated as
 untested until their capability matrix passes on controlled hardware.
 
@@ -91,10 +107,12 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.4.0` capabilities.
+- Batch and protected REC decoding are not `0.5.0` capabilities.
 - The optional REC decoder is currently limited to Linux x86_64.
-- Multi-device locking is covered by unit tests but not validated with two
-  physical devices.
+- Two-device shared-scan/native-object overlap was validated for three
+  simultaneous read-only PMD/PFTP cycles on one Linux/BlueZ adapter.
+  Long-duration, multi-adapter, and cross-platform hardware concurrency remain
+  unvalidated.
 - Forced Bluetooth/radio-loss recovery is not validated.
 - SDK revisions other than the pinned revision are diagnostic overrides and
   carry no compatibility guarantee.

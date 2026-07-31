@@ -31,15 +31,19 @@ out of scope for this project.
 - list, retrieve, and manage device-resident files through PFTP;
 - retrieve raw `.REC` recordings with SHA-256 manifests and guarded cleanup;
 - retrieve passive `.BPB` files and decode supported data with local schemas;
-- discover, pair, trust, and connect devices through Linux BlueZ;
+- discover devices, prepare fresh Linux devices, and run bounded managed
+  sessions through Bleak;
 - validate and apply first-time-use (FTU) data;
 - generate and verify optional local schemas from a separately obtained SDK;
 - locally decode supported `.REC` files to validated JSONL with an optional SDK sidecar.
 
 ## Installation
 
-Device operations require Linux, BlueZ, and `bluetoothctl`. Python 3.11 or
-newer is supported.
+Device operations require Linux and BlueZ. Python 3.11 or newer is required;
+versions 3.11 through 3.14 are tested. The package uses Bleak for scanning and
+device sessions. Fresh Linux
+preparation lazily uses a narrow D-Bus BlueZ authentication agent; no
+`bluetoothctl` subprocess is required.
 
 ```bash
 python -m pip install polar-ble-tools
@@ -60,17 +64,22 @@ including cache reuse. Use `-y` for non-interactive installation.
 
 ## Quick start
 
-Discover and pair a device:
+Discover, prepare, and probe a device:
 
 ```bash
-polar-ble discover --scan-seconds 15 --name Polar
-polar-ble pair --mac-address AA:BB:CC:DD:EE:FF --scan-seconds 15
+polar-ble discover --timeout 15 --name Polar
+polar-ble prepare --device-identifier AA:BB:CC:DD:EE:FF
+polar-ble connect --device-identifier AA:BB:CC:DD:EE:FF
 ```
+
+`prepare` first checks pair-free readiness, uses the target-bound Linux agent
+only when authentication is required, then verifies an agent-free reconnect.
+`connect` is a readiness probe; both commands finish disconnected.
 
 ### First-time setup for Polar Loop Gen 2
 
 For a Loop Gen 2 that has not completed first-time setup, copy the
-[example FTU profile](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/ftu-profile.example.json)
+[Loop Gen 2 FTU profile example](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/loop-gen2-ftu-profile.example.json)
 to a private location and replace every value. The profile contains personal
 physical data and must not be committed or placed in shared logs. FTU requires
 the optional generated-schema cache installed above.
@@ -81,10 +90,20 @@ completion:
 ```bash
 polar-ble ftu dry-run \
   --profile ~/.config/polar-ble-tools/ftu-profile.json
-polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF apply \
+polar-ble ftu --device-identifier AA:BB:CC:DD:EE:FF apply \
   --profile ~/.config/polar-ble-tools/ftu-profile.json
-polar-ble ftu --mac-address AA:BB:CC:DD:EE:FF status
+polar-ble ftu --device-identifier AA:BB:CC:DD:EE:FF status
 ```
+
+### First-time setup for Polar Verity Sense
+
+Copy the
+[Verity Sense FTU profile example](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/verity-sense-ftu-profile.example.json)
+to a private location and select the wear location. Validate and apply it with
+the same `ftu dry-run` and `ftu apply` commands. Verity FTU sets system/local
+time from the timezone-aware host clock after connecting, then applies wear
+location. Time is runtime state and is not stored in the profile. Pool length
+is rejected because its device write contract is not supported.
 
 ### Passive data from Polar Loop Gen 2
 
@@ -93,7 +112,7 @@ bounded range to retrieve. Collection persists and hashes the raw `.BPB` files
 before optional decoding:
 
 ```bash
-polar-ble passive --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble passive --device-identifier AA:BB:CC:DD:EE:FF \
   --from-date 2026-07-23 --to-date 2026-07-29 collect --decode
 ```
 
@@ -106,14 +125,14 @@ Inspect the device-supported types and settings, start an ACC recording, then
 stop and collect it after the desired duration:
 
 ```bash
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF types
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF types
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   settings --type ACC --full
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF \
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   start --type ACC --setting sample_rate=52
 # Run the stop command after the desired recording duration.
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF stop --type ACC
-polar-ble raw --mac-address AA:BB:CC:DD:EE:FF collect --type ACC
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF stop --type ACC
+polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF collect --type ACC
 ```
 
 Raw REC collection is SDK-free. Structured REC decoding is a separate,

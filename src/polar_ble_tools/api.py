@@ -24,13 +24,13 @@ from polar_ble_tools.polar.pmd import (
     PolarDeviceDataType,
     normalize_polar_data_type,
 )
+from polar_ble_tools.polar.setup_types import FtuProfileInput, VeritySenseFtuProfile
 from polar_ble_tools.storage_utils import atomic_write_bytes
 from polar_ble_tools.workflows import DeviceWorkflowRunner
 
 if TYPE_CHECKING:
     from polar_ble_tools.ble.transport import BleTransport
     from polar_ble_tools.polar.setup import (
-        FtuProfile,
         PhysicalConfiguration,
         UserDeviceSettings,
         UserDeviceSettingsPatch,
@@ -269,17 +269,20 @@ def doctor(*, cache: SdkCache | None = None) -> DoctorReport:
 
 async def apply_ftu(
     target: PolarDeviceTarget | str,
-    profile: FtuProfile,
+    profile: FtuProfileInput,
     *,
     transport_factory: Callable[[], BleTransport] | None = None,
 ) -> FtuApplyResult:
-    """Apply a validated FTU profile and its optional initial settings patch."""
+    """Apply a validated device-specific FTU profile."""
     resolved = resolve_polar_device_target(target)
 
     async def workflow(device):
         setup = device.services.setup
-        await setup.do_first_time_use(profile)
         patch = profile.user_device_settings
+        if isinstance(profile, VeritySenseFtuProfile):
+            await setup.do_verity_sense_first_time_use(profile)
+            return FtuApplyResult(ftu_applied=True, settings_updated=True)
+        await setup.do_first_time_use(profile)
         if patch is not None and patch.has_changes:
             await setup.set_user_device_settings(patch)
             return FtuApplyResult(ftu_applied=True, settings_updated=True)

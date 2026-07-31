@@ -15,6 +15,7 @@ from polar_ble_tools.polar.pmd import (
     PmdSettingType,
     PolarDeviceDataType,
 )
+from polar_ble_tools.polar.setup import DeviceLocation, VeritySenseFtuProfile
 from polar_ble_tools.rec import DecoderStatus
 from polar_ble_tools.schemas.cache import SdkCache
 from polar_ble_tools.sdk_tools.downloader import SdkStatus
@@ -121,6 +122,33 @@ def test_apply_ftu_owns_session_and_applies_initial_settings(monkeypatch) -> Non
 
     assert result.ftu_applied and result.settings_updated
     assert calls == [("workflow", "AA:BB:CC:DD:EE:FF"), ("apply", profile), ("settings", patch)]
+
+
+def test_apply_verity_ftu_uses_device_specific_setup_path(monkeypatch) -> None:
+    calls: list[object] = []
+
+    class Setup:
+        async def do_first_time_use(self, _profile: object) -> None:
+            raise AssertionError("Verity FTU must not use Loop physical-data writes.")
+
+        async def do_verity_sense_first_time_use(self, profile: object) -> None:
+            calls.append(("verity_ftu", profile))
+
+    class Device:
+        services = SimpleNamespace(setup=Setup())
+
+    async def fake_run(_self, target, workflow):
+        calls.append(("workflow", target.device_id))
+        return await workflow(Device())
+
+    monkeypatch.setattr(public_api.DeviceWorkflowRunner, "run", fake_run)
+    profile = VeritySenseFtuProfile(DeviceLocation.UPPER_ARM_LEFT)
+
+    result = asyncio.run(apply_ftu("AA:BB:CC:DD:EE:FF", profile))
+
+    assert result.ftu_applied and result.settings_updated
+    assert calls[0] == ("workflow", "AA:BB:CC:DD:EE:FF")
+    assert calls[1] == ("verity_ftu", profile)
 
 
 def test_recording_control_apis_use_one_workflow_and_immutable_results(

@@ -13,8 +13,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=__version__)
     subcommands = parser.add_subparsers(dest="command", title="commands")
-    subcommands.add_parser("pair", help="Pair a device via BlueZ.")
-    subcommands.add_parser("connect", help="Connect a paired device via BlueZ.")
+    subcommands.add_parser("prepare", help="Prepare a device and verify persistent readiness.")
+    subcommands.add_parser("connect", help="Probe PMD/PFTP readiness and disconnect.")
     subcommands.add_parser("discover", help="List nearby BLE advertisements.")
     subcommands.add_parser("sdk", help="Manage the explicit local Polar SDK cache.")
     subcommands.add_parser("ftu", help="Validate or apply first-time-use setup.")
@@ -60,12 +60,12 @@ def main(argv: list[str] | None = None) -> int:
         from polar_ble_tools.commands.discover import discover_main
 
         return discover_main(argv[1:])
-    if argv and argv[0] == "pair":
-        from polar_ble_tools.ble.bluetoothctl_pairing import pair_main
+    if argv and argv[0] == "prepare":
+        from polar_ble_tools.commands.lifecycle import prepare_main
 
-        return pair_main(argv[1:])
+        return prepare_main(argv[1:])
     if argv and argv[0] == "connect":
-        from polar_ble_tools.ble.bluetoothctl_pairing import connect_main
+        from polar_ble_tools.commands.lifecycle import connect_main
 
         return connect_main(argv[1:])
     parser = _build_parser()

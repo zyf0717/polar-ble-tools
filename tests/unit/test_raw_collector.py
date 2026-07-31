@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from polar_ble_tools.ble.transport import BleConnectionError
+from polar_ble_tools.ble.transport import BleConnectionError, LifecyclePhase
 from polar_ble_tools.polar.offline import (
     DeviceDeletionResult,
     OfflineRecord,
@@ -150,7 +150,9 @@ def test_cleanup_propagates_transport_failure_from_status_check(tmp_path: Path) 
             await collector.cleanup(
                 "AA:BB:CC:DD:EE:FF",
                 record_types={"ACC"},
-                control_client=FakeControlClient(error=BleConnectionError("link lost")),  # type: ignore[arg-type]
+                control_client=FakeControlClient(
+                    error=BleConnectionError(LifecyclePhase.CONNECT, "link lost")
+                ),  # type: ignore[arg-type]
             )
 
     asyncio.run(run())

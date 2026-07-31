@@ -30,14 +30,18 @@ from polar_ble_tools.api import (
     update_user_device_settings,
     user_device_settings,
 )
-from polar_ble_tools.ble.bluetoothctl_pairing import (
-    PairingError,
-    connect_device,
-    discover_devices,
-    pair_device,
-    release_device_connection,
+from polar_ble_tools.ble.operations import prepare_device, probe_device, scan_devices
+from polar_ble_tools.ble.transport import (
+    DeviceLifecycleError,
+    DevicePlatform,
+    DiscoveredDevice,
+    LifecyclePhase,
+    LifecycleTimeouts,
+    PreparationOutcome,
+    PreparationResult,
+    ProbeResult,
+    ReconnectPersistence,
 )
-from polar_ble_tools.ble.transport import PairingStatus
 from polar_ble_tools.collection import (
     cleanup_passive_files,
     cleanup_raw_recordings,
@@ -46,6 +50,7 @@ from polar_ble_tools.collection import (
     list_passive_files,
     list_raw_recordings,
 )
+from polar_ble_tools.device import open_polar_device
 from polar_ble_tools.polar.passive import PassiveDomain
 from polar_ble_tools.polar.pmd import PmdClient, PolarDeviceDataType
 
@@ -63,27 +68,34 @@ __all__ = [
     "RecordingSettingsResult",
     "RecordingStatusResult",
     "RecordingTypesResult",
-    "PairingError",
-    "PairingStatus",
+    "DeviceLifecycleError",
+    "DevicePlatform",
+    "DiscoveredDevice",
+    "LifecyclePhase",
+    "LifecycleTimeouts",
+    "PreparationOutcome",
+    "PreparationResult",
+    "ProbeResult",
+    "ReconnectPersistence",
+    "open_polar_device",
+    "prepare_device",
+    "probe_device",
+    "scan_devices",
     "apply_ftu",
     "available_recording_types",
     "cleanup_passive_files",
     "cleanup_raw_recordings",
     "collect_passive_files",
     "collect_raw_recordings",
-    "connect_device",
     "diagnose_ftu",
     "device_disk_space",
-    "discover_devices",
     "doctor",
     "fetch_raw_recording",
     "ftu_status",
     "list_raw_recordings",
     "list_passive_files",
-    "pair_device",
     "offline_trigger",
     "physical_configuration",
-    "release_device_connection",
     "recording_settings",
     "recording_status",
     "start_recording",

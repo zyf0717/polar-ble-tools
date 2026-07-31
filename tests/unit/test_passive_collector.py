@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from polar_ble_tools.ble.transport import BleConnectionError
+from polar_ble_tools.ble.transport import BleConnectionError, LifecyclePhase
 from polar_ble_tools.passive_data.collector import PassiveFileCollector
 from polar_ble_tools.passive_data.storage import PassiveFileStore
 from polar_ble_tools.polar.passive import (
@@ -194,7 +194,7 @@ def test_cleanup_dry_run_is_local_and_destructive_cleanup_removes_verified_file(
 def test_cleanup_audits_then_propagates_transport_failure(tmp_path: Path) -> None:
     class Client:
         async def remove_file(self, _entry):
-            raise BleConnectionError("link lost")
+            raise BleConnectionError(LifecyclePhase.CONNECT, "link lost")
 
     async def run() -> None:
         store = PassiveFileStore(tmp_path)

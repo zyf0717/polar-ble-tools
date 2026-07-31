@@ -256,7 +256,13 @@ def test_wheel_metadata_uses_pep_639_and_declares_public_contract(
         "Issues, https://github.com/zyf0717/polar-ble-tools/issues",
         "Source, https://github.com/zyf0717/polar-ble-tools",
     }
-    assert "polar-ble = polar_ble_tools.commands.main:main" in wheel_entry_points(wheel)
+    requirements = set(metadata.get_all("Requires-Dist", []))
+    assert "bleak<3.1,>=1.0" in requirements
+    assert 'dbus-fast<6,>=1.83; sys_platform == "linux"' in requirements
+    entry_points = wheel_entry_points(wheel)
+    assert "polar-ble = polar_ble_tools.commands.main:main" in entry_points
+    assert "polar-pair" not in entry_points
+    assert "polar-connect" not in entry_points
 
 
 def test_distributions_pass_strict_twine_validation(built_artifacts: list[Path]) -> None:
@@ -312,7 +318,17 @@ def test_clean_wheel_install_imports_and_shows_help_without_schema_activity(
         text=True,
         env=environment,
     )
-    for command in ("pair", "connect", "discover", "sdk", "ftu", "raw", "passive", "bpb", "doctor"):
+    for command in (
+        "prepare",
+        "connect",
+        "discover",
+        "sdk",
+        "ftu",
+        "raw",
+        "passive",
+        "bpb",
+        "doctor",
+    ):
         subprocess.run(
             [str(polar_ble), command, "--help"],
             check=True,

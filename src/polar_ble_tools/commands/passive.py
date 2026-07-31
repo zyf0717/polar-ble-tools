@@ -23,7 +23,7 @@ def build_passive_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="List and collect raw passive BPB files without requiring schemas."
     )
-    parser.add_argument("--mac-address", required=True)
+    parser.add_argument("--device-identifier", required=True)
     parser.add_argument(
         "--devices-file", help="Optional development YAML inventory used to restrict the target."
     )
@@ -86,7 +86,10 @@ async def _list(
     args: argparse.Namespace, domains: tuple[PassiveDomain, ...], from_date, to_date
 ) -> int:
     listing = await list_passive_files(
-        args.mac_address, domains=domains, from_date=from_date, to_date=to_date
+        args.device_identifier,
+        domains=domains,
+        from_date=from_date,
+        to_date=to_date,
     )
     print_json(
         {
@@ -112,7 +115,7 @@ async def _collect(
     if args.decoded_output_dir is not None and not args.decode:
         raise ValueError("--decoded-output-dir requires --decode.")
     result = await collect_passive_files(
-        args.mac_address,
+        args.device_identifier,
         domains=domains,
         from_date=from_date,
         to_date=to_date,
@@ -144,7 +147,7 @@ async def _collect(
 
 async def _cleanup(args: argparse.Namespace) -> int:
     result = await cleanup_passive_files(
-        args.mac_address,
+        args.device_identifier,
         root=args.root,
         domain=args.domain,
         delete_through=parse_cli_date(args.delete_through, "delete-through"),

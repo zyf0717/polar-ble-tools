@@ -5,13 +5,15 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 PHYSICAL_DATA_PATH = "/U/0/S/PHYSDATA.BPB"
 USER_IDENTIFIER_PATH = "/U/0/USERID.BPB"
 USER_DEVICE_SETTINGS_PATH = "/U/0/S/UDEVSET.BPB"
 NO_SUCH_FILE_OR_DIRECTORY = 103
 MASTER_IDENTIFIER = (1 << 64) - 1
+LOOP_GEN2_DEVICE_FAMILY = "POLAR_LOOP_GEN2"
+VERITY_SENSE_DEVICE_FAMILY = "POLAR_VERITY_SENSE"
 
 
 class SetupError(RuntimeError):
@@ -87,6 +89,8 @@ class DeviceLocation(IntEnum):
 
 @dataclass(frozen=True)
 class FtuProfile:
+    device_family: ClassVar[str] = LOOP_GEN2_DEVICE_FAMILY
+
     gender: Gender
     birth_date: date
     height_cm: float
@@ -112,6 +116,7 @@ class FtuProfile:
 
     @classmethod
     def from_mapping(cls, raw: dict[str, Any]) -> FtuProfile:
+        _validate_device_family(raw, expected=cls.device_family, required=False)
         return cls(
             gender=_parse_enum(Gender, raw, "gender"),
             birth_date=_parse_date(raw, "birth_date"),
@@ -131,15 +136,50 @@ class FtuProfile:
 
     @classmethod
     def from_json_file(cls, path: str | Path) -> FtuProfile:
-        try:
-            raw = json.loads(Path(path).read_text())
-        except OSError as exc:
-            raise SetupValidationError("profile file could not be read.") from exc
-        except json.JSONDecodeError as exc:
-            raise SetupValidationError("profile file must contain valid JSON.") from exc
-        if not isinstance(raw, dict):
-            raise SetupValidationError("profile file must contain a JSON object.")
-        return cls.from_mapping(raw)
+        return cls.from_mapping(_load_profile_mapping(path))
+
+
+@dataclass(frozen=True)
+class VeritySenseFtuProfile:
+    device_location: DeviceLocation
+
+    device_family: ClassVar[str] = VERITY_SENSE_DEVICE_FAMILY
+
+    @property
+    def user_device_settings(self) -> UserDeviceSettingsPatch:
+        return UserDeviceSettingsPatch(device_location=self.device_location)
+
+    @classmethod
+    def from_mapping(cls, raw: dict[str, Any]) -> VeritySenseFtuProfile:
+        _validate_device_family(raw, expected=cls.device_family, required=True)
+        unsupported = sorted(set(raw) - {"device_family", "device_location"})
+        if unsupported:
+            raise SetupValidationError(
+                "Verity Sense FTU profile contains unsupported fields: "
+                + ", ".join(unsupported)
+                + "."
+            )
+        location = _optional_device_location(raw, "device_location")
+        if location is None:
+            raise SetupValidationError("device_location is required.")
+        return cls(device_location=location)
+
+    @classmethod
+    def from_json_file(cls, path: str | Path) -> VeritySenseFtuProfile:
+        return cls.from_mapping(_load_profile_mapping(path))
+
+
+FtuProfileInput = FtuProfile | VeritySenseFtuProfile
+
+
+def load_ftu_profile(path: str | Path) -> FtuProfileInput:
+    raw = _load_profile_mapping(path)
+    family = _device_family(raw)
+    if family is None or family == LOOP_GEN2_DEVICE_FAMILY:
+        return FtuProfile.from_mapping(raw)
+    if family == VERITY_SENSE_DEVICE_FAMILY:
+        return VeritySenseFtuProfile.from_mapping(raw)
+    raise SetupValidationError("device_family is not supported.")
 
 
 @dataclass(frozen=True)
@@ -246,6 +286,42 @@ _USER_DEVICE_SETTINGS_PROFILE_FIELDS = {
     "minimum_training_duration_seconds",
     "autos_files_enabled",
 }
+
+
+def _load_profile_mapping(path: str | Path) -> dict[str, Any]:
+    try:
+        raw = json.loads(Path(path).read_text())
+    except OSError as exc:
+        raise SetupValidationError("profile file could not be read.") from exc
+    except json.JSONDecodeError as exc:
+        raise SetupValidationError("profile file must contain valid JSON.") from exc
+    if not isinstance(raw, dict):
+        raise SetupValidationError("profile file must contain a JSON object.")
+    return raw
+
+
+def _device_family(raw: dict[str, Any]) -> str | None:
+    value = raw.get("device_family")
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise SetupValidationError("device_family must be a string.")
+    return value.strip().replace("-", "_").upper()
+
+
+def _validate_device_family(
+    raw: dict[str, Any],
+    *,
+    expected: str,
+    required: bool,
+) -> None:
+    family = _device_family(raw)
+    if family is None:
+        if required:
+            raise SetupValidationError("device_family is required.")
+        return
+    if family != expected:
+        raise SetupValidationError("device_family does not match the FTU profile type.")
 
 
 def _parse_profile_user_device_settings(

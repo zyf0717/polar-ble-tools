@@ -6,9 +6,9 @@ direct Python API is available.
 
 | Command | Operation | Direct Python entry point |
 | --- | --- | --- |
-| `discover` | Scan BLE advertisements | `discover_devices()` |
-| `pair` | Pair, bond, trust, verify connectivity, and disconnect | `pair_device()` |
-| `connect` | Connect a paired device | `connect_device()` |
+| `discover` | Scan structured BLE advertisements | `await scan_devices()` |
+| `prepare` | Verify readiness or perform one bounded preparation and persistent reconnect check | `await prepare_device()` |
+| `connect` | Verify PMD/PFTP readiness and disconnect | `await probe_device()` |
 | `raw list` | List device REC files | `await list_raw_recordings()` |
 | `raw types` | List supported offline recording types | `await available_recording_types()` |
 | `raw status` | Read offline recording activity | `await recording_status()` |
@@ -27,10 +27,10 @@ direct Python API is available.
 | `bpb decode` | Decode one local BPB file | `decode_bpb_file()` |
 | `bpb decode-manifest` | Decode BPB files named by a manifest | `decode_bpb_manifest()` |
 | `bpb decode-passive-manifest` | Decode and enrich the latest rows in a passive manifest | `decode_passive_manifest()` |
-| `ftu dry-run` | Validate an FTU profile without a device | `FtuProfile.from_json_file()` |
-| `ftu apply` | Apply FTU profile and initial settings | `await apply_ftu()` |
-| `ftu status` | Read FTU completion | `await ftu_status()` |
-| `ftu physical-config` | Read physical configuration | `await physical_configuration()` |
+| `ftu dry-run` | Validate a device-specific FTU profile without a device | `load_ftu_profile()` |
+| `ftu apply` | Apply a Loop Gen 2 or Verity Sense FTU profile | `await apply_ftu()` |
+| `ftu status` | Read the Loop-style FTU completion marker | `await ftu_status()` |
+| `ftu physical-config` | Read Loop-style physical configuration | `await physical_configuration()` |
 | `ftu settings get` | Read user-device settings | `await user_device_settings()` |
 | `ftu settings set` | Patch user-device settings | `await update_user_device_settings()` |
 | `ftu diagnose` | Read FTU diagnostic state | `await diagnose_ftu()` |
@@ -54,6 +54,17 @@ direct Python API is available.
 | `rec decode` | Decode local REC into JSONL | `decode_recording()` |
 | `doctor` | Report core/SDK/decoder readiness | `doctor()` |
 
+Verity Sense FTU sets current timezone-aware host system/local time after
+connecting, then applies the verified wear-location setting. Time remains
+runtime state rather than profile input. The profile rejects pool length
+because no supported device write contract is available.
+
 The command wrappers remain available as `*_main(argv)` functions and
 `polar_ble_tools.commands.main.main(argv)`, but they are intended for process
 entry points and compatibility testing—not application integration.
+
+Every device-facing command requires `--device-identifier`; commands that can
+mutate or retrieve data also accept `--devices-file`. Discovery emits `count`
+plus public device records. Preparation and probe outputs include
+the normalized identifier, platform, readiness, and `final_connected: false`;
+service UUIDs are sorted.

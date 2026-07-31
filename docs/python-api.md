@@ -6,8 +6,13 @@ pass a `transport_factory` in tests or custom integrations.
 
 | Import | Kind | Purpose |
 | --- | --- | --- |
-| `discover_devices` | sync | Scan BLE advertisements. |
-| `pair_device`, `connect_device`, `release_device_connection` | sync | BlueZ pairing and connection lifecycle. |
+| `scan_devices` | async | Return immutable structured advertisement records. |
+| `prepare_device` | async | Verify readiness or perform one bounded platform preparation and persistent reconnect check. |
+| `probe_device` | async | Verify PMD/PFTP readiness and finish disconnected. |
+| `open_polar_device` | async context manager | Own one bounded service-ready device session. |
+| `DiscoveredDevice`, `PreparationResult`, `ProbeResult` | frozen models | Stable platform-neutral lifecycle results. |
+| `DevicePlatform`, `PreparationOutcome`, `ReconnectPersistence`, `LifecyclePhase` | enums | Stable lifecycle values. |
+| `LifecycleTimeouts`, `DeviceLifecycleError` | model/error | Phase budgets and redacted phase-preserving failures. |
 | `list_raw_recordings` | async | List device REC entries. |
 | `available_recording_types` | async | Return supported offline recording types. |
 | `recording_status` | async | Return offline recording activity by type. |
@@ -23,9 +28,9 @@ pass a `transport_factory` in tests or custom integrations.
 | `collect_passive_files` | async | Retrieve and hash-store passive BPB files. |
 | `cleanup_passive_files` | async | Delete hash-verified passive files through a date. |
 | `doctor` | sync | Return `DoctorReport` for core, SDK-schema, and REC-decoder readiness. |
-| `apply_ftu` | async | Apply `FtuProfile`, including its optional settings patch. |
-| `ftu_status` | async | Return FTU completion state. |
-| `physical_configuration` | async | Return physical configuration or `None`. |
+| `apply_ftu` | async | Apply a Loop Gen 2 profile or set runtime time and wear location for a Verity Sense profile. |
+| `ftu_status` | async | Return the Loop-style FTU completion state. |
+| `physical_configuration` | async | Return Loop-style physical configuration or `None`. |
 | `user_device_settings` | async | Return current user-device settings. |
 | `update_user_device_settings` | async | Apply a `UserDeviceSettingsPatch`. |
 | `diagnose_ftu` | async | Return FTU diagnostic fields. |
@@ -40,13 +45,17 @@ Specialized modules are deliberately separate from the top-level facade:
 | `polar_ble_tools.sdk_tools` | SDK staging/status/inspection, independent schema status/activation/provenance, and guarded removal through `remove_sdk_artifacts()`. |
 | `polar_ble_tools.sdk_tools.generator` / `verifier` | Explicit schema generation and verification. |
 | `polar_ble_tools.sdk_tools.decoder` | `build_decoder`, `verify_decoder`, `activate_decoder`, `remove_decoder`. |
-| `polar_ble_tools.polar.setup` | FTU data models, validation, and lower-level `PolarSetupClient`. |
+| `polar_ble_tools.polar.setup` | Device-specific FTU profiles, local-time read/write, validation, and lower-level `PolarSetupClient`. |
 | `polar_ble_tools.polar.pmd` | Lower-level PMD measurement/control client. |
 
 ## Conventions
 
 - Device-facing APIs are `async`; call them with `await` rather than
   `asyncio.run()` inside an existing event loop.
+- Device inputs use `identifier`. Recognized MAC addresses and UUIDs are
+  canonicalized; all other non-empty identifiers remain opaque.
+- Discovery and probe return only stable public fields. Native Bleak objects,
+  advertisement payloads, and inventory contents are never exposed.
 - Collection and listing results expose tuples rather than mutable internal
   lists. Raw/passive outcome fields use `StrEnum` models internally and retain
   their documented string values in `to_jsonable()` output.

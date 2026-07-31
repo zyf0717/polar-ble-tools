@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polar-ble-tools"
-version = "0.4.1"
+version = "0.5.0"
 description = "Offline-first BLE tools for collecting and retrieving device-resident data from supported Polar wearables."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,8 +42,9 @@ classifiers = [
     "Topic :: System :: Hardware",
 ]
 dependencies = [
-    "bleak>=1.0,<4.0",
+    "bleak>=1.0,<3.1",
     "cryptography>=49,<50",
+    "dbus-fast>=1.83,<6; sys_platform == 'linux'",
     "platformdirs>=4,<5",
     "protobuf>=6.33.5,<7.0",
 ]
@@ -62,8 +63,6 @@ sdk = [
 
 [project.scripts]
 polar-ble = "polar_ble_tools.commands.main:main"
-polar-connect = "polar_ble_tools.ble.bluetoothctl_pairing:connect_main"
-polar-pair = "polar_ble_tools.ble.bluetoothctl_pairing:pair_main"
 
 [project.urls]
 Documentation = "https://github.com/zyf0717/polar-ble-tools#readme"
@@ -80,6 +79,9 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/polar_ble_tools/ble/bluez_agent.py" = ["F722", "F821"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
