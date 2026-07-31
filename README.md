@@ -39,8 +39,9 @@ out of scope for this project.
 
 ## Installation
 
-Device operations require Linux and BlueZ. Python 3.11 or newer is supported.
-The package uses Bleak for scanning and device sessions. Fresh Linux
+Device operations require Linux and BlueZ. Python 3.11 or newer is required;
+versions 3.11 through 3.14 are tested. The package uses Bleak for scanning and
+device sessions. Fresh Linux
 preparation lazily uses a narrow D-Bus BlueZ authentication agent; no
 `bluetoothctl` subprocess is required.
 

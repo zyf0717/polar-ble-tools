@@ -7,8 +7,7 @@ the controlled capability boundaries below.
 
 Linux preparation, probe, managed sessions, PMD/PFTP workflows, and
 device-specific FTU have controlled hardware evidence. macOS and Windows
-package/import/build and injected lifecycle contracts run in CI, but physical
-hardware support on those platforms is unvalidated and is not claimed.
+workflows and physical certification are deferred and support is not claimed.
 
 ## Polar Loop Gen 2
 

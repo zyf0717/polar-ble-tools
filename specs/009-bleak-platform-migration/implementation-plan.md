@@ -38,11 +38,11 @@ next phase's verdict.
 
 ## Phase 4 — validation and `0.5.x` release
 
-1. Run Linux, macOS, and Windows automated contracts and packaging smoke tests.
+1. Run the full Linux automated matrix and packaging smoke tests.
 2. Run the controlled Linux hardware matrix on both supported devices.
 3. Review the complete diff for prohibited artifacts and unintended protocol,
    storage, cleanup, or decoder changes.
 4. Update public architecture, configuration, API/CLI, troubleshooting,
    compatibility, changelog, and `0.5.0` release notes.
-5. Use later `0.5.x` releases for evidence-backed hardening; do not add macOS
-   or Windows support claims without SPEC-005 hardware evidence.
+5. Defer macOS and Windows workflows and certification to SPEC-005; do not add
+   platform support claims without its evidence.

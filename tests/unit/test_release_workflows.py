@@ -12,7 +12,7 @@ def test_candidate_release_has_no_hardware_runner_dependency() -> None:
     assert "POLAR_BLE_LIVE_" not in workflow
     assert "protected-live-hardware" not in workflow
     assert "environment: sdk-contract" not in workflow
-    assert "environment: sdk-contract" not in (WORKFLOWS / "sdk-contract.yml").read_text()
+    assert not (WORKFLOWS / "sdk-contract.yml").exists()
 
 
 def test_candidate_requires_merged_release_tree_and_consistent_metadata() -> None:
@@ -27,27 +27,27 @@ def test_candidate_requires_merged_release_tree_and_consistent_metadata() -> Non
 
 
 def test_sdk_free_workflows_run_only_sdk_free_contracts() -> None:
-    assert "python -m pytest -q tests/unit tests/contracts" in (WORKFLOWS / "test.yml").read_text()
-    assert (
-        "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py"
-        in (WORKFLOWS / "testpypi-candidate.yml").read_text()
-    )
+    workflow = (WORKFLOWS / "test.yml").read_text()
+
+    assert "python -m pytest -q tests/unit tests/contracts" in workflow
+    assert '".[dev,sdk]"' not in workflow
+    assert "tests/sdk_contract" not in workflow
+    assert "macos-latest" not in workflow
+    assert "windows-latest" not in workflow
+    candidate = (WORKFLOWS / "testpypi-candidate.yml").read_text()
+    assert "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py" in candidate
+    assert '".[dev,sdk]"' not in candidate
+    assert "tests/sdk_contract" not in candidate
+    assert "polar-ble sdk install" not in candidate
 
 
-def test_sdk_workflows_clean_sdk_owned_paths_without_requiring_an_empty_app_root() -> None:
-    for workflow_name in ("sdk-contract.yml", "testpypi-candidate.yml"):
-        workflow = (WORKFLOWS / workflow_name).read_text()
-
-        assert 'test ! -e "$XDG_DATA_HOME/polar-ble-tools/sdk/polar"' in workflow
-        assert 'test ! -e "$XDG_DATA_HOME/polar-ble-tools/generated/polar"' in workflow
-        assert 'test ! -e "$XDG_DATA_HOME/polar-ble-tools/active-sdk.json"' in workflow
-        assert 'test ! -e "$XDG_DATA_HOME/polar-ble-tools/active-schemas.json"' in workflow
-        assert 'test ! -e "$XDG_DATA_HOME/polar-ble-tools"' not in workflow
-        assert "polar-ble sdk install --yes" in workflow
-        assert "polar-ble sdk remove --all --yes" in workflow
-        assert "--accept-license" not in workflow
-        assert "active SDK source: " in workflow
-        assert "active schemas: " in workflow
+def test_public_workflows_do_not_install_or_run_sdk_contracts() -> None:
+    assert not (WORKFLOWS / "sdk-contract.yml").exists()
+    for workflow in WORKFLOWS.glob("*.yml"):
+        content = workflow.read_text()
+        assert '".[dev,sdk]"' not in content
+        assert "tests/sdk_contract" not in content
+        assert "polar-ble sdk install" not in content
 
 
 def test_pypi_release_promotes_the_successful_candidate_artifacts() -> None:

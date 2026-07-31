@@ -27,6 +27,11 @@ recovery limits without weakening timeouts or adding unsafe automatic retries.
 **FR-045** — Public compatibility claims derive only from controlled fixture or
 hardware evidence for the exact package commit/version.
 
+**FR-091** — Before any macOS or Windows support claim, add host-native
+automated import, packaging, CLI, lifecycle, and cleanup workflows, then run
+the applicable controlled hardware matrix. Platform-neutral APIs and injected
+identifier shapes are not substitute evidence.
+
 ## Maintainability and protected data
 
 **FR-058** — Every certification cycle reviews module ownership, duplicate

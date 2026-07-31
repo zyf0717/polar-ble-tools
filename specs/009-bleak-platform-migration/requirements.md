@@ -1,9 +1,10 @@
 # Functional requirements
 
-SPEC-009 owns BLE lifecycle experimentation, migration decisions, the resulting
-`0.5.x` transport/public-contract changes, and portability validation. SPEC-003
-continues to own PMD/PFTP operations, retrieval, storage, and guarded cleanup.
-SPEC-005 owns physical-platform certification and public support evidence.
+SPEC-009 owns Linux BLE lifecycle experimentation, migration decisions, the
+resulting `0.5.x` transport/public-contract changes, and Linux validation.
+SPEC-003 continues to own PMD/PFTP operations, retrieval, storage, and guarded
+cleanup. SPEC-005 owns macOS/Windows workflows, physical-platform
+certification, and public support evidence.
 
 ## Discovery, identity, and connection
 
@@ -75,12 +76,13 @@ contracts with asynchronous, platform-neutral discovery, preparation, bounded
 probe, and managed-session contracts. `0.4.x` compatibility aliases and
 deprecated ownership paths are not required.
 
-**FR-088** — Automated contracts cover Linux, macOS, and Windows identifier and
-lifecycle variants through injected Bleak scanner/client boundaries. Controlled
-Linux hardware validation covers both currently supported devices before the
-default lifecycle changes.
+**FR-088** — Automated contracts cover Linux identifier and lifecycle behavior
+through injected Bleak scanner/client boundaries across the supported Python
+and Bleak versions. Controlled Linux hardware validation covers both currently
+supported devices before the default lifecycle changes. Representative opaque
+identifier shapes may be tested without claiming another host platform.
 
-**FR-089** — Automated cross-platform tests are not physical compatibility
-evidence. macOS and Windows 11 remain unvalidated until SPEC-005 records
-controlled hardware results. Release documentation distinguishes portable
-architecture, tested packaging, and evidence-backed device/platform support.
+**FR-089** — Platform-neutral contracts are not cross-platform compatibility
+evidence. macOS and Windows 11 workflows and physical validation are deferred
+to SPEC-005. Release documentation distinguishes portable boundaries from
+evidence-backed device/platform support.

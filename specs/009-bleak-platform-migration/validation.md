@@ -6,7 +6,7 @@ Use injected scanner, client, platform, and optional OS-adapter boundaries to
 validate:
 
 - structured advertisement mapping, filtering, deduplication, and timeout;
-- opaque Linux MAC, macOS UUID, and representative Windows identifiers;
+- Linux MAC and representative opaque/UUID identifier shapes;
 - explicit authorization before preparation or other device mutation;
 - native `BLEDevice` resolution and client construction without an implicit
   string-address scan;
@@ -24,11 +24,10 @@ validate:
 - stable JSON and immutable public result models;
 - removal of obsolete Linux-only paths selected by the decision matrix.
 
-Run the full supported Python matrix on Linux. Add macOS and Windows jobs for
-the minimum and latest supported Python versions, covering package import,
-platform selection, CLI construction, injected lifecycle contracts, build, and
-wheel smoke tests. These jobs require no BLE hardware and prove no physical
-compatibility.
+Run the full supported Python matrix on Linux. Host-native macOS and Windows
+jobs are deferred to SPEC-005 and are not a SPEC-009 or `0.5.0` gate.
+Injected identifier-shape tests on Linux establish only that public contracts
+do not require MAC syntax.
 
 Test the minimum declared Bleak version and newest allowed minor version.
 Dependency-range changes are part of the accepted experiment result.
@@ -80,14 +79,13 @@ python -m twine check --strict dist/*
 python -m pytest -q tests/packaging/test_artifacts.py
 ```
 
-Also require passing cross-platform CI, exact-commit Linux hardware evidence
-for both supported devices, clean-wheel CLI smoke tests, complete public
-documentation, and a complete diff review.
+Also require passing Linux CI, controlled Linux hardware evidence for both
+supported devices, clean-wheel CLI smoke tests, complete public documentation,
+and a complete diff review.
 
 ## Platform claims
 
-macOS and Windows automation demonstrates import, packaging, and backend
-contract portability only. Public macOS or Windows 11 compatibility requires
-controlled physical-device evidence under SPEC-005. Until then, failures on
-those platforms are unvalidated behavior rather than regressions against a
-support claim.
+macOS and Windows workflows and physical compatibility are deferred to
+SPEC-005. Until SPEC-005 establishes host-native automation and controlled
+hardware evidence, failures on those platforms are unvalidated behavior rather
+than regressions against a support claim.

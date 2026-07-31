@@ -50,12 +50,12 @@ SPEC-009 is implemented when:
 7. Loop Gen 2 and Verity Sense FTU dispatch remain device-specific, with
    Verity runtime time and wear location verified independently;
 8. Linux automated and two-device-category hardware gates pass;
-9. macOS and Windows automated portability gates pass without being presented
-   as hardware support;
+9. macOS and Windows workflows and certification are explicitly deferred to
+   SPEC-005 without a support claim;
 10. release audit, packaging, clean-install, and required repository checks
     pass;
 11. architecture, API/CLI, compatibility, changelog, and `0.5.0` release notes
     describe the accepted contract and limitations.
 
-Later macOS and Windows 11 physical certification remains a SPEC-005 activity,
-not a SPEC-009 completion gate.
+macOS and Windows 11 automation and physical certification remain SPEC-005
+activities, not SPEC-009 completion gates.

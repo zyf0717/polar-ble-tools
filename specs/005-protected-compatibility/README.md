@@ -12,6 +12,7 @@ SPEC-005 owns evidence that cannot be established by public unit tests:
 - protected REC/BPB fixture contracts;
 - private-data retention, consent, deletion, and evidence redaction;
 - restricted-artifact audits and exact-commit release certification.
+- deferred macOS and Windows host workflows and physical-device certification.
 
 Existing controlled observations inform the program but complete only the
 specific rows they exercised.

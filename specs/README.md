@@ -54,4 +54,4 @@ Specification changes remain on `dev`.
 | [SPEC-006](006-protected-rec-decoding/README.md) | Deferred | Protected REC decoding |
 | [SPEC-007](007-rec-batch-decoding/README.md) | Deferred | REC batch decoding |
 | [SPEC-008](008-bpb-decoding/README.md) | Implemented | Official-schema BPB decoding |
-| [SPEC-009](009-bleak-platform-migration/README.md) | Implementing | Bleak-first operations and cross-platform readiness |
+| [SPEC-009](009-bleak-platform-migration/README.md) | Implemented | Bleak-first Linux operations and portable boundaries |

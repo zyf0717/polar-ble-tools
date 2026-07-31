@@ -42,10 +42,10 @@ separate: Verity derives runtime time after connection and writes only time and
 wear location. Pool length is rejected and deferred because no verified device
 read/modify/write contract exists.
 
-Controlled hardware evidence remains Linux/BlueZ-only for Polar Loop Gen 2 and
-Polar Verity Sense. macOS and Windows run package, build, platform-selection,
-and injected lifecycle contracts in CI, but physical hardware support is not
-claimed.
+`0.5.0` remains Linux/BlueZ-first, with controlled Polar Loop Gen 2 and Polar
+Verity Sense evidence. macOS and Windows workflows and physical certification
+are deferred; platform-neutral identifiers and lifecycle boundaries are not
+support claims.
 
 Distributions exclude SDK source and archives, schemas, generated bindings,
 decoder runtimes, recordings, captures, inventories, profiles, credentials,

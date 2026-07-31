@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## 0.5.0 — 2026-07-30
+## 0.5.0 — 2026-07-31
 
 ### Added
 
@@ -14,8 +14,7 @@ All notable changes to this project are documented here.
   resolution and concurrent scan coalescing.
 - Added a lazy Linux-only, exact-target `org.bluez.Agent1` adapter for fresh
   preparation, followed by an agent-free reconnect check.
-- Added Linux Python 3.11–3.14 CI, macOS/Windows portability jobs at Python
-  3.11 and 3.14, and exact Bleak 1.0.0/3.0.2 endpoint jobs.
+- Added Linux Python 3.11–3.14 CI and exact Bleak 1.0.0/3.0.2 endpoint jobs.
 - Scoped FTU profiles by device family and added a Verity Sense FTU path that
   sets runtime system/local time, applies wear location, and rejects
   unsupported pool-length input.
@@ -45,8 +44,8 @@ All notable changes to this project are documented here.
 
 ### Compatibility
 
-- Linux/BlueZ remains the only hardware-supported platform. macOS and Windows
-  are architecture-, package-, and contract-tested but hardware-unvalidated.
+- Linux/BlueZ remains the only supported platform. macOS and Windows workflows
+  and physical certification are deferred.
 - Verity Sense pool length is unsupported/deferred because neither a root
   schema nor a verified read/modify/write operation is available.
 

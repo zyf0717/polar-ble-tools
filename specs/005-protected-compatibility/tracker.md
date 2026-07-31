@@ -29,6 +29,7 @@ organizational approval before implementation.
 - [ ] **FR-043** — Two-device serialization, concurrency, and cancellation.
 - [ ] **FR-044** — Controlled reconnect and radio-loss behavior.
 - [ ] **FR-045** — Claims backed only by controlled evidence.
+- [ ] **FR-091** — macOS and Windows host workflows and physical certification.
 
 ## Phase 3 — certification (deferred)
 

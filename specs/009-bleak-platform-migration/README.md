@@ -1,14 +1,14 @@
-# SPEC-009: Bleak-first operations and cross-platform readiness
+# SPEC-009: Bleak-first Linux operations and portable boundaries
 
-**Status:** Implementing
+**Status:** Implemented
 **Milestone:** `0.5.0`
 **Depends on:** SPEC-003
 **Coordinates with:** SPEC-005
 
 ## Scope
 
-SPEC-009 evaluates and migrates the package's BLE lifecycle toward a
-Bleak-first, platform-neutral design:
+SPEC-009 evaluates and migrates the package's Linux BLE lifecycle to a
+Bleak-first design with platform-neutral public boundaries:
 
 - structured discovery and deterministic authorized-device selection;
 - native Bleak device resolution before connection;
@@ -19,7 +19,7 @@ Bleak-first, platform-neutral design:
 - parallel device-specific FTU paths that keep Loop physical setup isolated
   from Verity runtime-time and wear-location setup;
 - platform-neutral identifiers, public models, commands, and inventories;
-- automated portability contracts for Linux, macOS, and Windows;
+- Linux automated contracts across the supported Python and Bleak versions;
 - controlled Linux hardware validation for the currently supported devices.
 
 The experiments compare package outcomes, not implementation parity.
@@ -39,8 +39,8 @@ Every lifecycle operation receives one reviewed verdict:
 4. **Unsupported** when the outcome cannot be implemented or validated safely.
 
 The accepted verdict matrix is an implementation gate, not an optional report.
-Approved migration, public-contract replacement, validation, and documentation
-belong to the `0.5.x` program.
+The approved migration, public-contract replacement, Linux validation, and
+documentation are complete for `0.5.0`.
 
 ## Documents
 
@@ -64,6 +64,6 @@ belong to the `0.5.x` program.
   change.
 - Linux hardware evidence preserves supported user outcomes, not the existing
   BlueZ implementation.
-- macOS and Windows automation proves architectural portability only. Public
-  platform support requires later physical-device evidence through SPEC-005.
+- macOS and Windows workflows and physical-device certification are deferred
+  to SPEC-005. Platform-neutral boundaries in `0.5.0` are not support claims.
 - Device identifiers, inventories, captures, and hardware logs remain private.

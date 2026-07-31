@@ -1,8 +1,8 @@
 # SPEC-009 implementation tracker
 
-**Status:** Implementing — product and automated gates complete locally;
-exact-commit CI, maintainer diff review, and protected hardware/release gates
-remain.
+**Status:** Implemented — the Linux-first Bleak migration, public-contract
+cutover, controlled Linux evidence, and release documentation are complete.
+macOS and Windows workflows and certification are deferred to SPEC-005.
 
 Unchecked implementation items are commitments only after the decision matrix
 selects their applicable verdict.
@@ -106,8 +106,8 @@ selects their applicable verdict.
 
 ## Phase 4 — validation and release
 
-- [ ] **FR-088** — Linux/macOS/Windows automated contracts and controlled Linux
-  hardware validation on both supported devices.
+- [x] **FR-088** — Linux automated contracts and controlled Linux hardware
+  validation on both supported devices.
 - [x] **FR-089** — Evidence-scoped platform claims and SPEC-005 handoff.
 - [x] Required lint, format, unit, contract, audit, build, packaging, and
   clean-wheel gates.
