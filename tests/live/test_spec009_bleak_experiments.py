@@ -19,7 +19,7 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 
 from polar_ble_tools.ble.bleak_backend import BleakSession
-from polar_ble_tools.inventory import InventoryError, load_allowed_mac_addresses
+from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
 from polar_ble_tools.polar.offline import OfflineRecordingControlClient
 from polar_ble_tools.polar.pftp import PftpClient
 from polar_ble_tools.polar.pmd import PmdClient
@@ -149,7 +149,7 @@ def _load_authorized_target() -> str:
             f"SPEC-009 live tests require a local authorized inventory: {TEST_DEVICES_FILE}"
         )
     try:
-        allowed = load_allowed_mac_addresses(TEST_DEVICES_FILE)
+        allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
     normalized = target.upper()
@@ -164,7 +164,7 @@ def _load_authorized_pair() -> tuple[str, str]:
     if not second:
         pytest.skip(f"{LIVE_SECONDARY_MAC_ENV} is required for the multi-device probe.")
     try:
-        allowed = load_allowed_mac_addresses(TEST_DEVICES_FILE)
+        allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
     normalized_second = second.upper()

@@ -11,9 +11,10 @@ from pathlib import Path
 def test_package_imports_without_generated_schemas() -> None:
     package = importlib.import_module("polar_ble_tools")
 
-    assert callable(package.discover_devices)
-    assert callable(package.pair_device)
-    assert callable(package.connect_device)
+    assert callable(package.scan_devices)
+    assert callable(package.prepare_device)
+    assert callable(package.probe_device)
+    assert callable(package.open_polar_device)
     assert not any(
         module_name.startswith("polar_ble_tools._generated") for module_name in sys.modules
     )
@@ -53,7 +54,7 @@ assert not any(name.endswith('_pb2') for name in sys.modules)
         (),
         ("--help",),
         ("discover", "--help"),
-        ("pair", "--help"),
+        ("prepare", "--help"),
         ("raw", "--help"),
     ):
         completed = subprocess.run(

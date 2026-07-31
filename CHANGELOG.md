@@ -2,16 +2,53 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.5.0 — 2026-07-30
 
 ### Added
 
+- Added immutable platform-neutral discovery, preparation, probe, lifecycle
+  timeout, and phase-preserving error models.
+- Added asynchronous `scan_devices()`, `prepare_device()`, `probe_device()`,
+  and managed `open_polar_device()` APIs.
+- Added structured Bleak discovery with current-context native-device
+  resolution and concurrent scan coalescing.
+- Added a lazy Linux-only, exact-target `org.bluez.Agent1` adapter for fresh
+  preparation, followed by an agent-free reconnect check.
+- Added Linux Python 3.11–3.14 CI, macOS/Windows portability jobs at Python
+  3.11 and 3.14, and exact Bleak 1.0.0/3.0.2 endpoint jobs.
 - Scoped FTU profiles by device family and added a Verity Sense FTU path that
   sets runtime system/local time, applies wear location, and rejects
   unsupported pool-length input.
 - Selected and contract-tested the Bleak dependency range
-  `bleak>=1.0,<3.1`; simultaneous two-device operation uses one structured
-  scan and native `BLEDevice` client construction.
+  `bleak>=1.0,<3.1`.
+
+### Changed
+
+- Replaced MAC-specific selection with required `--device-identifier` and
+  platform-neutral labeled inventories.
+- Replaced `polar-ble pair` with `polar-ble prepare`; `polar-ble connect` is
+  now a bounded PMD/PFTP readiness probe that ends disconnected.
+- Routed preparation, probe, PMD, PFTP, raw, passive, and both FTU families
+  through shared same-device serialization and a two-session per-loop limit.
+- Verified two-device read-only overlap on one controlled Linux/BlueZ adapter
+  using shared discovery and native objects. Long-duration, multi-adapter, and
+  macOS/Windows hardware concurrency remain unvalidated.
+
+### Removed
+
+- Removed `BluetoothDevice`, `PairingStatus`, `PairingError`,
+  `discover_devices()`, `pair_device()`, `connect_device()`, and
+  `release_device_connection()` without compatibility aliases.
+- Removed the `polar-pair` and `polar-connect` entry points, the `pair`
+  subcommand, `--mac-address`, and the general-purpose `bluetoothctl`
+  lifecycle implementation.
+
+### Compatibility
+
+- Linux/BlueZ remains the only hardware-supported platform. macOS and Windows
+  are architecture-, package-, and contract-tested but hardware-unvalidated.
+- Verity Sense pool length is unsupported/deferred because neither a root
+  schema nor a verified read/modify/write operation is available.
 
 ## 0.4.1 — 2026-07-29
 

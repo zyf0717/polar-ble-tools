@@ -26,7 +26,7 @@ from polar_ble_tools.raw_data.storage import DEFAULT_RAW_ROOT
 
 def build_raw_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="List, retrieve, and safely clean raw REC files.")
-    parser.add_argument("--mac-address", required=True)
+    parser.add_argument("--device-identifier", required=True)
     parser.add_argument(
         "--devices-file",
         help="Optional development YAML inventory used to restrict the target.",
@@ -75,7 +75,7 @@ def build_raw_parser() -> argparse.ArgumentParser:
 
 
 async def _list_raw(args: argparse.Namespace) -> int:
-    entries = await list_raw_recordings(args.mac_address)
+    entries = await list_raw_recordings(args.device_identifier)
     print_json(
         {
             "listed": len(entries),
@@ -95,7 +95,7 @@ async def _list_raw(args: argparse.Namespace) -> int:
 
 async def _collect_raw(args: argparse.Namespace) -> int:
     result = await collect_raw_recordings(
-        args.mac_address,
+        args.device_identifier,
         root=args.root,
         record_types=set(args.record_types) if args.record_types else None,
         delete_after_collect=args.delete_after_collect,
@@ -106,7 +106,7 @@ async def _collect_raw(args: argparse.Namespace) -> int:
 
 async def _cleanup_raw(args: argparse.Namespace) -> int:
     result = await cleanup_raw_recordings(
-        args.mac_address,
+        args.device_identifier,
         root=args.root,
         record_types=set(args.record_types) if args.record_types else None,
         delete_all=args.delete_all,
@@ -117,18 +117,18 @@ async def _cleanup_raw(args: argparse.Namespace) -> int:
 
 
 async def _types_raw(args: argparse.Namespace) -> int:
-    print_json((await available_recording_types(args.mac_address)).to_jsonable())
+    print_json((await available_recording_types(args.device_identifier)).to_jsonable())
     return 0
 
 
 async def _status_raw(args: argparse.Namespace) -> int:
-    print_json((await recording_status(args.mac_address)).to_jsonable())
+    print_json((await recording_status(args.device_identifier)).to_jsonable())
     return 0
 
 
 async def _settings_raw(args: argparse.Namespace) -> int:
     print_json(
-        (await recording_settings(args.mac_address, args.type, full=args.full)).to_jsonable()
+        (await recording_settings(args.device_identifier, args.type, full=args.full)).to_jsonable()
     )
     return 0
 
@@ -136,36 +136,54 @@ async def _settings_raw(args: argparse.Namespace) -> int:
 async def _start_raw(args: argparse.Namespace) -> int:
     print_json(
         (
-            await start_recording(args.mac_address, args.type, _parse_settings(args.setting))
+            await start_recording(
+                args.device_identifier,
+                args.type,
+                _parse_settings(args.setting),
+            )
         ).to_jsonable()
     )
     return 0
 
 
 async def _stop_raw(args: argparse.Namespace) -> int:
-    print_json((await stop_recording(args.mac_address, args.type)).to_jsonable())
+    print_json((await stop_recording(args.device_identifier, args.type)).to_jsonable())
     return 0
 
 
 async def _trigger_raw(args: argparse.Namespace) -> int:
     if args.trigger_command == "get":
-        print_json((await offline_trigger(args.mac_address)).to_jsonable())
+        print_json((await offline_trigger(args.device_identifier)).to_jsonable())
         return 0
     selected = _parse_settings(args.setting)
     trigger_features = {recording_type: selected for recording_type in args.type}
     print_json(
-        (await update_offline_trigger(args.mac_address, args.mode, trigger_features)).to_jsonable()
+        (
+            await update_offline_trigger(
+                args.device_identifier,
+                args.mode,
+                trigger_features,
+            )
+        ).to_jsonable()
     )
     return 0
 
 
 async def _disk_space_raw(args: argparse.Namespace) -> int:
-    print_json((await device_disk_space(args.mac_address)).to_jsonable())
+    print_json((await device_disk_space(args.device_identifier)).to_jsonable())
     return 0
 
 
 async def _fetch_raw(args: argparse.Namespace) -> int:
-    print_json((await fetch_raw_recording(args.mac_address, args.path, args.output)).to_jsonable())
+    print_json(
+        (
+            await fetch_raw_recording(
+                args.device_identifier,
+                args.path,
+                args.output,
+            )
+        ).to_jsonable()
+    )
     return 0
 
 

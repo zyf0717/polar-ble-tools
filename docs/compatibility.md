@@ -2,8 +2,13 @@
 
 ## Supported devices
 
-`0.4.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
+`0.5.0` supports Polar Loop Gen 2 and Polar Verity Sense on Linux/BlueZ within
 the controlled capability boundaries below.
+
+Linux preparation, probe, managed sessions, PMD/PFTP workflows, and
+device-specific FTU have controlled hardware evidence. macOS and Windows
+package/import/build and injected lifecycle contracts run in CI, but physical
+hardware support on those platforms is unvalidated and is not claimed.
 
 ## Polar Loop Gen 2
 
@@ -14,7 +19,8 @@ device remained on 6.1.19 throughout its controlled Loop Gen 2 testing.
 
 Controlled checks covered:
 
-- discovery, pairing, bonding, trust, connection handoff, and reconnect;
+- structured discovery, fresh/existing preparation, bounded readiness,
+  disconnect, and agent-free reconnect;
 - PMD availability and status, plus accelerometer recording start/stop;
 - PFTP raw `.REC` listing, retrieval, size checks, SHA-256 storage, and cleanup
   dry-run;
@@ -102,10 +108,12 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.4.0` capabilities.
+- Batch and protected REC decoding are not `0.5.0` capabilities.
 - The optional REC decoder is currently limited to Linux x86_64.
-- Multi-device locking is covered by unit tests but not validated with two
-  physical devices.
+- Two-device shared-scan/native-object overlap was validated for three
+  simultaneous read-only PMD/PFTP cycles on one Linux/BlueZ adapter.
+  Long-duration, multi-adapter, and cross-platform hardware concurrency remain
+  unvalidated.
 - Forced Bluetooth/radio-loss recovery is not validated.
 - SDK revisions other than the pinned revision are diagnostic overrides and
   carry no compatibility guarantee.

@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from polar_ble_tools.api import FtuApplyResult
 from polar_ble_tools.commands.ftu import ftu_main
+from polar_ble_tools.polar.setup import FtuProfile, VeritySenseFtuProfile
 
 
 def write_profile(path: Path, **overrides: object) -> None:
@@ -172,39 +174,22 @@ def test_ftu_apply_patches_profile_user_device_settings(
     )
     calls: list[object] = []
 
-    class FakeDevice:
-        async def aclose(self) -> None:
-            calls.append(("disconnect",))
+    async def fake_apply_ftu(identifier: str, loaded_profile: object) -> FtuApplyResult:
+        calls.append((identifier, loaded_profile))
+        return FtuApplyResult(ftu_applied=True, settings_updated=True)
 
-    class FakeSetupClient:
-        async def do_first_time_use(self, ftu_profile: object) -> None:
-            calls.append(("ftu", ftu_profile))
+    monkeypatch.setattr("polar_ble_tools.commands.ftu.apply_ftu", fake_apply_ftu)
 
-        async def set_user_device_settings(self, patch: object) -> None:
-            calls.append(("settings", patch))
-
-    device = FakeDevice()
-    setup_client = FakeSetupClient()
-
-    async def fake_open_setup_client(mac_address: str) -> tuple[object, object]:
-        calls.append(("open", mac_address))
-        return device, setup_client
-
-    monkeypatch.setattr(
-        "polar_ble_tools.commands.ftu._open_setup_client",
-        fake_open_setup_client,
+    exit_code = ftu_main(
+        ["--device-identifier", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)]
     )
-
-    exit_code = ftu_main(["--mac-address", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)])
 
     captured = capsys.readouterr()
     output = json.loads(captured.out)
     assert exit_code == 0
     assert output == {"ftu_applied": True, "settings_updated": True}
-    assert calls[0] == ("open", "AA:BB:CC:DD:EE:FF")
-    assert calls[1][0] == "ftu"
-    assert calls[2][0] == "settings"
-    assert calls[3] == ("disconnect",)
+    assert calls[0][0] == "AA:BB:CC:DD:EE:FF"
+    assert isinstance(calls[0][1], FtuProfile)
     assert captured.err == ""
 
 
@@ -217,27 +202,15 @@ def test_verity_ftu_apply_uses_device_specific_setup_path(
     write_verity_profile(profile)
     calls: list[object] = []
 
-    class FakeDevice:
-        async def aclose(self) -> None:
-            calls.append(("disconnect",))
+    async def fake_apply_ftu(identifier: str, loaded_profile: object) -> FtuApplyResult:
+        calls.append((identifier, loaded_profile))
+        return FtuApplyResult(ftu_applied=True, settings_updated=True)
 
-    class FakeSetupClient:
-        async def do_first_time_use(self, _profile: object) -> None:
-            raise AssertionError("Verity FTU must not use Loop physical-data writes.")
+    monkeypatch.setattr("polar_ble_tools.commands.ftu.apply_ftu", fake_apply_ftu)
 
-        async def do_verity_sense_first_time_use(self, profile: object) -> None:
-            calls.append(("verity_ftu", profile))
-
-    async def fake_open_setup_client(mac_address: str) -> tuple[object, object]:
-        calls.append(("open", mac_address))
-        return FakeDevice(), FakeSetupClient()
-
-    monkeypatch.setattr(
-        "polar_ble_tools.commands.ftu._open_setup_client",
-        fake_open_setup_client,
+    exit_code = ftu_main(
+        ["--device-identifier", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)]
     )
-
-    exit_code = ftu_main(["--mac-address", "AA:BB:CC:DD:EE:FF", "apply", "--profile", str(profile)])
 
     captured = capsys.readouterr()
     assert exit_code == 0
@@ -245,7 +218,6 @@ def test_verity_ftu_apply_uses_device_specific_setup_path(
         "ftu_applied": True,
         "settings_updated": True,
     }
-    assert calls[0] == ("open", "AA:BB:CC:DD:EE:FF")
-    assert calls[1][0] == "verity_ftu"
-    assert calls[2] == ("disconnect",)
+    assert calls[0][0] == "AA:BB:CC:DD:EE:FF"
+    assert isinstance(calls[0][1], VeritySenseFtuProfile)
     assert captured.err == ""

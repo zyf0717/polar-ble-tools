@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 
+from polar_ble_tools.ble.transport import DevicePlatform
+from polar_ble_tools.polar.uuids import PFTP_SERVICE, PMD_SERVICE
 from polar_ble_tools.workflows import DeviceLockRegistry, DeviceWorkflowRunner
 
 
 class FakeSession:
     is_connected = True
-    services: list[str] = []
+    services = [PFTP_SERVICE, PMD_SERVICE]
 
     async def disconnect(self) -> None:
         return None
@@ -26,11 +28,14 @@ class FakeSession:
 
 
 class FakeTransport:
+    platform = DevicePlatform.LINUX
+
     def __init__(self) -> None:
         self.connected: list[str] = []
         self.disconnected = 0
 
-    async def connect(self, identifier: str) -> FakeSession:
+    async def connect(self, identifier: str, *, pair: bool = False) -> FakeSession:
+        del pair
         self.connected.append(identifier)
         return FakeSession()
 
@@ -121,6 +126,41 @@ def test_workflow_runner_allows_distinct_devices_to_overlap() -> None:
 
         assert set(results) == {"AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66"}
         assert entered == set(results)
+
+    asyncio.run(run())
+
+
+def test_default_workflow_limit_blocks_a_third_distinct_device() -> None:
+    async def run() -> None:
+        runner = DeviceWorkflowRunner(
+            transport_factory=FakeTransport,
+            lock_registry=DeviceLockRegistry(),
+        )
+        two_entered = asyncio.Event()
+        release = asyncio.Event()
+        entered: list[str] = []
+
+        async def workflow(device) -> str:
+            entered.append(device.target.identifier)
+            if len(entered) == 2:
+                two_entered.set()
+            await release.wait()
+            return device.target.identifier
+
+        tasks = [
+            asyncio.create_task(runner.run(identifier, workflow))
+            for identifier in (
+                "AA:BB:CC:DD:EE:01",
+                "AA:BB:CC:DD:EE:02",
+                "AA:BB:CC:DD:EE:03",
+            )
+        ]
+        await asyncio.wait_for(two_entered.wait(), timeout=1.0)
+        await asyncio.sleep(0)
+        assert len(entered) == 2
+        release.set()
+        await asyncio.wait_for(asyncio.gather(*tasks), timeout=1.0)
+        assert len(entered) == 3
 
     asyncio.run(run())
 

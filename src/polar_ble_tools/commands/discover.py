@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import json
+import asyncio
 import sys
 
-from polar_ble_tools.ble.bluetoothctl_pairing import discover_devices
+from polar_ble_tools.ble.operations import scan_devices
+from polar_ble_tools.ble.transport import DeviceLifecycleError
+from polar_ble_tools.commands.common import print_json
 
 
 def build_discover_parser() -> argparse.ArgumentParser:
@@ -12,51 +14,33 @@ def build_discover_parser() -> argparse.ArgumentParser:
         description="Read nearby BLE advertisements without pairing or connecting."
     )
     parser.add_argument(
-        "--scan-seconds",
+        "--timeout",
         type=float,
         default=10.0,
-        help="BLE scan duration. Default: %(default)s",
+        help="BLE scan timeout in seconds. Default: %(default)s",
     )
     parser.add_argument(
         "--name",
         help="Optional case-insensitive device-name substring filter.",
     )
-    parser.add_argument(
-        "--bluetoothctl",
-        default="bluetoothctl",
-        help="Path to the bluetoothctl executable. Default: %(default)s",
-    )
     return parser
+
+
+async def _discover(args: argparse.Namespace) -> int:
+    devices = await scan_devices(timeout=args.timeout, name_substring=args.name)
+    print_json(
+        {
+            "count": len(devices),
+            "devices": [device.to_jsonable() for device in devices],
+        }
+    )
+    return 0
 
 
 def discover_main(argv: list[str] | None = None) -> int:
     args = build_discover_parser().parse_args(argv)
     try:
-        devices = discover_devices(
-            scan_seconds=args.scan_seconds,
-            name_substring=args.name,
-            executable=args.bluetoothctl,
-        )
-    except FileNotFoundError as exc:
-        print(f"bluetoothctl is not installed or not on PATH: {exc}", file=sys.stderr)
-        return 1
-    except (ValueError, RuntimeError) as exc:
+        return asyncio.run(_discover(args))
+    except (DeviceLifecycleError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
-    print(
-        json.dumps(
-            {
-                "discovered": len(devices),
-                "devices": [
-                    {
-                        "mac_address": device.mac_address,
-                        "name": device.name,
-                        "rssi": device.rssi,
-                    }
-                    for device in devices
-                ],
-            },
-            sort_keys=True,
-        )
-    )
-    return 0

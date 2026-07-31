@@ -6,9 +6,9 @@ direct Python API is available.
 
 | Command | Operation | Direct Python entry point |
 | --- | --- | --- |
-| `discover` | Scan BLE advertisements | `discover_devices()` |
-| `pair` | Pair, bond, trust, verify connectivity, and disconnect | `pair_device()` |
-| `connect` | Connect a paired device | `connect_device()` |
+| `discover` | Scan structured BLE advertisements | `await scan_devices()` |
+| `prepare` | Verify readiness or perform one bounded preparation and persistent reconnect check | `await prepare_device()` |
+| `connect` | Verify PMD/PFTP readiness and disconnect | `await probe_device()` |
 | `raw list` | List device REC files | `await list_raw_recordings()` |
 | `raw types` | List supported offline recording types | `await available_recording_types()` |
 | `raw status` | Read offline recording activity | `await recording_status()` |
@@ -62,3 +62,9 @@ because no supported device write contract is available.
 The command wrappers remain available as `*_main(argv)` functions and
 `polar_ble_tools.commands.main.main(argv)`, but they are intended for process
 entry points and compatibility testing—not application integration.
+
+Every device-facing command requires `--device-identifier`; commands that can
+mutate or retrieve data also accept `--devices-file`. Discovery emits `count`
+plus public device records. Preparation and probe outputs include
+the normalized identifier, platform, readiness, and `final_connected: false`;
+service UUIDs are sorted.

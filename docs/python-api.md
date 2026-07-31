@@ -6,8 +6,13 @@ pass a `transport_factory` in tests or custom integrations.
 
 | Import | Kind | Purpose |
 | --- | --- | --- |
-| `discover_devices` | sync | Scan BLE advertisements. |
-| `pair_device`, `connect_device`, `release_device_connection` | sync | BlueZ pairing and connection lifecycle. |
+| `scan_devices` | async | Return immutable structured advertisement records. |
+| `prepare_device` | async | Verify readiness or perform one bounded platform preparation and persistent reconnect check. |
+| `probe_device` | async | Verify PMD/PFTP readiness and finish disconnected. |
+| `open_polar_device` | async context manager | Own one bounded service-ready device session. |
+| `DiscoveredDevice`, `PreparationResult`, `ProbeResult` | frozen models | Stable platform-neutral lifecycle results. |
+| `DevicePlatform`, `PreparationOutcome`, `ReconnectPersistence`, `LifecyclePhase` | enums | Stable lifecycle values. |
+| `LifecycleTimeouts`, `DeviceLifecycleError` | model/error | Phase budgets and redacted phase-preserving failures. |
 | `list_raw_recordings` | async | List device REC entries. |
 | `available_recording_types` | async | Return supported offline recording types. |
 | `recording_status` | async | Return offline recording activity by type. |
@@ -47,6 +52,10 @@ Specialized modules are deliberately separate from the top-level facade:
 
 - Device-facing APIs are `async`; call them with `await` rather than
   `asyncio.run()` inside an existing event loop.
+- Device inputs use `identifier`. Recognized MAC addresses and UUIDs are
+  canonicalized; all other non-empty identifiers remain opaque.
+- Discovery and probe return only stable public fields. Native Bleak objects,
+  advertisement payloads, and inventory contents are never exposed.
 - Collection and listing results expose tuples rather than mutable internal
   lists. Raw/passive outcome fields use `StrEnum` models internally and retain
   their documented string values in `to_jsonable()` output.

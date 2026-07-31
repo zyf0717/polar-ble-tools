@@ -27,10 +27,11 @@ def test_candidate_requires_merged_release_tree_and_consistent_metadata() -> Non
 
 
 def test_sdk_free_workflows_run_only_sdk_free_contracts() -> None:
-    command = "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py"
-
-    for workflow_name in ("test.yml", "testpypi-candidate.yml"):
-        assert command in (WORKFLOWS / workflow_name).read_text()
+    assert "python -m pytest -q tests/unit tests/contracts" in (WORKFLOWS / "test.yml").read_text()
+    assert (
+        "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py"
+        in (WORKFLOWS / "testpypi-candidate.yml").read_text()
+    )
 
 
 def test_sdk_workflows_clean_sdk_owned_paths_without_requiring_an_empty_app_root() -> None:

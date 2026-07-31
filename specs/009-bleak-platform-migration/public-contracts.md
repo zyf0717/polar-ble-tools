@@ -96,7 +96,7 @@ polar-ble ftu --device-identifier IDENTIFIER ...
 ```
 
 `connect` performs the bounded readiness probe; it does not leave a connection
-owned by the OS. Standalone `polar-connect` and `polar-pair` entry points may be
+owned by the OS. Standalone `polar-connect` and `polar-pair` entry points are
 removed. Success output remains deterministic JSON and errors use stderr.
 
 ## Errors
@@ -121,7 +121,7 @@ or captures.
 
 ## Breaking-change policy
 
-`0.5.0` may remove `mac_address`, `--mac-address`, synchronous discovery,
+`0.5.0` removes `mac_address`, `--mac-address`, synchronous discovery,
 Linux-shaped `PairingStatus`, persistent `connect_device()`, and
 `release_device_connection()`. Changelog, release notes, CLI/Python references,
 and architecture documentation list every accepted removal. Later `0.5.x`

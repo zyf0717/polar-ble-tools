@@ -6,41 +6,39 @@ Verify that the Bluetooth controller is powered, the device is advertising, and
 no phone or other host owns the connection. Retry with a longer scan:
 
 ```bash
-polar-ble discover --scan-seconds 30 --name Polar
+polar-ble discover --timeout 30 --name Polar
 ```
 
-## Pairing does not complete
+## Preparation does not complete
 
-For `org.bluez.Error.ConnectionAttemptFailed`, wait a few seconds and retry
-once. If it persists, ensure no phone or other host owns the connection, then
-return the device to its pairing window. Remove only the exact stale BlueZ
-record if necessary. Inspect current-boot logs without copying device
-identifiers into public reports:
+`polar-ble prepare` performs no generic retry. If a bounded attempt fails,
+ensure no phone or other host owns the connection, return the device to its
+pairing window, and run the isolated command once more. The temporary Linux
+authentication agent accepts only the exact selected device and unregisters
+after every outcome. The package never removes a bond or changes adapter
+policy. Inspect current-boot logs without copying device identifiers into
+public reports:
 
 ```bash
-bluetoothctl info AA:BB:CC:DD:EE:FF
 journalctl -k -b
 journalctl -u bluetooth -b
 ```
 
-Successful durable state is paired, bonded, and trusted. A disconnected state
-after pairing is normal.
+Successful preparation reports verified readiness and reconnect persistence.
+A disconnected final state is required.
 
 ## Bleak cannot reconnect
 
-`polar-ble pair` releases its temporary BlueZ connection after verification. If
-an explicit `polar-ble connect` or `connect_device()` call owns a connection,
-release it before opening an async device session. Allow a bounded settle
-interval after repeated pair/connect activity. Do not run unbounded reconnect
+`polar-ble connect` is a bounded readiness probe and finishes disconnected.
+Library callers that need multiple operations must use
+`async with open_polar_device(identifier)`. Do not run unbounded reconnect
 loops.
 
 A reconnect timeout can occur while BlueZ is processing
 `org.bluez.Device1.Disconnect`, before the next connection attempt begins.
-Confirm that `bluetoothctl info` eventually reports `Connected: no`, retain the
-timeout phase in the private diagnostic record, allow a bounded settle
-interval, and retry the isolated probe. Do not remove a durable paired, bonded,
-and trusted record solely because disconnect teardown exceeded one attempt
-timeout.
+Retain the timeout phase in the private diagnostic record, allow a bounded
+settle interval, and retry the isolated probe. Do not remove a durable host
+record solely because disconnect teardown exceeded one attempt timeout.
 
 ## Schema-backed command fails
 
@@ -84,7 +82,7 @@ exact full commit SHA.
 
 ## REC decode fails
 
-The `0.4.0` decoder does not support encrypted recordings or batch decoding.
+The `0.5.0` decoder does not support encrypted recordings or batch decoding.
 Check that a renamed file
 still has a supported recording name, retain the original privately, and inspect
 bounded stderr diagnostics. A null timestamp can be intentional when the SDK

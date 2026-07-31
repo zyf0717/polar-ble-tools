@@ -1,7 +1,7 @@
 # SPEC-009: Bleak-first operations and cross-platform readiness
 
-**Status:** Proposed
-**Milestone:** `0.5.x`
+**Status:** Implementing
+**Milestone:** `0.5.0`
 **Depends on:** SPEC-003
 **Coordinates with:** SPEC-005
 

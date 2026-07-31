@@ -6,8 +6,9 @@ tested without hardware or downloaded schemas.
 
 ## Package boundaries
 
-- `ble/` provides the transport protocol, Bleak backend, lifecycle state, and
-  explicit BlueZ pairing helpers.
+- `ble/` provides platform-neutral models, structured discovery, native-device
+  resolution, the Bleak backend, lifecycle state, and the narrow Linux BlueZ
+  authentication-agent adapter.
 - `polar/pmd.py` implements PMD control-point requests, settings, status, and
   recording triggers.
 - `polar/pftp.py` implements PFTP requests, RFC76 framing, directory and file
@@ -28,12 +29,26 @@ tested without hardware or downloaded schemas.
 
 ## BLE lifecycle
 
-Discovery is read-only. Pairing and connection select an explicit device
-identifier, optionally constrained by an authorized-device inventory. BlueZ
-pairing is released before a Bleak session opens the same peripheral. A device
-session starts PMD and PFTP notifications, exposes service clients, and closes
-both services and the transport on exit. Workflow locks serialize access to one
-device and bound concurrent sessions globally.
+Discovery is read-only and maps structured Bleak advertisements to immutable
+public records. MAC addresses and UUIDs are normalized; other identifiers are
+opaque. A per-event-loop resolver coalesces concurrent resolution scans and
+passes only current-context native `BLEDevice` objects to `BleakClient`; native
+objects are neither public nor retained between operations.
+
+Preparation, probe, PMD, PFTP, raw, passive, and FTU paths use the same workflow
+ownership boundary. A device session verifies PMD and PFTP before becoming
+ready, exposes the protocol clients, and closes the transport on exit. Locks
+serialize one normalized identity, while a per-event-loop semaphore permits at
+most two distinct device sessions. Each resolution, connection, readiness,
+preparation, and disconnect phase is bounded.
+
+Fresh Linux preparation is the sole OS-adapter exception. A temporary
+`org.bluez.Agent1` implementation accepts only confirmation and supported
+service authorization for the exact selected device. It rejects PIN/passkey,
+unexpected-device, and unrelated-service requests and unregisters after every
+outcome. Bleak continues to own discovery, pairing, service readiness, and
+disconnect. No subprocess output is parsed and the package never removes host
+bonds or changes adapter policy.
 
 ## Data flow
 

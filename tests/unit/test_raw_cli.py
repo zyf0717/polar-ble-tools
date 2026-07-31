@@ -14,7 +14,13 @@ def _inventory(tmp_path: Path) -> Path:
 
 def test_raw_cli_rejects_unauthorized_device(tmp_path: Path, capsys) -> None:
     status = raw_main(
-        ["--mac-address", "11:22:33:44:55:66", "--devices-file", str(_inventory(tmp_path)), "list"]
+        [
+            "--device-identifier",
+            "11:22:33:44:55:66",
+            "--devices-file",
+            str(_inventory(tmp_path)),
+            "list",
+        ]
     )
     assert status == 2
     assert "not authorized" in capsys.readouterr().err
@@ -36,7 +42,7 @@ def test_raw_collect_delegates_to_collection_api(monkeypatch, capsys) -> None:
     monkeypatch.setattr("polar_ble_tools.commands.raw.collect_raw_recordings", fake_collect)
     status = raw_main(
         [
-            "--mac-address",
+            "--device-identifier",
             "AA:BB:CC:DD:EE:FF",
             "collect",
             "--type",
@@ -62,7 +68,13 @@ def test_raw_list_delegates_to_collection_api(monkeypatch, tmp_path: Path, capsy
 
     monkeypatch.setattr("polar_ble_tools.commands.raw.list_raw_recordings", fake_list)
     status = raw_main(
-        ["--mac-address", "AA:BB:CC:DD:EE:FF", "--devices-file", str(_inventory(tmp_path)), "list"]
+        [
+            "--device-identifier",
+            "AA:BB:CC:DD:EE:FF",
+            "--devices-file",
+            str(_inventory(tmp_path)),
+            "list",
+        ]
     )
     assert status == 0
     assert json.loads(capsys.readouterr().out)["listed"] == 1
@@ -82,7 +94,7 @@ def test_raw_start_parses_settings_and_emits_stable_json(monkeypatch, capsys) ->
 
     status = raw_main(
         [
-            "--mac-address",
+            "--device-identifier",
             "AA:BB:CC:DD:EE:FF",
             "start",
             "--type",
@@ -104,7 +116,7 @@ def test_raw_trigger_rejects_duplicate_settings_before_api_call(monkeypatch, cap
 
     status = raw_main(
         [
-            "--mac-address",
+            "--device-identifier",
             "AA:BB:CC:DD:EE:FF",
             "trigger",
             "set",

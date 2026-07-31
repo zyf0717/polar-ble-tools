@@ -2,15 +2,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Protocol
-
-
-class StatusLike(Protocol):
-    mac_address: str
-    paired: bool
-    bonded: bool
-    trusted: bool
-    connected: bool
 
 
 def ensure_log_dir(log_dir: str | Path) -> Path:
@@ -44,15 +35,3 @@ def log_event(logger: logging.Logger, event: str, **fields: object) -> None:
         logger.info("%s %s", event, rendered_fields)
         return
     logger.info("%s", event)
-
-
-def log_status(logger: logging.Logger, event: str, status: StatusLike) -> None:
-    log_event(
-        logger,
-        event,
-        mac=status.mac_address,
-        paired=status.paired,
-        bonded=status.bonded,
-        trusted=status.trusted,
-        connected=status.connected,
-    )

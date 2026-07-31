@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import ClassVar
 
-from polar_ble_tools.ble.transport import BleServiceNotFound, BleSession
+from polar_ble_tools.ble.transport import BleServiceNotFound, BleSession, LifecyclePhase
 from polar_ble_tools.polar import uuids
 from polar_ble_tools.polar.pmd_types import (
     CONTROL_POINT_RESPONSE_CODE,
@@ -85,7 +85,10 @@ class PmdClient:
     def ensure_pmd_service(self) -> None:
         normalized = {service.lower() for service in self.session.services}
         if normalized and uuids.PMD_SERVICE not in normalized:
-            raise BleServiceNotFound("Polar PMD service was not discovered.")
+            raise BleServiceNotFound(
+                LifecyclePhase.SERVICE_READINESS,
+                "Polar PMD service was not discovered.",
+            )
 
     async def start_notifications(self) -> None:
         if self._notifications_started:

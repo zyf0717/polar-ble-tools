@@ -35,7 +35,7 @@ def test_passive_cli_lists_raw_files_without_schema_cache(
     assert (
         passive_main(
             [
-                "--mac-address",
+                "--device-identifier",
                 "AA:BB:CC:DD:EE:FF",
                 "--devices-file",
                 str(_inventory(tmp_path)),
@@ -56,7 +56,7 @@ def test_passive_cli_rejects_unauthorized_device(tmp_path: Path, capsys) -> None
     assert (
         passive_main(
             [
-                "--mac-address",
+                "--device-identifier",
                 "11:22:33:44:55:66",
                 "--devices-file",
                 str(_inventory(tmp_path)),
@@ -86,7 +86,7 @@ def test_passive_collect_passes_existing_file_policy(monkeypatch, capsys) -> Non
     assert (
         passive_main(
             [
-                "--mac-address",
+                "--device-identifier",
                 "AA:BB:CC:DD:EE:FF",
                 "--from-date",
                 "2026-06-25",
@@ -126,7 +126,7 @@ def test_passive_collect_decode_reports_collection_and_decode_outcomes(monkeypat
     assert (
         passive_main(
             [
-                "--mac-address",
+                "--device-identifier",
                 "AA:BB:CC:DD:EE:FF",
                 "--from-date",
                 "2026-06-25",
@@ -161,7 +161,7 @@ def test_passive_cleanup_dry_run_does_not_require_collection_dates(monkeypatch, 
     assert (
         passive_main(
             [
-                "--mac-address",
+                "--device-identifier",
                 "AA:BB:CC:DD:EE:FF",
                 "cleanup",
                 "--domain",

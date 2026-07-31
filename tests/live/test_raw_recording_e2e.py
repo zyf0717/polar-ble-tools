@@ -15,11 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from polar_ble_tools.ble.bluetoothctl_pairing import (
-    pair_device,
-)
+from polar_ble_tools.ble.operations import prepare_device
 from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.inventory import InventoryError, load_allowed_mac_addresses
+from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
 from polar_ble_tools.polar.offline import base_record_type_for
 from polar_ble_tools.polar.pmd import (
     PmdResponseCode,
@@ -70,15 +68,14 @@ def test_live_pair_ftu_record_and_fetch_raw() -> None:
         pytest.skip(f"{LIVE_E2E_ENV}=1 is required.")
     config = _load_config()
 
-    # Pairing scans for the explicit MAC and becomes a no-op pairing-wise when
-    # BlueZ already reports a paired, bonded, and trusted device.
-    pairing = pair_device(
-        mac_address=config.mac_address,
-        name_substring="Polar",
-        scan_seconds=8.0,
-        log_dir=config.output_root / "pairing-logs",
+    preparation = asyncio.run(
+        prepare_device(
+            config.mac_address,
+            devices_file=TEST_DEVICES_FILE,
+        )
     )
-    assert pairing.can_skip_pairing
+    assert preparation.readiness_verified
+    assert preparation.final_connected is False
     result = asyncio.run(_run_e2e(config))
     assert result["fetched_size"] == result["device_size"]
     assert result["manifest_verified"] is True
@@ -103,7 +100,7 @@ def _load_config() -> LiveConfig:
     if not TEST_DEVICES_FILE.is_file():
         raise AssertionError(f"Live E2E requires a local authorized inventory: {TEST_DEVICES_FILE}")
     try:
-        allowed_devices = load_allowed_mac_addresses(TEST_DEVICES_FILE)
+        allowed_devices = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError(f"Invalid live test device inventory: {exc}") from exc
     if mac_address.upper() not in allowed_devices:

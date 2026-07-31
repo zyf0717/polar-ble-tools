@@ -26,7 +26,7 @@ from polar_ble_tools.api import (
 )
 from polar_ble_tools.ble.transport import BleTransport
 from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.inventory import InventoryError, load_allowed_mac_addresses
+from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
 from polar_ble_tools.polar.offline import base_record_type_for
 from polar_ble_tools.polar.pmd import (
     PmdResponseCode,
@@ -174,7 +174,7 @@ def _load_config() -> Spec009WorkflowConfig:
             f"SPEC-009 live tests require a local authorized inventory: {TEST_DEVICES_FILE}"
         )
     try:
-        allowed = load_allowed_mac_addresses(TEST_DEVICES_FILE)
+        allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
     normalized = target.upper()

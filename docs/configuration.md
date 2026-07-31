@@ -1,6 +1,6 @@
 # Configuration and command line
 
-All device operations select an explicit MAC address or platform identifier.
+All device operations select an explicit platform-neutral identifier.
 Keep device inventories, profiles, captures, and credentials outside version
 control.
 
@@ -10,19 +10,16 @@ Discovery reports only live BLE scan observations; it does not pair, connect,
 trust, or otherwise alter a device:
 
 ```bash
-polar-ble discover --scan-seconds 15 --name Polar
+polar-ble discover --timeout 15 --name Polar
 ```
 
 Confirm the returned identifier against the physical device before using it.
-Pairing and connection accept `--mac-address`. Commands that support
+Device commands accept required `--device-identifier`. Commands that support
 `--devices-file` reject a target not present in that explicitly supplied local
-inventory.
+inventory. Resolution always requires a current structured observation; cached
+OS records are not substituted for live selection.
 
-Pairing always performs a live discovery scan. For an explicit MAC address
-that BlueZ already reports as paired, bonded, and trusted, a missing live
-observation falls back to that cached bond for direct connection verification.
-
-An inventory uses labels followed by MAC addresses:
+An inventory retains labels followed by identifiers:
 
 ```yaml
 lab-device:
@@ -37,8 +34,8 @@ in logs, fixtures, or support requests.
 | Command | Purpose |
 | --- | --- |
 | `polar-ble discover` | List nearby BLE advertisements. |
-| `polar-ble pair` | Pair, bond, trust, verify a BlueZ connection, then disconnect. |
-| `polar-ble connect` | Connect a previously paired and trusted device. |
+| `polar-ble prepare` | Verify readiness or perform one bounded preparation and persistent reconnect check. |
+| `polar-ble connect` | Probe PMD/PFTP readiness, report, and disconnect. |
 | `polar-ble raw` | List, collect, and safely clean raw `.REC` files. |
 | `polar-ble passive` | List and collect passive `.BPB` files without schemas. |
 | `polar-ble bpb` | Decode local BPB files through the verified schema cache. |
@@ -61,18 +58,17 @@ from datetime import date
 from polar_ble_tools import (
     PassiveDomain,
     collect_passive_files,
-    connect_device,
-    discover_devices,
-    pair_device,
-    release_device_connection,
+    prepare_device,
+    probe_device,
+    scan_devices,
 )
 
-devices = discover_devices(name_substring="Polar")
-target = devices[0].mac_address  # Select deliberately.
-pairing = pair_device(mac_address=target, scan_seconds=15.0)
-assert pairing.paired and pairing.bonded and pairing.trusted
-connection = connect_device(mac_address=target)
-release_device_connection(mac_address=target)
+devices = await scan_devices(timeout=15.0, name_substring="Polar")
+target = devices[0].identifier  # Select deliberately.
+preparation = await prepare_device(target)
+assert preparation.readiness_verified and not preparation.final_connected
+probe = await probe_device(target)
+assert probe.readiness_verified and not probe.final_connected
 
 passive = await collect_passive_files(
     target,
@@ -85,8 +81,8 @@ passive = await collect_passive_files(
 
 The package does not read an inventory unless the caller supplies its path.
 
-The `0.4.0` facade also exposes structured local readiness and the live FTU
-workflow without constructing CLI argument lists:
+The facade also exposes structured local readiness and the live FTU workflow
+without constructing CLI argument lists:
 
 ```python
 from polar_ble_tools import apply_ftu, doctor, ftu_status

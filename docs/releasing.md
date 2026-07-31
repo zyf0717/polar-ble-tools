@@ -29,17 +29,25 @@
    python -c "import polar_ble_tools"
    polar-ble --version
    polar-ble --help
+   polar-ble discover --help
+   polar-ble prepare --help
+   polar-ble connect --help
+   polar-ble raw --help
+   polar-ble passive --help
+   polar-ble bpb --help
+   polar-ble ftu --help
    polar-ble rec --help
    polar-ble rec status
    polar-ble sdk decoder --help
    polar-ble doctor
    ```
 
-7. On a private Linux/BlueZ host, run the live single-device matrix. Confirm
-   pairing, FTU, PMD, PFTP and raw retrieval; passive BPB retrieval and decoding;
-   and cleanup in dry-run mode. Require at least one verified cleanup candidate
-   to report `dry_run`; a blocked-only result validates the guard but not an
-   eligible cleanup dry-run. Record the tested commit SHA, device model,
+7. On a private Linux/BlueZ host, run the live matrix on both authorized device
+   families against the exact product tree, then repeat the required smoke on
+   the exact release commit. Confirm fresh and existing preparation, bounded
+   probe, agent-free/new-process reconnect, cancellation recovery, FTU-family
+   isolation, PMD/PFTP, ACC start/stop and verified raw retrieval, eligible
+   cleanup dry-run, and no deletion. Record the tested commit SHA, device model,
    advertised types, independently proven start/stop types, retrieved passive
    domains, decoded passive domains, cleanup counters, and results in a private
    release checklist. Do not commit device data, profiles, inventories, SDK
@@ -54,6 +62,8 @@
     environment.
 11. Create the GitHub release from `RELEASE_NOTES.md`, including artifact
     SHA-256 values and only compatibility claims backed by local evidence.
+12. Merge `main` back into `dev` and restore the development-only `AGENTS.md`
+    and `specs/` controls there. Confirm neither path exists on `main`.
 
 Never upload SDK source, recordings, compiled decoder output, or generated SDK
 data as a CI artifact or public cache.

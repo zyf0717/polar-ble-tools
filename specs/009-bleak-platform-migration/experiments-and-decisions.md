@@ -3,32 +3,34 @@
 ## Decision matrix
 
 The tracker may summarize progress, but the reviewed matrix is the authority
-for migration. It contains one row for each operation below:
+for migration. Detailed procedures, environments, results, durations, cleanup
+states, and limitations are recorded in the evidence sections below.
 
-| Operation | Required outcome |
-| --- | --- |
-| Discovery | Observe live advertisements and return structured, filterable devices without mutation. |
-| Selection and authorization | Select one explicit opaque identifier and reject unauthorized targets. |
-| Native resolution | Resolve a current-context `BLEDevice` and avoid implicit client discovery. |
-| Fresh preparation | Make a controlled unprepared device usable for supported workflows. |
-| Existing preparation | Reuse an already prepared device without destructive reset. |
-| Persistence | Reconnect from a new client and process when later reuse is a package requirement. |
-| Readiness probe | Connect, verify required Polar services, report, and disconnect within bounds. |
-| Managed session | Support PMD/PFTP notifications and operations under one owner. |
-| Disconnect and reconnect | Release ownership and open a later session without manual recovery. |
-| Cancellation and failure | Clean partial state and preserve typed failure phase. |
-| Multiple devices | Avoid hidden scans and define scanner/client coordination under concurrency. |
-| Recovery | Bound retries and identify states requiring explicit operator action. |
+The maintainer approved the hard-cutover release plan on 2026-07-30. That
+approval selects the following coherent ownership model. “Bleak-only” includes
+package orchestration around public Bleak APIs; it excludes OS command parsing
+or persistent native-object storage. “Implementation decision” is the selected
+architecture, not task status; the tracker records implementation completion.
 
-Each row records:
+| Operation | Verdict | Implementation decision | Evidence | Limitation | Rationale | Reviewer | Date |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Discovery | Bleak-only | **Implement with Bleak.** | Structured `return_adv=True` discovery passed on both Linux devices; injected mapping/filtering contracts cover Linux, macOS, and Windows shapes. | macOS/Windows have no hardware evidence. | Bleak exposes every public field required by the package. | Maintainer, release-plan approval | 2026-07-30 |
+| Selection and authorization | Bleak-only | **Implement as package policy over Bleak identifiers.** | Normalization and explicit labeled-inventory contracts cover MAC, UUID, opaque, missing, and unauthorized inputs. | Identifier stability outside controlled Linux devices is architecture-tested only. | Selection requires no OS state API; Bleak supplies the platform identifier. | Maintainer, release-plan approval | 2026-07-30 |
+| Native resolution | Bleak-only | **Implement with Bleak.** | Native-object construction removed concurrent hidden-scan failures; exact Bleak 1.0.0 and 3.0.2 injected contracts pass. | Native observations are deliberately operation-local. | A current structured scan supplies the only safe client-construction object. | Maintainer, release-plan approval | 2026-07-30 |
+| Fresh preparation | Bleak plus OS adapter on Linux; Bleak-only elsewhere pending evidence | **Implement pairing with Bleak; retain only the Linux agent callback adapter.** | Fresh/reset Loop and Verity attempts failed without a BlueZ agent and passed with a temporary default agent, followed by agent-free reconnect. | Linux only; one pairing attempt; no automatic host-record removal or policy changes. Remove the adapter when supported Bleak/BlueZ APIs provide equivalent target-bound agent handling or controlled fresh preparation passes without it. | Bleak owns pairing but cannot implement the required `org.bluez.Agent1` callback. | Maintainer, release-plan approval | 2026-07-30 |
+| Existing preparation | Bleak-only | **Implement with Bleak.** | Pair-free readiness passed repeatedly on both prepared Linux devices. | Requires a live observation and required services. | Existing readiness needs no pairing-state emulation. | Maintainer, release-plan approval | 2026-07-30 |
+| Persistence | Bleak-only | **Implement with Bleak.** | New-client and new-process agent-free reconnect passed after fresh preparation on both devices. | Linux/BlueZ hardware evidence only. | Operational reconnect is the package outcome; portable bond flags are unnecessary. | Maintainer, release-plan approval | 2026-07-30 |
+| Readiness probe | Bleak-only | **Implement with Bleak.** | Controlled and injected probes verify PMD/PFTP and end disconnected. | Other service-compatible devices remain unvalidated. | Bleak service discovery directly proves the required surface. | Maintainer, release-plan approval | 2026-07-30 |
+| Managed session | Bleak-only | **Implement with Bleak.** | PMD/PFTP, raw, passive, recording, and both FTU families passed through managed sessions. | Device/platform claims remain limited by the compatibility matrix. | One Bleak owner supports the complete protocol-client outcome. | Maintainer, release-plan approval | 2026-07-30 |
+| Disconnect and reconnect | Bleak-only; remove explicit release API | **Implement with Bleak; remove the release API.** | Repeated sequential, new-process, and two-device cycles ended disconnected and reopened without handoff. | Forced radio-loss recovery remains unvalidated. | Managed cleanup replaces OS-owned persistent connection handoff. | Maintainer, release-plan approval | 2026-07-30 |
+| Cancellation and failure | Bleak-only | **Implement with Bleak plus package-owned bounded cleanup.** | Injected phase failures plus controlled scan/connect cancellation recovered without stale ownership. | Hardware cancellation in every phase is not claimed. | Shielded bounded cleanup and typed phases are sufficient; no OS parser improves recovery. | Maintainer, release-plan approval | 2026-07-30 |
+| Multiple devices | Bleak-only with shared discovery/native resolution | **Implement shared Bleak discovery and native clients.** | Three simultaneous two-device PMD/PFTP cycles and cancellation recovery passed on one adapter. | No long-duration, multi-adapter, macOS, or Windows hardware stress. | Native objects prevent competing implicit scans; package locks and a two-session limit define ownership. | Maintainer, release-plan approval | 2026-07-30 |
+| Recovery | Bleak-only; redesign as bounded explicit attempts | **Implement bounded Bleak attempts; keep operator-action states explicit.** | Later recovery passed after injected and controlled failures. | No generic retry, unpair, host-record removal, or policy mutation. | Deterministic failure phases and operator-directed retry are safer than state-changing recovery loops. | Maintainer, release-plan approval | 2026-07-30 |
 
-- current `0.4.x` behavior as diagnostic context;
-- candidate Bleak public APIs and tested Bleak version;
-- exact synthetic or hardware procedure;
-- operating system, Python version, adapter, and device category;
-- observed result, duration, timeout phase, and cleanup state;
-- private evidence location and a redacted public summary;
-- verdict, limitation, rationale, reviewer, and review date.
+Verity Sense pool length is **unsupported/deferred** for `0.5.0`. The observed
+pool-settings candidate rejects reads, and the verified SDK provides neither
+its root schema nor a pool-length write operation. This is not a lifecycle
+gate and no write is inferred from `PbSwimmingPoolInfo`.
 
 ## Sufficiency criteria
 

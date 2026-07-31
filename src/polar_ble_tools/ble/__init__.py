@@ -7,7 +7,17 @@ from polar_ble_tools.ble.lifecycle import (
     BleLifecycleSnapshot,
     BleLifecycleState,
 )
-from polar_ble_tools.ble.transport import BluetoothDevice, PairingStatus
+from polar_ble_tools.ble.transport import (
+    DeviceLifecycleError,
+    DevicePlatform,
+    DiscoveredDevice,
+    LifecyclePhase,
+    LifecycleTimeouts,
+    PreparationOutcome,
+    PreparationResult,
+    ProbeResult,
+    ReconnectPersistence,
+)
 
 __all__ = [
     "BleLifecycle",
@@ -15,6 +25,13 @@ __all__ = [
     "BleLifecycleEvent",
     "BleLifecycleSnapshot",
     "BleLifecycleState",
-    "BluetoothDevice",
-    "PairingStatus",
+    "DeviceLifecycleError",
+    "DevicePlatform",
+    "DiscoveredDevice",
+    "LifecyclePhase",
+    "LifecycleTimeouts",
+    "PreparationOutcome",
+    "PreparationResult",
+    "ProbeResult",
+    "ReconnectPersistence",
 ]
