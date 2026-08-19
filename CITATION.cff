@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use polar-ble-tools, please cite it using the metadata below."
+title: polar-ble-tools
+type: software
+abstract: "Offline-first BLE tools for collecting and retrieving device-resident data from supported Polar wearables."
+authors:
+  - family-names: Zheng
+    given-names: Yifei
+version: 0.5.0
+date-released: 2026-07-31
+repository-code: "https://github.com/zyf0717/polar-ble-tools"
+repository-artifact: "https://pypi.org/project/polar-ble-tools/"
+license: Apache-2.0
+keywords:
+  - Bluetooth Low Energy
+  - wearables
+  - physiological data
+  - Polar
+  - offline recording
