@@ -6,6 +6,7 @@ abstract: "Offline-first BLE tools for collecting and retrieving device-resident
 authors:
   - family-names: Zheng
     given-names: Yifei
+    orcid: "https://orcid.org/0009-0001-4858-2025"
 version: 0.5.0
 date-released: 2026-07-31
 repository-code: "https://github.com/zyf0717/polar-ble-tools"
