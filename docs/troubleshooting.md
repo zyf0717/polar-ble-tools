@@ -27,6 +27,16 @@ journalctl -u bluetooth -b
 Successful preparation reports verified readiness and reconnect persistence.
 A disconnected final state is required.
 
+## Windows reports "The operation was canceled by the user"
+
+WinRT may report GATT failures as `OSError 0x800704C7`, even when the user did
+not cancel anything. This can surface as `BleTransportError` during
+`recording_status` and other operations. The package avoids stale WinRT GATT
+services automatically. If the error persists, remove any existing Windows
+bond, pair again with Bleak `protection_level=2` as described in
+[device setup](device-setup.md#windows-pairing), and ensure no other host is
+connected before retrying.
+
 ## Bleak cannot reconnect
 
 `polar-ble connect` is a bounded readiness probe and finishes disconnected.

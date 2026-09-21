@@ -4,6 +4,34 @@ BLE preparation and Polar first-time-use (FTU) are separate operations.
 Prepare and verify the device before FTU. FTU writes device files and requires
 locally generated schemas; it is not a preparation fallback.
 
+## Windows pairing
+
+Windows requires an encrypted bond created with Bleak
+`protection_level=2`. If Windows already lists the device as paired, remove it
+from Bluetooth settings first because Bleak does not replace an existing bond.
+Put the device in its pairing window, then pair once:
+
+```python
+import asyncio
+
+from bleak import BleakClient, BleakScanner
+
+
+async def pair():
+    device = await BleakScanner.find_device_by_address("AA:BB:CC:DD:EE:FF")
+    if device is None:
+        raise RuntimeError("Polar device not found")
+    async with BleakClient(device) as client:
+        await client.pair(protection_level=2)
+        await client.disconnect()
+
+
+asyncio.run(pair())
+```
+
+The package uses uncached WinRT GATT service discovery automatically. No
+additional Windows transport configuration is needed.
+
 ## Prepare and verify
 
 Remove other active host connections, put the device into its pairing window,
