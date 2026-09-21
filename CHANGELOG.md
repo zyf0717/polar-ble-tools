@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+### Fixed
+
+- Kept Windows manifest locks on persistent sibling files so concurrent
+  manifest reads do not conflict with appends.
+- Allowed schema activation on Windows Python 3.11 and 3.12, where
+  `os.fchmod()` is unavailable.
+
 ## 0.5.0 — 2026-07-31
 
 ### Added

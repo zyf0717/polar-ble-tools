@@ -30,7 +30,8 @@ required dependency closure, generates Python modules, verifies hashes,
 imports, symbols, and descriptors, then activates the SDK source and generated
 schema revision.
 Generation or verification failure leaves the previously active verified
-revisions unchanged.
+revisions unchanged. Schema activation works on every declared Python version,
+including Windows Python 3.11 and 3.12 where `os.fchmod()` is unavailable.
 
 SDK source and generated schemas have independent status and activation:
 

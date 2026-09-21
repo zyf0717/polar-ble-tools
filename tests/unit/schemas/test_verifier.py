@@ -140,6 +140,20 @@ def test_format_2_cache_remains_source_bound(
         verify_schemas(cache=cache)
 
 
+def test_schema_activation_without_fchmod(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import polar_ble_tools.sdk_tools.verifier as verifier
+
+    cache, _root, _manifest = _write_cache(tmp_path, monkeypatch)
+    monkeypatch.delattr(verifier.os, "fchmod", raising=False)
+
+    activate_schemas(COMMIT, cache=cache)
+
+    assert json.loads(cache.active_schema_manifest_path.read_text(encoding="utf-8")) == {
+        "format_version": 1,
+        "resolved_commit": COMMIT,
+    }
+
+
 def test_verifier_rejects_corrupt_descriptor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

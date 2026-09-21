@@ -37,6 +37,12 @@ Windows requires a Bleak pairing with `protection_level=2`; see
 Windows-specific transport configuration. A custom `BleakTransport` may still
 override or add WinRT options.
 
+Raw and passive stores keep each JSONL manifest readable while another process
+appends by locking a persistent hidden sibling such as `.manifest.jsonl.lock`.
+These empty files are internal coordination state. Schema activation supports
+all declared Python versions and does not require `os.fchmod` on Python 3.11 or
+3.12.
+
 ## Commands
 
 | Command | Purpose |

@@ -69,3 +69,20 @@ jobs:
           tests/unit/test_bluez_agent.py
           tests/unit/test_device.py
           tests/unit/test_workflows.py
+
+  windows-storage:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install clean test environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+      - name: Run Windows storage and schema activation tests
+        run: >-
+          python -m pytest -q
+          tests/unit/test_storage_utils.py
+          tests/unit/schemas/test_verifier.py

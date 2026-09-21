@@ -27,6 +27,10 @@ default and require protected hardware, an ignored `test_devices.yaml`, and
 explicit environment flags. A skipped SDK or live test is not a successful
 validation result.
 
+Public CI runs the complete SDK-free suite on Linux with Python 3.11 through
+3.14. A focused native Windows Python 3.11 job verifies JSONL locking and schema
+activation; it does not establish BLE hardware compatibility.
+
 Record live evidence at the capability level actually exercised:
 
 - an advertised PMD type is not start/stop evidence;
