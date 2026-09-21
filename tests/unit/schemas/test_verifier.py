@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import stat
 import sys
@@ -126,7 +127,8 @@ def test_format_3_cache_verifies_and_activates_without_sdk_source(
     assert status.active_commit == COMMIT
     assert status.source_independent is True
     assert status.manifest_format == 3
-    assert stat.S_IMODE(cache.active_schema_manifest_path.stat().st_mode) == 0o600
+    if os.name == "posix":
+        assert stat.S_IMODE(cache.active_schema_manifest_path.stat().st_mode) == 0o600
 
 
 def test_format_2_cache_remains_source_bound(
