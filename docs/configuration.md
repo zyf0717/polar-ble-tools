@@ -29,6 +29,14 @@ lab-device:
 `devices.yaml` and `test_devices.yaml` are ignored. Do not include either file
 in logs, fixtures, or support requests.
 
+## Windows backend
+
+Windows requires a Bleak pairing with `protection_level=2`; see
+[device setup](device-setup.md#windows-pairing). All high-level APIs use
+`winrt={"use_cached_services": False}` automatically, so callers do not need
+Windows-specific transport configuration. A custom `BleakTransport` may still
+override or add WinRT options.
+
 ## Commands
 
 | Command | Purpose |

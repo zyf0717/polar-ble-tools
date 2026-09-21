@@ -1,12 +1,32 @@
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+
+if os.name == "nt":
+    import msvcrt as _file_locking
+else:
+    import fcntl as _file_locking
+
+
+def _lock_descriptor(descriptor: int) -> None:
+    if os.name == "nt":
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        _file_locking.locking(descriptor, _file_locking.LK_LOCK, 1)
+    else:
+        _file_locking.flock(descriptor, _file_locking.LOCK_EX)
+
+
+def _unlock_descriptor(descriptor: int) -> None:
+    if os.name == "nt":
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        _file_locking.locking(descriptor, _file_locking.LK_UNLCK, 1)
+    else:
+        _file_locking.flock(descriptor, _file_locking.LOCK_UN)
 
 
 def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
@@ -42,6 +62,7 @@ def append_json_line(path: Path, value: dict[str, object]) -> None:
         os.O_RDWR
         | os.O_CREAT
         | os.O_APPEND
+        | getattr(os, "O_BINARY", 0)
         | getattr(os, "O_CLOEXEC", 0)
         | getattr(os, "O_NOFOLLOW", 0),
         0o600,
@@ -49,7 +70,7 @@ def append_json_line(path: Path, value: dict[str, object]) -> None:
     try:
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
             raise OSError(f"JSONL target is not a regular file: {path}")
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        _lock_descriptor(descriptor)
         size = os.fstat(descriptor).st_size
         if size:
             os.lseek(descriptor, 0, os.SEEK_SET)
@@ -62,6 +83,6 @@ def append_json_line(path: Path, value: dict[str, object]) -> None:
         os.fsync(descriptor)
     finally:
         try:
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            _unlock_descriptor(descriptor)
         finally:
             os.close(descriptor)

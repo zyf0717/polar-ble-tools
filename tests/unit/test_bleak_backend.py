@@ -147,6 +147,19 @@ class FakeClient:
         return None
 
 
+class FakeWinRTClient(FakeClient):
+    def __init__(
+        self,
+        native,
+        *,
+        pair: bool,
+        timeout: float,
+        winrt: dict[str, object],
+    ) -> None:
+        self.winrt = winrt
+        super().__init__(native, pair=pair, timeout=timeout)
+
+
 def setup_function() -> None:
     FakeScanner.calls = 0
     FakeScanner.release = None
@@ -217,6 +230,45 @@ def test_transport_constructs_client_from_current_native_device() -> None:
         await session.write("write-char", b"data", response=True)
         await transport.disconnect(session)
         assert session.is_connected is False
+
+    asyncio.run(run())
+
+
+def test_windows_transport_disables_cached_services_by_default() -> None:
+    async def run() -> None:
+        transport = BleakTransport(
+            scanner_cls=FakeScanner,
+            client_cls=FakeWinRTClient,
+            platform=DevicePlatform.WINDOWS,
+        )
+
+        session = await transport.connect("AA:BB:CC:DD:EE:FF")
+
+        client = FakeClient.instances[0]
+        assert isinstance(client, FakeWinRTClient)
+        assert client.winrt == {"use_cached_services": False}
+        await transport.disconnect(session)
+
+    asyncio.run(run())
+
+
+def test_transport_forwards_explicit_winrt_options_to_client() -> None:
+    async def run() -> None:
+        winrt = {"use_cached_services": True}
+        transport = BleakTransport(
+            scanner_cls=FakeScanner,
+            client_cls=FakeWinRTClient,
+            platform=DevicePlatform.WINDOWS,
+            winrt=winrt,
+        )
+        winrt["use_cached_services"] = False
+
+        session = await transport.connect("AA:BB:CC:DD:EE:FF")
+
+        client = FakeClient.instances[0]
+        assert isinstance(client, FakeWinRTClient)
+        assert client.winrt == {"use_cached_services": True}
+        await transport.disconnect(session)
 
     asyncio.run(run())
 

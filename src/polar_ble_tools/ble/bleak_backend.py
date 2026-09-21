@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 from weakref import WeakKeyDictionary
@@ -263,6 +263,7 @@ class BleakTransport:
         resolver: BleakDeviceResolver | None = None,
         platform: DevicePlatform | None = None,
         timeouts: LifecycleTimeouts | None = None,
+        winrt: Mapping[str, object] | None = None,
     ) -> None:
         if scanner_cls is None or client_cls is None:
             from bleak import BleakClient, BleakScanner
@@ -273,6 +274,10 @@ class BleakTransport:
         self.timeouts = timeouts or LifecycleTimeouts()
         self._client_cls = client_cls
         self._resolver = resolver or _resolver_for(scanner_cls, self.platform)
+        winrt_options = {} if winrt is None else dict(winrt)
+        if self.platform is DevicePlatform.WINDOWS:
+            winrt_options.setdefault("use_cached_services", False)
+        self._winrt = winrt_options or None
         self.cancelled_phase: LifecyclePhase | None = None
 
     async def scan(
@@ -288,11 +293,13 @@ class BleakTransport:
             normalize_identifier(identifier),
             timeout=self.timeouts.resolution,
         )
-        client = self._client_cls(
-            observation.native,
-            pair=pair,
-            timeout=self.timeouts.connect,
-        )
+        client_kwargs: dict[str, object] = {
+            "pair": pair,
+            "timeout": self.timeouts.connect,
+        }
+        if self._winrt is not None:
+            client_kwargs["winrt"] = dict(self._winrt)
+        client = self._client_cls(observation.native, **client_kwargs)
         try:
             await asyncio.wait_for(client.connect(), timeout=self.timeouts.connect)
         except BaseException as exc:

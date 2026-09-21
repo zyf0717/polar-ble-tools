@@ -2,7 +2,10 @@
 
 Use the high-level exports from `polar_ble_tools` for common operations. APIs
 that require a device are asynchronous and own the connection for one call;
-pass a `transport_factory` in tests or custom integrations.
+pass a `transport_factory` in tests or custom integrations. On Windows, first
+pair with Bleak `protection_level=2` as described in
+[device setup](device-setup.md#windows-pairing). Uncached WinRT GATT service
+lookup is then automatic.
 
 | Import | Kind | Purpose |
 | --- | --- | --- |
