@@ -33,7 +33,9 @@ def test_sdk_free_workflows_run_only_sdk_free_contracts() -> None:
     assert '".[dev,sdk]"' not in workflow
     assert "tests/sdk_contract" not in workflow
     assert "macos-latest" not in workflow
-    assert "windows-latest" not in workflow
+    assert "windows-latest" in workflow
+    assert "tests/unit/test_storage_utils.py" in workflow
+    assert "tests/unit/schemas/test_verifier.py" in workflow
     candidate = (WORKFLOWS / "testpypi-candidate.yml").read_text()
     assert "python -m pytest -q tests/unit tests/contracts/test_protocol_contracts.py" in candidate
     assert '".[dev,sdk]"' not in candidate

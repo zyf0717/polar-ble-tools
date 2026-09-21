@@ -3,13 +3,15 @@
 ## Supported devices
 
 `0.5.0` supports Polar Loop Gen 2 and Polar Verity Sense within the controlled
-Linux/BlueZ capability boundaries below.
+Linux/BlueZ capability boundaries below. The current development line adds the
+Windows transport and local-storage path described here for the next release.
 
 Linux preparation, probe, managed sessions, PMD/PFTP workflows, and
 device-specific FTU have controlled hardware evidence. Windows use requires a
 Bleak pairing with `protection_level=2` and uses uncached WinRT GATT discovery
-automatically, but Windows hardware certification remains deferred. macOS
-workflows and physical certification are not claimed.
+automatically. Focused public CI exercises Windows JSONL locking and schema
+activation on Python 3.11, but Windows hardware certification remains deferred.
+macOS workflows and physical certification are not claimed.
 
 ## Polar Loop Gen 2
 

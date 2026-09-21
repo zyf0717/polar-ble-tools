@@ -237,7 +237,8 @@ def _atomic_write_pointer(path: Path, payload: dict[str, object]) -> None:
     descriptor, temporary_name = mkstemp(prefix=f".{path.name}.", dir=path.parent)
     temporary = Path(temporary_name)
     try:
-        os.fchmod(descriptor, 0o600)
+        if fchmod := getattr(os, "fchmod", None):
+            fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as target:
             descriptor = -1
             json.dump(payload, target, indent=2, sort_keys=True)

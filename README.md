@@ -40,9 +40,11 @@ out of scope for this project.
 ## Installation
 
 Device operations use Bleak on Linux/BlueZ and Windows. Python 3.11 or newer is
-required; versions 3.11 through 3.14 are tested. Fresh Linux preparation lazily
-uses a narrow D-Bus BlueZ authentication agent; no `bluetoothctl` subprocess is
-required.
+required. Linux CI covers Python 3.11 through 3.14; focused native Windows CI
+covers local storage and schema activation on Python 3.11. Fresh Linux
+preparation lazily uses a narrow D-Bus BlueZ authentication agent; no
+`bluetoothctl` subprocess is required. Windows hardware certification remains
+deferred.
 
 ```bash
 python -m pip install polar-ble-tools
@@ -51,7 +53,10 @@ polar-ble --help
 
 On Windows, first create an encrypted Bleak pairing with
 `protection_level=2`; see [device setup](./docs/device-setup.md#windows-pairing).
-The package automatically bypasses the stale WinRT GATT service cache.
+The package automatically bypasses the stale WinRT GATT service cache. JSONL
+writers use persistent hidden sibling lock files so manifests remain readable
+during appends, and schema activation works without `os.fchmod` on Python 3.11
+and 3.12.
 
 Install the optional schema compiler only for SDK-assisted FTU encoding and BPB
 decoding:

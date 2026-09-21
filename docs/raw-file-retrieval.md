@@ -17,7 +17,8 @@ atomically without clobbering an existing destination.
 Collection writes each payload atomically and appends a JSONL manifest
 containing its device path, local path, size, and SHA-256 digest. Re-running
 collection reuses a verified local copy and rejects path escapes or conflicting
-content.
+content. On Windows, appenders lock a persistent hidden sibling file so readers
+can continue consuming the manifest's last complete rows.
 
 Python listing and collection results expose immutable tuple collections.
 Outcome fields are project-owned string enums; `to_jsonable()` retains plain
