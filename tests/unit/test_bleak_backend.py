@@ -108,12 +108,14 @@ class FakeClient:
         self.writes: list[tuple[str, bytes, bool]] = []
         self.connect_started = asyncio.Event()
         self.connect_release = asyncio.Event()
+        self.connect_options: dict[str, object] = {}
         self.disconnect_calls = 0
         self.disconnect_started = asyncio.Event()
         self.disconnect_release = asyncio.Event()
         self.instances.append(self)
 
-    async def connect(self) -> None:
+    async def connect(self, **kwargs: object) -> None:
+        self.connect_options = kwargs
         self.connect_started.set()
         self.is_connected = True
         if self.connect_error is not None:
@@ -247,6 +249,24 @@ def test_windows_transport_disables_cached_services_by_default() -> None:
         client = FakeClient.instances[0]
         assert isinstance(client, FakeWinRTClient)
         assert client.winrt == {"use_cached_services": False}
+        await transport.disconnect(session)
+
+    asyncio.run(run())
+
+
+def test_windows_pairing_requires_encryption_protection() -> None:
+    async def run() -> None:
+        transport = BleakTransport(
+            scanner_cls=FakeScanner,
+            client_cls=FakeWinRTClient,
+            platform=DevicePlatform.WINDOWS,
+        )
+
+        session = await transport.connect("AA:BB:CC:DD:EE:FF", pair=True)
+
+        client = FakeClient.instances[0]
+        assert client.pair is True
+        assert client.connect_options == {"protection_level": 2}
         await transport.disconnect(session)
 
     asyncio.run(run())

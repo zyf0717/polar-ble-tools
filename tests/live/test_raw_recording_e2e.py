@@ -17,7 +17,11 @@ import pytest
 
 from polar_ble_tools.ble.operations import prepare_device
 from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
+from polar_ble_tools.inventory import (
+    InventoryError,
+    load_allowed_identifiers,
+    normalize_identifier,
+)
 from polar_ble_tools.polar.offline import base_record_type_for
 from polar_ble_tools.polar.pmd import (
     PmdResponseCode,
@@ -103,16 +107,17 @@ def _load_config() -> LiveConfig:
         allowed_devices = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError(f"Invalid live test device inventory: {exc}") from exc
-    if mac_address.upper() not in allowed_devices:
+    normalized = normalize_identifier(mac_address)
+    if normalized not in allowed_devices:
         raise AssertionError(
-            f"Live E2E target {mac_address.upper()} is not authorized in {TEST_DEVICES_FILE}."
+            f"Live E2E target {normalized} is not authorized in {TEST_DEVICES_FILE}."
         )
     output_root = Path(os.environ.get(LIVE_OUTPUT_ENV, DEFAULT_OUTPUT_ROOT))
     local_root = (Path.cwd() / ".local").resolve()
     if not output_root.resolve().is_relative_to(local_root):
         raise AssertionError(f"{LIVE_OUTPUT_ENV} must remain beneath {local_root}.")
     return LiveConfig(
-        mac_address=mac_address.upper(),
+        mac_address=normalized,
         profile_path=profile_path,
         output_root=output_root,
     )

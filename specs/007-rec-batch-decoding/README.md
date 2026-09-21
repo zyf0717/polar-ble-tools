@@ -1,35 +1,18 @@
 # SPEC-007: REC batch decoding
 
-**Status:** Deferred; product priority and single-file certification required
-**Depends on:** SPEC-004; optional protected sources require SPEC-006
+**Status:** Deferred until SPEC-004 adapters are certified and batch decoding
+is approved as a product priority. Protected inputs also require SPEC-006.
 
-## Scope
+**FR-033, FR-034:** add `rec decode-tree` / `rec decode-manifest` and corresponding
+`decode_recording_tree()` / `decode_recording_manifest()` APIs.
+[The pending protocol](batch-protocol.md) solely defines FR-035–039 discovery,
+preflight, per-file outcomes, summaries, and optional providers. Delegate every
+decode to the [verified single-file API](../../docs/rec-decoding.md).
 
-SPEC-007 owns deterministic orchestration over the package-managed single-file
-decoder:
-
-- tree and strict manifest discovery;
-- complete destination preflight;
-- per-file outcomes and continued execution;
-- atomic versioned summaries;
-- optional secure provider selection for protected sources.
-
-It does not change REC parsing, payload adaptation, or the SDK boundary.
-
-## Documents
-
-- [Requirements](requirements.md)
-- [Batch protocol](batch-protocol.md)
-- [Models and errors](models-and-errors.md)
-- [Implementation plan](implementation-plan.md)
-- [Validation](validation.md)
-- [Governance](governance.md)
-- [Tracker](tracker.md)
-
-## Boundaries
-
-- Batch work remains deferred until SPEC-004 single-file adapters are certified
-  and batch decoding is approved as a product priority.
-- Batch orchestration delegates every decode to the verified single-file API.
-- Manifests and summaries never contain inline secrets.
-- Partial failures never weaken source, destination, or publication safety.
+Acceptance covers deterministic case-insensitive discovery, strict manifests
+(including duplicate keys and final newline), root/symlink/alias/digest safety,
+all-destination preflight before any decode, constrained overwrite, continued
+per-file execution, atomic summaries, stable exit status, and once-per-source
+redacted providers. No source/unrelated-file overwrite or complete-looking
+partial summary. Validate claimed categories against the private corpus under
+SPEC-005 and apply the shared [gates](../README.md#shared-gates).

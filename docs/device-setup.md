@@ -4,12 +4,22 @@ BLE preparation and Polar first-time-use (FTU) are separate operations.
 Prepare and verify the device before FTU. FTU writes device files and requires
 locally generated schemas; it is not a preparation fallback.
 
+## macOS authentication
+
+CoreBluetooth identifies peripherals with host-local UUIDs rather than public
+Bluetooth MAC addresses. Always copy the current identifier from
+`polar-ble discover`. Bleak cannot explicitly pair on macOS; CoreBluetooth
+requests authentication for protected GATT access. Keep the device in its
+pairing window and accept any macOS prompt while the operation is active.
+
 ## Windows pairing
 
 Windows requires an encrypted bond created with Bleak
-`protection_level=2`. If Windows already lists the device as paired, remove it
+`protection_level=2`. `polar-ble prepare` performs that bounded pairing step
+even when the public services are already visible, then verifies an ordinary
+reconnect. If Windows already lists the device with an unusable bond, remove it
 from Bluetooth settings first because Bleak does not replace an existing bond.
-Put the device in its pairing window, then pair once:
+The equivalent direct Bleak operation is:
 
 ```python
 import asyncio
@@ -47,7 +57,10 @@ Proceed only when both commands report readiness and
 `final_connected: false`. Preparation first attempts pair-free readiness. On
 Linux, only an authentication failure activates the temporary target-bound
 BlueZ agent; a successful fresh preparation must also pass an agent-free
-reconnect. The package does not unpair or remove host records.
+reconnect. On Windows, preparation performs encrypted pairing even after a
+successful initial readiness probe. On macOS, `prepare` verifies CoreBluetooth
+service readiness; there is no explicit pairing call. The package does not
+unpair or remove host records.
 
 ## Prepare Loop Gen 2 FTU
 

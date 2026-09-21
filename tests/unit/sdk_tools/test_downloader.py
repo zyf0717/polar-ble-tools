@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,7 @@ from polar_ble_tools.sdk_tools.downloader import (
     remove_all_sdk_cache,
     remove_sdk,
     sdk_status,
+    source_content_sha256,
 )
 from polar_ble_tools.sdk_tools.generator import SchemaGenerationError
 from polar_ble_tools.sdk_tools.proto_reader import ProtoReaderError
@@ -116,10 +119,31 @@ def test_local_source_rejects_symlinked_content(tmp_path: Path) -> None:
     source = _make_sdk_source(tmp_path)
     outside = tmp_path / "outside"
     outside.write_text("private\n", encoding="utf-8")
-    (source / "linked").symlink_to(outside)
+    try:
+        (source / "linked").symlink_to(outside)
+    except OSError as exc:
+        if os.name == "nt" and exc.winerror == 1314:
+            pytest.skip("Windows symlink privilege is unavailable.")
+        raise
 
     with pytest.raises(SdkDownloadError, match="symbolic link"):
         install_sdk(sdk_path=source, cache=SdkCache(tmp_path / "cache"))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="requires native Windows long-path handling")
+def test_source_digest_supports_windows_paths_beyond_max_path(tmp_path: Path) -> None:
+    top = tmp_path / "long-sdk-source-segment"
+    source = top
+    while len(str(source)) <= 280:
+        source /= "long-sdk-source-segment"
+    extended_source = Path(f"\\\\?\\{source}")
+    try:
+        extended_source.mkdir(parents=True)
+        (extended_source / "schema.proto").write_text('syntax = "proto3";\n', encoding="utf-8")
+
+        assert len(source_content_sha256(source)) == 64
+    finally:
+        shutil.rmtree(Path(f"\\\\?\\{top}"), ignore_errors=True)
 
 
 def test_local_source_rejects_remote_ref(tmp_path: Path) -> None:

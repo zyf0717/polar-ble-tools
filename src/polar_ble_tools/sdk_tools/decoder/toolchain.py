@@ -40,17 +40,26 @@ _TEMURIN_RELEASE = (
 )
 
 
-def _descriptor(architecture: str, archive_architecture: str, sha256: str) -> ToolchainDescriptor:
-    archive = f"OpenJDK21U-jdk_{archive_architecture}_linux_hotspot_21.0.12_8.tar.gz"
+def _descriptor(
+    platform: str,
+    architecture: str,
+    archive_architecture: str,
+    archive_platform: str,
+    sha256: str,
+    *,
+    archive_extension: str = "tar.gz",
+    java_relative_path: str = "bin/java",
+) -> ToolchainDescriptor:
+    archive = f"OpenJDK21U-jdk_{archive_architecture}_{archive_platform}_hotspot_21.0.12_8.{archive_extension}"
     return ToolchainDescriptor(
-        platform="linux",
+        platform=platform,
         architecture=architecture,
         jdk_version=_JDK_VERSION,
         jdk_archive_name=archive,
         jdk_url=f"{_TEMURIN_RELEASE}/{archive}",
         jdk_sha256=sha256,
         jdk_archive_root=f"jdk-{_JDK_VERSION}",
-        java_relative_path="bin/java",
+        java_relative_path=java_relative_path,
         gradle_version=_GRADLE_VERSION,
         gradle_archive_name=_GRADLE_ARCHIVE,
         gradle_url=_GRADLE_URL,
@@ -61,14 +70,43 @@ def _descriptor(architecture: str, archive_architecture: str, sha256: str) -> To
 TOOLCHAIN_DESCRIPTORS: Mapping[tuple[str, str], ToolchainDescriptor] = MappingProxyType(
     {
         ("linux", "x86_64"): _descriptor(
+            "linux",
             "x86_64",
             "x64",
+            "linux",
             "e4446ff06a276155697597cc0f1b15da004ff083f4964a35271ecee567177370",
         ),
         ("linux", "aarch64"): _descriptor(
+            "linux",
             "aarch64",
             "aarch64",
+            "linux",
             "eba38e871b02d407897bfe017ea35352dfc1420ef6d2112425b0c67325ca509d",
+        ),
+        ("darwin", "x86_64"): _descriptor(
+            "darwin",
+            "x86_64",
+            "x64",
+            "mac",
+            "6b85c260eea574a995eacd0b3ee23c8042aa93b23a08e6478edafca0a0333d7f",
+            java_relative_path="Contents/Home/bin/java",
+        ),
+        ("darwin", "aarch64"): _descriptor(
+            "darwin",
+            "aarch64",
+            "aarch64",
+            "mac",
+            "021d629349ebc12a409faa517b837ec80ceee8f58a5ac85c788ecad07ca6881c",
+            java_relative_path="Contents/Home/bin/java",
+        ),
+        ("windows", "x86_64"): _descriptor(
+            "windows",
+            "x86_64",
+            "x64",
+            "windows",
+            "9ba963ee2371874a74185d18bc7bb2ab9407df7683300855ed7606e0662321d0",
+            archive_extension="zip",
+            java_relative_path="bin/java.exe",
         ),
     }
 )
@@ -95,7 +133,8 @@ def toolchain_descriptor(
         return TOOLCHAIN_DESCRIPTORS[key]
     except KeyError as exc:
         raise RuntimeError(
-            "REC decoder builds support Linux x86_64 and Linux aarch64; "
+            "REC decoder builds support Linux/macOS on x86_64 and aarch64, and "
+            "Windows on x86_64; "
             f"the current host is {key[0]}/{key[1]}."
         ) from exc
 
@@ -126,6 +165,6 @@ def java_environment(
             "Pinned REC decoder JDK is missing or unsafe; rebuild with: polar-ble sdk decoder build"
         )
     environment = os.environ.copy()
-    environment["JAVA_HOME"] = str(java_home_path)
-    environment["PATH"] = f"{executable.parent}:{environment.get('PATH', '')}"
+    environment["JAVA_HOME"] = str(executable.parent.parent)
+    environment["PATH"] = os.pathsep.join((str(executable.parent), environment.get("PATH", "")))
     return environment

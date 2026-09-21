@@ -21,7 +21,11 @@ import pytest
 from polar_ble_tools.bpb_decode import SUPPORTED_STATUS, decode_bpb_file
 from polar_ble_tools.collection import cleanup_raw_recordings
 from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
+from polar_ble_tools.inventory import (
+    InventoryError,
+    load_allowed_identifiers,
+    normalize_identifier,
+)
 from polar_ble_tools.passive_data.storage import PassiveFileStore
 from polar_ble_tools.polar.passive import PassiveDomain
 
@@ -143,7 +147,7 @@ def _load_authorized_mac(mac_address: str) -> str:
         allowed_devices = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError(f"Invalid live test device inventory: {exc}") from exc
-    normalized = mac_address.upper()
+    normalized = normalize_identifier(mac_address)
     if normalized not in allowed_devices:
         raise AssertionError(
             f"Live matrix target {normalized} is not authorized in {TEST_DEVICES_FILE}."

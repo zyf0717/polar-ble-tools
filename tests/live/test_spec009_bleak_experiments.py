@@ -19,7 +19,11 @@ from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 
 from polar_ble_tools.ble.bleak_backend import BleakSession
-from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
+from polar_ble_tools.inventory import (
+    InventoryError,
+    load_allowed_identifiers,
+    normalize_identifier,
+)
 from polar_ble_tools.polar.offline import OfflineRecordingControlClient
 from polar_ble_tools.polar.pftp import PftpClient
 from polar_ble_tools.polar.pmd import PmdClient
@@ -152,7 +156,7 @@ def _load_authorized_target() -> str:
         allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
-    normalized = target.upper()
+    normalized = normalize_identifier(target)
     if normalized not in allowed:
         raise AssertionError("The SPEC-009 live-test target is not authorized.")
     return normalized
@@ -167,7 +171,7 @@ def _load_authorized_pair() -> tuple[str, str]:
         allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
-    normalized_second = second.upper()
+    normalized_second = normalize_identifier(second)
     if normalized_second not in allowed:
         raise AssertionError("The secondary SPEC-009 live-test target is not authorized.")
     if normalized_second == first:

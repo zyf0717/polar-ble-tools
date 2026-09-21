@@ -31,7 +31,7 @@ AgentFactory = Callable[[str], AbstractAsyncContextManager[Any]]
 
 
 async def scan_devices(
-    timeout: float = 10.0,
+    timeout: float = 30.0,
     name_substring: str | None = None,
     *,
     transport_factory: TransportFactory | None = None,
@@ -79,6 +79,7 @@ async def prepare_device(
         timeouts=selected_timeouts,
     )
     async with runner.guard(normalized):
+        platform: DevicePlatform | None = None
         try:
             platform, _ = await _probe_once(
                 normalized,
@@ -89,16 +90,18 @@ async def prepare_device(
             if exc.phase is not LifecyclePhase.PREPARATION:
                 raise
         else:
-            return PreparationResult(
-                identifier=normalized,
-                platform=platform,
-                outcome=PreparationOutcome.ALREADY_READY,
-                readiness_verified=True,
-                reconnect_persistence=ReconnectPersistence.VERIFIED,
-                final_connected=False,
-            )
+            if platform is not DevicePlatform.WINDOWS:
+                return PreparationResult(
+                    identifier=normalized,
+                    platform=platform,
+                    outcome=PreparationOutcome.ALREADY_READY,
+                    readiness_verified=True,
+                    reconnect_persistence=ReconnectPersistence.VERIFIED,
+                    final_connected=False,
+                )
 
-        platform = current_platform()
+        if platform is None:
+            platform = current_platform()
         if platform is DevicePlatform.LINUX:
             if agent_factory is None:
                 from polar_ble_tools.ble.bluez_agent import LinuxAuthenticationAgent

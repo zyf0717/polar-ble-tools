@@ -28,8 +28,9 @@ explicit environment flags. A skipped SDK or live test is not a successful
 validation result.
 
 Public CI runs the complete SDK-free suite on Linux with Python 3.11 through
-3.14. A focused native Windows Python 3.11 job verifies JSONL locking and schema
-activation; it does not establish BLE hardware compatibility.
+3.14 and on native macOS with Python 3.11. A focused native Windows Python 3.11
+job verifies JSONL locking and schema activation. CI without protected hardware
+does not establish BLE hardware compatibility.
 
 Record live evidence at the capability level actually exercised:
 
@@ -58,6 +59,51 @@ The private manifest contains fixture-relative paths, source/output SHA-256,
 record type, and count. It verifies deterministic JSONL output. Do not add the
 manifest, fixture paths, or recordings to the repository. Public tests use a
 fake sidecar and never download the SDK, JDK, Gradle, or Maven artifacts.
+
+## Regression contract coverage
+
+Use [architecture](architecture.md) and the topic contracts as the behavior
+reference. Focus automated tests on input validation before acquisition,
+phase-specific errors, ownership/cancellation cleanup, immutable results and
+JSON, exact paths, alias/symlink/size/digest rejection, atomic publication,
+manifest corruption/torn rows, retention rules, and audited deletion failures.
+SDK tests additionally cover descriptor/runtime tampering, safe extraction,
+activation rollback, licence prompting/attribution, guarded cache removal,
+strict REC streams, and independent schema activation. Local BPB contracts
+exercise every registered binding and only the scoped private fixtures.
+
+For transport dependency-range changes, exercise minimum and newest allowed
+Bleak minors; record the actual versions tested. Linux-injected UUID cases do
+not replace host-native contracts or physical evidence.
+
+## Live workflow harnesses
+
+Use the private authorized inventory. Environment names retain `MAC` for
+harness compatibility but values pass canonical identifier normalization.
+Default probes do not reset/unpair, apply FTU, control recording, fetch payloads,
+or delete. Mutation flags require explicit authorization for the selected operation.
+
+```bash
+POLAR_BLE_SPEC009=1 \
+POLAR_BLE_LIVE_MAC="<authorized identifier>" \
+pytest -q -s tests/live/test_spec009_bleak_experiments.py
+```
+
+The downstream harness is `tests/live/test_spec009_device_workflows.py`:
+FTU/config and PMD/PFTP reads are non-mutating; the ACC case additionally needs
+`POLAR_BLE_SPEC009_MUTATING=1`, creates/retains a recording, and only dry-runs
+cleanup. With the same base environment, select these independently gated tests:
+
+| Test | Additional gate/precondition |
+| --- | --- |
+| `test_spec009_fresh_bleak_preparation` (experiments harness) | `POLAR_BLE_SPEC009_FRESH_PREPARATION=1`; Linux exact bond absent, fresh pairing window, suitable agent already registered. Harness does not remove bonds/register an agent. |
+| `test_spec009_apply_loop_gen2_ftu_profile` (workflow harness) | `POLAR_BLE_SPEC009_FTU_APPLY=1`, `POLAR_BLE_SPEC009_FTU_FAMILY=POLAR_LOOP_GEN2`; authorized tracked Loop example. |
+| `test_spec009_apply_verity_sense_ftu_profile` (workflow harness) | Same apply flag, family `POLAR_VERITY_SENSE`; authorized tracked Verity example. |
+| `test_spec009_shared_scan_two_device_concurrency` (experiments harness) | `POLAR_BLE_LIVE_SECONDARY_MAC=<authorized secondary identifier>`. |
+| `test_spec009_two_device_connect_cancellation_and_recovery` (experiments harness) | Same secondary-device gate. |
+
+Use `pytest -q -s <harness>::<test>` with those variables. A skipped case is
+not evidence; failures and final cleanup state belong in the private record.
 
 ## Repository boundaries
 

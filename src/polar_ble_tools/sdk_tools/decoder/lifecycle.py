@@ -9,6 +9,7 @@ import posixpath
 import shutil
 import subprocess
 import tarfile
+import time
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -36,6 +37,7 @@ from polar_ble_tools.sdk_tools.decoder.toolchain import (
 from polar_ble_tools.sdk_tools.downloader import (
     SDK_LICENSE_FILE,
     SUPPORTED_SDK_COMMIT,
+    _extended_windows_path,
     active_sdk_source,
 )
 from polar_ble_tools.sdk_tools.revisions import require_full_commit, require_within
@@ -173,7 +175,9 @@ def _runtime_file_digests(root: Path) -> dict[str, str]:
         if not allowed:
             raise DecoderBuildError(f"Decoder distribution has an unexpected file: {relative}")
         files[relative] = _digest(path)
-    if "bin/polar-rec-decoder" not in files or not any(path.startswith("lib/") for path in files):
+    if not _RUNTIME_LAUNCHERS.intersection(files) or not any(
+        path.startswith("lib/") for path in files
+    ):
         raise DecoderBuildError(
             "Decoder distribution is missing its launcher or runtime libraries."
         )
@@ -297,6 +301,45 @@ def _safe_jdk_archive_member(member: tarfile.TarInfo, archive_root: str) -> bool
     return True
 
 
+def _safe_zip_member(member: zipfile.ZipInfo, archive_root: str | None = None) -> PurePosixPath:
+    path = PurePosixPath(member.filename)
+    file_type = (member.external_attr >> 16) & 0o170000
+    if (
+        path.is_absolute()
+        or not path.parts
+        or "\\" in member.filename
+        or ".." in path.parts
+        or ":" in path.parts[0]
+        or file_type == 0o120000
+        or file_type not in {0, 0o040000, 0o100000}
+    ):
+        raise DecoderBuildError("ZIP archive contains an unsafe path.")
+    if archive_root is None:
+        return path
+    if path.parts[0] != archive_root:
+        raise DecoderBuildError("ZIP archive contains an unexpected root.")
+    return PurePosixPath(*path.parts[1:])
+
+
+def _extract_safe_zip(
+    archive_path: Path, destination: Path, *, archive_root: str | None = None
+) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        members = [
+            (member, _safe_zip_member(member, archive_root)) for member in archive.infolist()
+        ]
+        for member, relative in members:
+            if not relative.parts:
+                continue
+            target = destination.joinpath(*relative.parts)
+            if member.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with archive.open(member) as source, target.open("wb") as output:
+                shutil.copyfileobj(source, output)
+
+
 def _replace_incomplete_directory(staged: Path, target: Path, *, description: str) -> None:
     """Promote a staged directory over an interrupted regular-directory install."""
     if target.exists() or target.is_symlink():
@@ -367,6 +410,15 @@ def _make_extracted_executable(path: Path, *, kind: str) -> None:
     path.chmod(path.stat().st_mode | 0o111)
 
 
+def _silence_windows_batch_launcher(path: Path) -> None:
+    """Keep Gradle's generated batch launcher from corrupting JSON stdout."""
+    if not path.is_file() or path.is_symlink():
+        raise DecoderBuildError("Generated Windows decoder launcher is missing or unsafe.")
+    payload = path.read_bytes()
+    if not payload.lower().startswith(b"@echo off"):
+        path.write_bytes(b"@echo off\r\n" + payload)
+
+
 def _provision_toolchain(
     cache: SdkCache,
     build_root: Path,
@@ -378,7 +430,10 @@ def _provision_toolchain(
     jdk_home = java_home(cache, descriptor)
     java, gradle = (
         java_executable(cache, descriptor),
-        tools / f"gradle-{descriptor.gradle_version}" / "bin" / "gradle",
+        tools
+        / f"gradle-{descriptor.gradle_version}"
+        / "bin"
+        / ("gradle.bat" if descriptor.platform == "windows" else "gradle"),
     )
     jdk_ready = _tool_entry_verified(
         jdk_home,
@@ -411,10 +466,17 @@ def _provision_toolchain(
         with TemporaryDirectory(prefix=".jdk-", dir=jdk_home.parent) as temporary:
             staged = Path(temporary) / "jdk"
             staged.mkdir()
-            with tarfile.open(jdk_archive, "r:gz") as archive:
-                for member in archive.getmembers():
-                    if _safe_jdk_archive_member(member, descriptor.jdk_archive_root):
-                        archive.extract(member, staged)
+            if jdk_archive.suffix == ".zip":
+                _extract_safe_zip(
+                    jdk_archive,
+                    staged,
+                    archive_root=descriptor.jdk_archive_root,
+                )
+            else:
+                with tarfile.open(jdk_archive, "r:gz") as archive:
+                    for member in archive.getmembers():
+                        if _safe_jdk_archive_member(member, descriptor.jdk_archive_root):
+                            archive.extract(member, staged)
             _write_tool_entry_manifest(
                 staged,
                 staged / descriptor.java_relative_path,
@@ -425,21 +487,18 @@ def _provision_toolchain(
             _replace_incomplete_directory(staged, jdk_home, description="JDK")
     if not gradle_ready:
         with TemporaryDirectory(prefix=".gradle-", dir=tools) as temporary:
-            with zipfile.ZipFile(gradle_archive) as archive:
-                for member in archive.infolist():
-                    path = PurePosixPath(member.filename)
-                    if (
-                        path.is_absolute()
-                        or ".." in path.parts
-                        or (member.external_attr >> 16) & 0o170000 == 0o120000
-                    ):
-                        raise DecoderBuildError("Gradle archive contains an unsafe path.")
-                    archive.extract(member, temporary)
+            _extract_safe_zip(gradle_archive, Path(temporary))
             staged_gradle = Path(temporary) / f"gradle-{descriptor.gradle_version}"
-            _make_extracted_executable(staged_gradle / "bin" / "gradle", kind="Gradle")
+            staged_gradle_launcher = (
+                staged_gradle
+                / "bin"
+                / ("gradle.bat" if descriptor.platform == "windows" else "gradle")
+            )
+            if descriptor.platform != "windows":
+                _make_extracted_executable(staged_gradle_launcher, kind="Gradle")
             _write_tool_entry_manifest(
                 staged_gradle,
-                staged_gradle / "bin" / "gradle",
+                staged_gradle_launcher,
                 descriptor,
                 kind="gradle",
                 archive_sha256=descriptor.gradle_sha256,
@@ -453,7 +512,15 @@ def _provision_toolchain(
 
 def _write_workspace(workspace: Path, *, commit: str) -> None:
     if workspace.exists():
-        shutil.rmtree(workspace)
+        removal_target = Path(_extended_windows_path(workspace))
+        for attempt in range(3):
+            try:
+                shutil.rmtree(removal_target)
+                break
+            except OSError as exc:
+                if os.name != "nt" or exc.winerror not in {5, 145} or attempt == 2:
+                    raise
+                time.sleep(0.2 * (attempt + 1))
     source = workspace / "src" / "main" / "kotlin"
     source.mkdir(parents=True)
     template = files("polar_ble_tools.sdk_tools").joinpath("decoder_project")
@@ -544,7 +611,13 @@ def build_decoder(
     _provision_toolchain(cache, build_root, descriptor, offline=offline)
     workspace = build_root / "workspace"
     _write_workspace(workspace, commit=commit)
-    gradle = build_root / "tools" / f"gradle-{descriptor.gradle_version}" / "bin" / "gradle"
+    gradle = (
+        build_root
+        / "tools"
+        / f"gradle-{descriptor.gradle_version}"
+        / "bin"
+        / ("gradle.bat" if descriptor.platform == "windows" else "gradle")
+    )
     command = [
         str(gradle),
         "--no-daemon",
@@ -559,7 +632,12 @@ def build_decoder(
     environment["GRADLE_USER_HOME"] = str(build_root / "gradle-user-home")
     _run(command, timeout=900, environment=environment)
     distribution = workspace / "build" / "install" / "polar-rec-decoder"
-    executable = distribution / "bin" / "polar-rec-decoder"
+    executable_name = (
+        "polar-rec-decoder.bat" if descriptor.platform == "windows" else "polar-rec-decoder"
+    )
+    executable = distribution / "bin" / executable_name
+    if descriptor.platform == "windows":
+        _silence_windows_batch_launcher(executable)
     if not executable.is_file() or executable.is_symlink():
         raise DecoderBuildError("Build did not produce the expected decoder executable.")
     _verify_distribution(executable, cache, descriptor, commit=commit)
@@ -567,7 +645,7 @@ def build_decoder(
     with TemporaryDirectory(prefix=f".{commit[:12]}-", dir=cache.decoder_root) as temporary:
         staged = Path(temporary) / "decoder"
         shutil.copytree(distribution, staged)
-        staged_executable = staged / "bin" / "polar-rec-decoder"
+        staged_executable = staged / "bin" / executable_name
         sdk_license_attribution = _copy_sdk_license_attribution(source, staged, commit=commit)
         runtime_files = _runtime_file_digests(staged)
         manifest = {
@@ -586,7 +664,7 @@ def build_decoder(
             "gradle_archive_sha256": descriptor.gradle_sha256,
             "toolchain_descriptor_sha256": toolchain_descriptor_digest(descriptor),
             "adapter_source_sha256": _adapter_digest(),
-            "executable_relative_path": "bin/polar-rec-decoder",
+            "executable_relative_path": f"bin/{executable_name}",
             "executable_sha256": _digest(staged_executable),
             "verification_level": "handshake",
             "verified": True,

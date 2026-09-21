@@ -1,69 +1,53 @@
-# SPEC-009: Bleak-first Linux operations and portable boundaries
+# SPEC-009: Remaining platform parity work
 
-**Status:** Implemented
-**Milestone:** `0.5.0`
-**Depends on:** SPEC-003
-**Coordinates with:** SPEC-005
+**Status:** Implementing; Linux `0.5.0` baseline complete.
 
-## Scope
+Preserve the [public APIs](../../docs/python-api.md),
+[lifecycle architecture](../../docs/architecture.md#ble-lifecycle), and
+[device-specific setup](../../docs/device-setup.md). Existing observations and
+limitations live only in [compatibility](../../docs/compatibility.md); harnesses
+are documented in [development](../../docs/development.md#live-workflow-harnesses).
+Canonical identifier authorization, uniform 30-second discovery/resolution,
+and pinned macOS REC toolchains are implemented; their completed requirements
+FR-094/101 do not need a second contract here.
 
-SPEC-009 evaluates and migrates the package's Linux BLE lifecycle to a
-Bleak-first design with platform-neutral public boundaries:
+## Open requirements and acceptance
 
-- structured discovery and deterministic authorized-device selection;
-- native Bleak device resolution before connection;
-- device preparation or pairing where a supported workflow requires it;
-- bounded service-readiness probing and managed connection ownership;
-- disconnect, reconnect, cancellation, timeout, and failure cleanup;
-- shared orchestration for PMD, PFTP, raw, passive, and FTU workflows;
-- parallel device-specific FTU paths that keep Loop physical setup isolated
-  from Verity runtime-time and wear-location setup;
-- platform-neutral identifiers, public models, commands, and inventories;
-- Linux automated contracts across the supported Python and Bleak versions;
-- controlled Linux hardware validation for the currently supported devices.
+This table owns the remaining implementation gates (FR-092). Open means
+insufficient evidence, not proven unsupported behavior. A preliminary single
+Loop pass does not close both device families or the entire host.
 
-The experiments compare package outcomes, not implementation parity.
-Successful Bleak-only operation does not need to reproduce `bluetoothctl`
-commands or Linux `Paired`, `Bonded`, and `Trusted` reporting.
+| IDs | Acceptance | macOS gap | Windows gap |
+| --- | --- | --- | --- |
+| FR-093 | Native clean install, full SDK-free unit/contracts, packaging, import/CLI smoke; Linux full supported Python matrix and at least one supported version per other host. | Full-suite CI exists; complete packaging/clean-wheel gates. | Expand focused storage/schema CI to full suite and packaging. |
+| FR-095 | Bounded readiness and later new-client/new-process reconnect; distinct prepared and separately authorized fresh-state evidence. No OS-shaped public pairing fields. | Complete fresh authentication/persistence proof under CoreBluetooth-owned UI and host-local UUIDs. | Integrate encrypted Bleak pairing at `protection_level=2` into preparation, retaining uncached WinRT discovery; no separate pairing script in completed workflow. |
+| FR-096 | Both device families: FTU/read-back, PMD/PFTP reads, ACC start/stop/materialization, exact REC size/hash/manifest verification, eligible cleanup dry-run with zero deletion; passive list/retrieve/decode only where data exists. | Extend preliminary Loop FTU/ACC results to Verity and applicable passive workflows. | Complete guarded workflows for both families. |
+| FR-097 | Native atomic stores, manifest locking, schema install/activation, BPB decode, path/alias safety, clean-wheel use. | Finish native filesystem/schema/BPB matrix. | Extend focused locking/schema tests to full matrix. |
+| FR-098 | Timeout/cancellation in each phase, partial-connect cleanup, disconnect, later recovery, same-device serialization and bounded two-device concurrency without competing scans. | Complete native failure and concurrency matrix. | Complete native lifecycle/failure/concurrency matrix. |
+| FR-099, FR-100 | Pass release gates, hand exact-commit physical evidence to SPEC-005, and publish only approved support with identity/authentication semantics, limits, and recovery guidance. | Certification outstanding. | Certification outstanding. |
 
-## Completion outcome
+Work in table order: native CI and host lifecycle decisions → device workflows
+and failure paths → evidence/release. Optional REC decoding remains separate;
+Windows unavailability is an accepted non-blocking gap. macOS x86_64 and other
+REC categories need their own evidence before claims expand.
 
-Every lifecycle operation receives one reviewed verdict:
+## Decision and completion rules
 
-1. **Bleak-only** when public Bleak APIs are sufficiently robust for the
-   package outcome;
-2. **Bleak plus OS adapter** when a required outcome cannot be achieved or
-   observed through Bleak;
-3. **Remove or redesign** when the existing operation is unnecessary or
-   conflicts with managed ownership;
-4. **Unsupported** when the outcome cannot be implemented or validated safely.
+For each host lifecycle outcome, record a reviewed verdict and rationale:
+**Bleak-only**, **Bleak plus OS adapter**, **Remove or redesign**, or
+**Unsupported**. Judge package outcomes, not matching OS flags. An adapter
+requires a demonstrated missing outcome, typed bounded injectable public/native
+APIs, independent tests, and a removal condition; no private Bleak state.
+Test minimum and newest allowed Bleak minors when selecting dependency ranges.
 
-The accepted verdict matrix is an implementation gate, not an optional report.
-The approved migration, public-contract replacement, Linux validation, and
-documentation are complete for `0.5.0`.
+Stop the affected experiment if cached/external state obscures evidence,
+connection ownership can leak, mutation/reset is unauthorized, or private data
+would leak. Record Unsupported or a revised reviewed experiment. Never add
+implicit bond removal, unsafe retries, or adapter-policy changes.
 
-## Documents
-
-- [Requirements](requirements.md)
-- [Experiments and decisions](experiments-and-decisions.md)
-- [Public contracts](public-contracts.md)
-- [Implementation plan](implementation-plan.md)
-- [Validation](validation.md)
-- [Governance](governance.md)
-- [Tracker](tracker.md)
-
-## Boundaries
-
-- Breaking `0.4.x` BLE APIs, models, options, and lifecycle semantics is
-  permitted for `0.5.0`; compatibility shims are not required.
-- Native Bleak objects remain inside the BLE backend and are never persisted.
-- An OS-specific adapter is permitted only for a demonstrated package need;
-  it does not own PMD, PFTP, collection, storage, or decoding behavior.
-- Raw REC and passive BPB retrieval remain independent of SDK tooling.
-- Guarded deletion, atomic storage, audit, and decoder boundaries do not
-  change.
-- Linux hardware evidence preserves supported user outcomes, not the existing
-  BlueZ implementation.
-- macOS and Windows workflows and physical-device certification are deferred
-  to SPEC-005. Platform-neutral boundaries in `0.5.0` are not support claims.
-- Device identifiers, inventories, captures, and hardware logs remain private.
+Implementation completion requires reviewed host verdicts, passing applicable
+rows, explicit accepted gaps, and shared [release gates](../README.md#shared-gates).
+[SPEC-005](../005-protected-compatibility/README.md) owns protected evidence review
+and exact-release certification; its deferral does not block implementation.
+Hosted CI, mocks, preliminary observations, and skipped live tests do not
+substitute for controlled physical certification.

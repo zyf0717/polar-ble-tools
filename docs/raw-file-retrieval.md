@@ -11,8 +11,23 @@ polar-ble raw --device-identifier AA:BB:CC:DD:EE:FF \
   --root .local/polar-ble-raw collect --type ACC
 ```
 
-Targeted fetch validates the exact device REC path and publishes one local file
-atomically without clobbering an existing destination.
+## Targeted fetch contract
+
+Accepted device paths have exactly this shape:
+`/U/<user-index>/<YYYYMMDD>/R/<HHMMSS>/<record-name>.REC`.
+Use absolute POSIX syntax, a non-negative decimal user index, valid calendar
+date/time, and one regular filename with case-insensitive `.REC` suffix.
+Empty interior segments, `.`/`..`, wildcards, directories, family expansion,
+and parent cleanup are rejected. PFTP receives the exact normalized path.
+
+Before connecting, fetch rejects existing output symlinks, source/output aliases,
+and unrequested overwrite. It bounds and hashes the bytes, flushes a sibling
+temporary regular file, then publishes atomically. Failure or mismatch with a
+listed expected size publishes no partial final file. The result records
+`device_id`, `device_path`, `output_path`, `fetched_size`, `sha256`, and
+`observed_at`.
+
+## Collection
 
 Collection writes each payload atomically and appends a JSONL manifest
 containing its device path, local path, size, and SHA-256 digest. Re-running
@@ -45,3 +60,5 @@ Every decision is written to the deletion log. A BLE transport failure after a
 deletion attempt is audited and then propagated. Cleanup never guesses related
 paths; empty parent directories are removed only after the selected file is
 removed.
+
+For BPB files, see [passive retrieval and cleanup](passive-files.md).

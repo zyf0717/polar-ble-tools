@@ -7,12 +7,12 @@ retrieval remains independent of it. The sidecar accepts only unencrypted
 recordings in the compatibility matrix; encrypted and unvalidated categories
 are unsupported.
 
-The public compatibility claim remains explicit unprotected decoding on Linux
-x86_64. The lifecycle implementation now has pinned Linux aarch64 descriptors
-and equivalent synthetic safety contracts, but a real aarch64 build/run remains
-a protected validation gate. Protected recordings remain deferred to SPEC-006.
-Explicit adapter implementation remains open in SPEC-004 and its certification
-is governed by SPEC-005. Batch decoding is deferred to SPEC-007.
+The public compatibility claim covers explicit unprotected decoding on Linux
+x86_64, macOS arm64, and Windows x86_64. The lifecycle has pinned Linux and
+macOS descriptors for x86_64 and arm64 plus Windows x86_64; other
+host/architecture combinations remain unvalidated. Protected and batch
+decoding are not implemented. Explicit stable per-category payload adapters
+and broader architecture certification remain incomplete.
 
 The project uses a local JVM sidecar because Polar's official REC parser is in
 the separately licensed SDK. This keeps SDK classes, source, and binaries out
@@ -28,7 +28,8 @@ remain bound by the adapter source digest.
 
 ## Prerequisites
 
-Use Linux x86_64, install the SDK extra, and explicitly stage the supported SDK:
+Use Linux or macOS on x86_64 or arm64, or Windows on x86_64. Install the SDK
+extra and explicitly stage the supported SDK:
 
 ```bash
 python -m pip install "polar-ble-tools[sdk]"
@@ -55,12 +56,20 @@ polar-ble rec status
 Builds create an isolated per-commit workspace. The JDK is persistent and
 shared across commits. Activation executes the sidecar `version` and
 `self-test` handshakes and preserves the previously active decoder on failure.
-Use `--offline` only after the toolchain and Gradle dependencies are cached.
+Use `--offline` only after the toolchain and Gradle dependencies are cached;
+missing verified artifacts fail with no network access. Safe extraction rejects
+absolute/traversing members, device nodes, unsafe links, and unexpected roots.
+Descriptors bind host/architecture, archive names/URLs/roots/SHA-256, executable
+path, and tool versions. Host aliases normalize `amd64` to `x86_64`, `arm64` to
+`aarch64`, and macOS to `darwin`; macOS JDKs use `Contents/Home/bin/java`.
+Windows uses the pinned Temurin ZIP, `java.exe`, Gradle's native batch launcher,
+and a silenced generated decoder batch launcher so stdout remains JSON-only.
 
 The build copies the exact `Polar_SDK_License.txt` from the pinned local SDK
 checkout into the decoder runtime as attribution material. Its SHA-256 and SDK
 commit are recorded in the decoder manifest. This is not an acceptance record
 and does not replace fresh consent on any later SDK install/download invocation.
+Its manifest entry has `purpose: attribution` and `is_acceptance_record: false`.
 Older package-managed decoder caches without this attribution contract must be
 rebuilt. Manually or externally managed sidecars are outside this package's
 lifecycle and compatibility scope.
@@ -107,14 +116,47 @@ and uses two streaming passes, not whole-file JSON loading.
 
 ## Output protocol v1
 
-The output is UTF-8 JSON Lines: exactly one header, zero or more records, and
-one final summary. Header and status handshakes carry the protocol version,
-decoder version, SDK commit, and source digest. Record types are lowercase
-project-owned slugs; timestamps are integer Unix nanoseconds or `null`.
-Malformed JSON, non-finite constants, invalid slugs, non-string warnings,
-summary disagreement, and rows after the summary are rejected.
+Before decode, Python verifies the sidecar `version` handshake and invokes:
+
+```text
+<decoder> decode --input <source.REC> --output <staged.jsonl> --protocol 1
+```
+
+The process uses an argument array, a positive timeout, concurrent bounded
+stdout/stderr drains, and a new POSIX process session. Stdout returns one bounded
+JSON status object; stderr is diagnostic only. Timeout terminates the whole
+process group, waits a bounded grace period, then kills if needed; no output
+is published. The environment inherits the caller's variables with `JAVA_HOME`
+and `PATH` set for the pinned JDK. Protocol v1 carries no secrets.
+
+UTF-8 output contains exactly these row shapes, in order:
+
+```json
+{"type":"header","protocol_version":1,"sdk_commit":"40 lowercase hexadecimal characters","decoder_version":"project version","source_sha256":"64 lowercase hexadecimal characters"}
+{"type":"record","record_type":"project_owned_snake_case","timestamp_ns":0,"payload":{}}
+{"type":"summary","record_count":1,"record_types":{"project_owned_snake_case":1},"warnings":[]}
+```
+
+There may be zero or more record rows. Timestamps are integer Unix nanoseconds
+or null where SDK semantics do not establish absolute time. Payloads contain
+JSON scalars, arrays, and objects. Non-finite SDK numbers become null plus a
+warning; Python rejects non-standard numeric constants.
+
+Before publication, validate regular-file/symlink safety, line-byte bounds,
+UTF-8, finite JSON, row order, record envelopes/slugs, source digest, SDK and
+protocol provenance, record/per-type totals, string warnings, and EOF immediately
+after summary. [Publication rules](#decode-a-recording) apply to every output.
+
+The sidecar invokes the pinned official parser; project code must not parse REC
+headers/payloads independently, decompress/decrypt content, translate or patch
+SDK parsing logic, or provide a Python fallback.
 
 ## Recording metadata and timestamps
+
+The current adapter maps measurement types and timestamp policy explicitly,
+but discovers iterable SDK result properties and sample payloads through
+reflection. Payload fields remain experimental; reflection order and newly
+seen SDK properties do not establish a stable public schema.
 
 The sidecar should preserve recording-level metadata when the pinned SDK model
 provides it. Do not infer UTC from a timezone-less SDK value. HR samples have
@@ -137,7 +179,14 @@ files are removed with the selected workspace.
 
 ## Security and distribution boundary
 
-Manifests record digests for every runtime file and the JDK executable. The
+Manifests bind manifest/protocol/decoder/package versions, SDK commit,
+platform/architecture, JDK/Gradle versions and archive digests, toolchain descriptor
+and adapter-source digests, verification level, executable path/digest,
+runtime-file allowlist, and licence attribution. Runtime relative paths stay
+inside the per-commit entry; the JDK stays inside its host toolchain cache.
+Reverify every runtime file, JDK executable, host, SDK/protocol identity, and
+handshake before decode. A mismatch reports unavailable or verification failure
+with a rebuild command; it never silently chooses another decoder. The
 project distributes only its Kotlin and Gradle templates. It does not distribute
 Polar SDK source, `Polar_SDK_License.txt`, recordings, generated schemas, JARs,
 classes, or a decoder binary in PyPI artifacts.
@@ -149,3 +198,15 @@ fixture contracts use `POLAR_BLE_REC_FIXTURE_MANIFEST`, a private JSON file with
 relative paths, source/output SHA-256 values, record type, and record count.
 The manifest and recordings must not be committed. Decoder protocol-policy
 changes require regenerating each affected private `expected_output_sha256`.
+
+## Models and errors
+
+`DecoderStatus` records availability/verification, SDK commit, protocol version,
+verification level, and unavailable reason. Single-file results include
+source/output paths and digests, SDK/decoder provenance, counts/types, and
+ordered project-owned warnings.
+
+`RecDecodeError` subclasses are `DecoderUnavailableError`, `DecoderManifestError`,
+`DecoderVerificationError`, `DecoderProtocolError`, `DecoderTimeoutError`,
+`UnsupportedRecordingError`, and `RecordingDecodeError`. Sidecar status codes
+are project-owned; bounded stderr is not an automation contract.

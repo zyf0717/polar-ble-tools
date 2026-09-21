@@ -42,6 +42,12 @@ serialize one normalized identity, while a per-event-loop semaphore permits at
 most two distinct device sessions. Each resolution, connection, readiness,
 preparation, and disconnect phase is bounded.
 
+Windows preparation always executes Bleak pairing with encryption protection
+level 2 before its reconnect check. Public service discovery is not sufficient
+authentication evidence because protected PFTP notifications can still reject
+an unbonded client. Existing Windows bonds remain host-owned; the package does
+not remove or replace them.
+
 Fresh Linux preparation is the sole OS-adapter exception. A temporary
 `org.bluez.Agent1` implementation accepts only confirmation and supported
 service authorization for the exact selected device. It rejects PIN/passkey,
@@ -49,6 +55,33 @@ unexpected-device, and unrelated-service requests and unregisters after every
 outcome. Bleak continues to own discovery, pairing, service readiness, and
 disconnect. No subprocess output is parsed and the package never removes host
 bonds or changes adapter policy.
+
+### Workflow failures
+
+Validate caller-only inputs before acquiring the per-device lock, shared
+limiter, and session, in that order. A workflow owns protocol cleanup and
+notification shutdown on success, failure, or cancellation. Cleanup errors remain
+observable but never replace the primary failure. Per-file protocol/storage
+failures may become failed records when continuation is safe; transport failure
+aborts and cancellation propagates. The runner supplies no automatic retry
+policy; destructive operations are never automatically retried.
+
+### Lifecycle decisions
+
+Public Bleak APIs own lifecycle operations. Controlled 2026-07-30 Linux tests
+found two exceptions to naive client construction: concurrent string-address
+clients caused competing implicit scans (`InProgress`), and fresh Loop/Verity
+pairing failed without an authentication agent (`AuthenticationFailed`). Shared
+native resolution and the narrow agent above passed those cases. An initial
+agent-assisted Loop retry also hit Page Timeout before a bounded retry succeeded.
+
+An OS adapter is justified only by a demonstrated missing outcome, remains
+bounded/injectable/tested below transport, and cannot use private Bleak state.
+Remove the Linux agent when supported APIs provide equivalent target-bound
+handling or controlled fresh pairing works without it. Managed cleanup replaces
+persistent OS connection handoff; BlueZ bond/trust flags are diagnostic, not
+portable success criteria. Platform implementation does not establish hardware
+support; see [compatibility](compatibility.md).
 
 ## Data flow
 
@@ -60,8 +93,9 @@ verified active local schema cache.
 Stores write payloads atomically, append manifests with size and SHA-256
 metadata, verify local files with a shared streaming SHA-256 helper, constrain
 stored paths to their configured roots, and tolerate a truncated final JSONL
-record. On Windows, writers coordinate through persistent hidden sibling lock
-files instead of locking manifest bytes, so concurrent readers can still
+record only if it lacks a newline; malformed completed rows fail closed.
+Torn rows are never deletion evidence. On Windows, writers coordinate through
+persistent hidden sibling lock files instead of locking manifest bytes, so concurrent readers can still
 observe the last complete rows. Raw and passive stores share these low-level
 mechanics but retain separate manifests, eligibility, and audit policy. Device
 cleanup uses exact paths selected from the device listing. A file is eligible
@@ -114,3 +148,10 @@ included only by explicit request. Multi-revision and all-revision cleanup
 preflights every exact cache path before deletion and never implicitly removes
 the shared decoder JDK. Source-only removal may retain a verified format-3
 schema cache and its activation pointer.
+
+## Detailed contracts
+
+- [Recording control](offline-recording.md) and [raw retrieval](raw-file-retrieval.md).
+- [Passive persistence/cleanup](passive-files.md) and [BPB decoding](bpb-decoding.md).
+- [REC process and JSONL boundary](rec-decoding.md#output-protocol-v1).
+- [Public API models](python-api.md) and [SDK lifecycle](sdk-integration.md).

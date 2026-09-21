@@ -2,10 +2,11 @@
 
 This is a deferred protocol contract. It is not a current CLI or Python API.
 
-## Negotiation
+## Negotiation (FR-031)
 
-Protocol v1 remains the unencrypted protocol owned by SPEC-004. Protocol v2 is
-required for secret-bearing operations.
+Protocol v1 remains the
+[documented unencrypted protocol](../../docs/rec-decoding.md#output-protocol-v1).
+Protocol v2 is required for secret-bearing operations.
 
 The Python caller chooses a protocol only after a verified `version` handshake:
 
@@ -19,7 +20,7 @@ Protocol-v2 handshakes expose a sorted `protocol_versions` array and
 `capabilities` identifying protected-decode strategies. Capability absence is
 unsupported, not evidence of support.
 
-## Request
+## Request (FR-027)
 
 The sidecar is started with:
 
@@ -60,7 +61,7 @@ invocation.
 The request remains in memory and is never written to a manifest, temporary
 request file, exception, representation, or diagnostic.
 
-## Secret sources
+## Secret sources (FR-028, FR-029)
 
 CLI sources are mutually exclusive:
 
@@ -83,7 +84,7 @@ Representations, serialization, equality diagnostics, provider failures, and
 exceptions never expose key bytes. The provider is called at most once per
 source. Managed runtimes do not claim secure memory erasure.
 
-## Process and diagnostics
+## Process and diagnostics (FR-032)
 
 The sidecar uses an argument array, `shell=False`, a minimal explicit
 environment, bounded concurrent stdout/stderr drains, and a positive timeout.
@@ -109,7 +110,7 @@ sdk_output_contract_mismatch
 Unknown codes are protocol errors. Stderr is diagnostic only and never
 authoritative.
 
-## Official SDK boundary
+## Official SDK boundary (FR-030, FR-062)
 
 The JVM sidecar constructs the pinned SDK's security model and calls the pinned
 official REC parser. A strategy is enabled only after SDK inspection and
@@ -117,4 +118,20 @@ protected fixture evidence prove it. No project-authored parser, decompressor,
 decryptor, SDK patch, translated implementation, or Python fallback is allowed.
 
 Successful output reuses the validated JSONL and constrained-publication
-contract from SPEC-004, with `protocol_version: 2`.
+[contract](../../docs/rec-decoding.md#output-protocol-v1), with `protocol_version: 2`.
+
+## Models and errors
+
+`RecordingIdentity` contains only the minimum redacted source identity required
+by a provider. `RecordingSecret` is immutable and byte-oriented; its string and
+debug representations never expose secret bytes.
+
+Required errors extend the [current hierarchy](../../docs/rec-decoding.md#models-and-errors):
+
+```text
+RecDecodeError
+└── RecordingSecurityError
+```
+
+Stable security outcomes expose project-owned codes without SDK class names,
+secret material, private paths, or provider internals.

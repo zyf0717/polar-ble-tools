@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import tarfile
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -17,13 +19,15 @@ from polar_ble_tools.sdk_tools.decoder import (
     _replace_incomplete_directory,
     _restore_decoder_directory,
     _safe_jdk_archive_member,
+    _safe_zip_member,
+    _silence_windows_batch_launcher,
     _tool_entry_verified,
     _write_tool_entry_manifest,
     _write_workspace,
     activate_decoder,
     remove_decoder,
 )
-from polar_ble_tools.sdk_tools.decoder.toolchain import toolchain_descriptor
+from polar_ble_tools.sdk_tools.decoder.toolchain import java_environment, toolchain_descriptor
 from polar_ble_tools.sdk_tools.downloader import SDK_LICENSE_FILE
 
 
@@ -71,6 +75,7 @@ def test_sdk_license_attribution_requires_regular_source_file(tmp_path: Path) ->
         _copy_sdk_license_attribution(source, runtime, commit="a" * 40)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no POSIX execute bits")
 def test_extracted_gradle_launcher_gets_executable_bits(tmp_path: Path) -> None:
     executable = tmp_path / "gradle"
     executable.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -79,6 +84,16 @@ def test_extracted_gradle_launcher_gets_executable_bits(tmp_path: Path) -> None:
     _make_extracted_executable(executable, kind="Gradle")
 
     assert executable.stat().st_mode & 0o111 == 0o111
+
+
+def test_windows_batch_launcher_is_silenced_idempotently(tmp_path: Path) -> None:
+    launcher = tmp_path / "polar-rec-decoder.bat"
+    launcher.write_bytes(b"@rem generated\r\necho payload\r\n")
+
+    _silence_windows_batch_launcher(launcher)
+    _silence_windows_batch_launcher(launcher)
+
+    assert launcher.read_bytes() == b"@echo off\r\n@rem generated\r\necho payload\r\n"
 
 
 def test_jdk_archive_allows_only_links_contained_by_its_root() -> None:
@@ -108,12 +123,21 @@ def test_toolchain_promotion_replaces_incomplete_regular_directory(tmp_path: Pat
     assert not staged.exists()
 
 
-@pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
+@pytest.mark.parametrize(
+    ("platform", "architecture"),
+    [
+        ("linux", "x86_64"),
+        ("linux", "aarch64"),
+        ("darwin", "x86_64"),
+        ("darwin", "aarch64"),
+        ("windows", "x86_64"),
+    ],
+)
 def test_cached_tool_entry_is_bound_to_architecture_descriptor(
-    tmp_path: Path, architecture: str
+    tmp_path: Path, platform: str, architecture: str
 ) -> None:
-    descriptor = toolchain_descriptor("linux", architecture)
-    root = tmp_path / architecture
+    descriptor = toolchain_descriptor(platform, architecture)
+    root = tmp_path / platform / architecture
     executable = root / descriptor.java_relative_path
     executable.parent.mkdir(parents=True)
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -142,6 +166,47 @@ def test_cached_tool_entry_is_bound_to_architecture_descriptor(
         kind="jdk",
         archive_sha256=descriptor.jdk_sha256,
     )
+
+
+def test_macos_java_environment_uses_bundle_home(tmp_path: Path) -> None:
+    descriptor = toolchain_descriptor("darwin", "arm64")
+    root = tmp_path / "jdk"
+    executable = root / descriptor.java_relative_path
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    environment = java_environment(root, java_relative_path=descriptor.java_relative_path)
+
+    assert environment["JAVA_HOME"] == str(root / "Contents" / "Home")
+
+
+def test_windows_java_environment_uses_native_path_separator(tmp_path: Path) -> None:
+    descriptor = toolchain_descriptor("windows", "amd64")
+    root = tmp_path / "jdk"
+    executable = root / descriptor.java_relative_path
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"MZ")
+
+    environment = java_environment(root, java_relative_path=descriptor.java_relative_path)
+
+    assert environment["JAVA_HOME"] == str(root)
+    assert environment["PATH"].startswith(f"{executable.parent}{os.pathsep}")
+
+
+def test_jdk_zip_requires_expected_root_and_regular_members() -> None:
+    safe = zipfile.ZipInfo("jdk-21/bin/java.exe")
+    safe.external_attr = 0o100644 << 16
+    assert _safe_zip_member(safe, "jdk-21") == PurePosixPath("bin/java.exe")
+
+    unsafe = zipfile.ZipInfo("other/bin/java.exe")
+    unsafe.external_attr = 0o100644 << 16
+    with pytest.raises(DecoderBuildError, match="unexpected root"):
+        _safe_zip_member(unsafe, "jdk-21")
+
+    traversal = zipfile.ZipInfo(r"jdk-21\..\outside.exe")
+    traversal.external_attr = 0o100644 << 16
+    with pytest.raises(DecoderBuildError, match="unsafe path"):
+        _safe_zip_member(traversal, "jdk-21")
 
 
 def _entry(path: Path, marker: str) -> None:

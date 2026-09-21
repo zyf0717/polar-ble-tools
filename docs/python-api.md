@@ -81,3 +81,26 @@ Specialized modules are deliberately separate from the top-level facade:
   altered, incompatible, timed-out, or failed sidecars.
 
 See the [CLI reference](cli-reference.md) for a command-to-API mapping.
+
+## Lifecycle models
+
+`DiscoveredDevice` contains `identifier`, `platform`, `name`, `rssi`, and
+`service_uuids`. Discovery is read-only; default discovery and resolution budgets
+are 30 seconds on every host. `PreparationResult` contains identifier/platform,
+`outcome` (`ready|already_ready|not_required`), `readiness_verified`,
+`reconnect_persistence` (`verified|not_required|not_tested`), and
+`final_connected`. Backend pairing flags are not public fields. Successful
+preparation and probing end disconnected; multi-operation callers use
+`async with open_polar_device(identifier)`.
+
+Lifecycle errors retain their phase: discovery, authorization, resolution,
+preparation, connect, service_readiness, disconnect, cancelled, or unsupported.
+Backend exceptions remain chained locally without exposing advertisements,
+backend objects, inventory contents, or captures. Validation, BLE transport,
+PMD/PFTP protocol/response/timeout/unsupported, and storage/verification errors
+retain their subsystem category; see [failure handling](architecture.md#workflow-failures).
+
+Collection totals match record outcomes; `ok` is false for fetch failures,
+blocked destructive operations, or failed deletion. Detailed
+[BPB results](bpb-decoding.md#results-and-safety) and
+[REC results](rec-decoding.md#models-and-errors) belong to their decoder contracts.

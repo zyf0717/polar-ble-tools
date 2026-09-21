@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -91,29 +92,47 @@ def _manifest_payload(
 def source_content_sha256(source: Path) -> str:
     """Return a stable digest for an SDK source tree without cache artifacts."""
     digest = hashlib.sha256()
-    for root, directories, files in os.walk(source):
+    walk_root = Path(_extended_windows_path(source))
+
+    def fail_walk(error: OSError) -> None:
+        raise SdkDownloadError("SDK source tree could not be read safely.") from error
+
+    for root, directories, files in os.walk(walk_root, onerror=fail_walk):
         root_path = Path(root)
         retained_directories: list[str] = []
         for name in sorted(name for name in directories if name not in {".git", "__pycache__"}):
-            if (root_path / name).is_symlink():
+            mode = os.lstat(root_path / name).st_mode
+            if stat.S_ISLNK(mode):
                 raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
+            if not stat.S_ISDIR(mode):
+                raise SdkDownloadError("SDK source contains an unsafe non-directory entry.")
             retained_directories.append(name)
         directories[:] = retained_directories
         for name in sorted(files):
             if name.endswith(".pyc"):
                 continue
             path = root_path / name
-            if path.is_symlink():
+            mode = os.lstat(path).st_mode
+            if stat.S_ISLNK(mode):
                 raise SdkDownloadError("SDK source contains an unsafe symbolic link.")
-            if not path.is_file():
+            if not stat.S_ISREG(mode):
                 raise SdkDownloadError("SDK source contains an unsafe non-regular file.")
-            relative = path.relative_to(source).as_posix()
+            relative = path.relative_to(walk_root).as_posix()
             digest.update(relative.encode("utf-8"))
             digest.update(b"\0")
             with path.open("rb") as current:
                 for block in iter(lambda: current.read(1024 * 1024), b""):
                     digest.update(block)
     return digest.hexdigest()
+
+
+def _extended_windows_path(path: Path) -> str:
+    value = os.path.abspath(os.fspath(path))
+    if os.name != "nt" or value.startswith("\\\\?\\"):
+        return value
+    if value.startswith("\\\\"):
+        return f"\\\\?\\UNC\\{value[2:]}"
+    return f"\\\\?\\{value}"
 
 
 def _local_source_identity(source: Path) -> tuple[str, str]:

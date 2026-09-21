@@ -1,35 +1,18 @@
 # SPEC-006: Protected REC decoding
 
-**Status:** Deferred; SDK strategy evidence and protected fixtures required
-**Depends on:** SPEC-004 single-file decoder
+**Status:** Deferred. Resume only after the pinned SDK security strategy,
+protected fixtures, private handling, and evidence review are approved under
+[SPEC-005](../005-protected-compatibility/README.md).
 
-## Scope
+[The pending protocol](protected-protocol.md) is the sole definition of
+FR-027–032/062. It extends the implemented
+[v1 decoder](../../docs/rec-decoding.md#output-protocol-v1); no current protected
+API or compatibility claim exists.
 
-SPEC-006 owns optional secret-bearing REC decoding:
-
-- protocol-v2 capability negotiation;
-- non-argv secret transport and redacted secret models;
-- pinned official-SDK protected parsing with no fallback;
-- bounded and redacted sidecar diagnostics;
-- protected fixture certification.
-
-Protocol-v1 unprotected decoding remains owned by SPEC-004. Batch orchestration
-remains owned by SPEC-007. Compatibility certification follows SPEC-005.
-
-## Documents
-
-- [Requirements](requirements.md)
-- [Protocol](protected-protocol.md)
-- [Models and errors](models-and-errors.md)
-- [Implementation plan](implementation-plan.md)
-- [Validation](validation.md)
-- [Governance](governance.md)
-- [Tracker](tracker.md)
-
-## Boundaries
-
-- Secret material never enters argv, environment variables, filenames,
-  manifests, summaries, logs, or public evidence.
-- The sidecar constructs and invokes only the pinned SDK security model.
-- The package does not implement REC parsing, decompression, or decryption.
-- No protected compatibility claim exists until private contracts pass.
+Acceptance requires synthetic v1/v2 negotiation, malformed/duplicate-key/UTF-8/
+size rejection, source exclusivity/permissions, timeout/cancellation process
+cleanup, and secret canaries absent from every diagnostic/persistence surface.
+Private fixtures must prove each enabled SDK security strategy, official-parser
+invocation, decoded semantics, and source/output digests. No SDK patches,
+project-authored REC parsing/decryption, or public restricted-data retention.
+Apply the shared [gates](../README.md#shared-gates).

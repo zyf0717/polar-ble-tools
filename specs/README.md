@@ -1,57 +1,37 @@
-# Specifications
+# Open specifications
 
-This directory contains development-only design contracts, implementation
-plans, evidence requirements, and completion records. Specifications guide
-work on `dev`.
+Specs describe unresolved work only. Start with the relevant row; do not load
+predecessors or deferred designs unless the task changes that boundary.
 
-The public sources of truth remain:
-
-- `docs/architecture.md` for package and dependency boundaries;
-- `docs/development.md` for development workflows;
-- `docs/compatibility.md` for evidence-backed support claims.
-
-A specification may strengthen those constraints while it is active, but must
-not silently redefine them. Accepted public behavior must be reflected in the
-applicable public documentation before release.
-
-## Numbering
-
-Specification identifiers are stable three-digit numbers. Gaps are allowed and
-completed specifications are not renumbered.
-
-- `SPEC-000` is reserved for a future versioned specification-governance
-  contract if this index becomes insufficient.
-- `SPEC-001` and `SPEC-002` are unassigned; their absence does not imply missing
-  repository content.
-- New work uses the next unassigned identifier.
-
-## Lifecycle
-
-Each specification README declares its status, scope, milestone when
-applicable, dependencies, and boundaries. Supporting documents should cover
-requirements, implementation, validation, governance, and tracking when those
-concerns are material.
-
-Use these lifecycle states:
-
-1. **Proposed** — scope and requirements are under review.
-2. **Accepted** — boundaries and acceptance criteria are approved.
-3. **Implementing** — code, tests, and documentation are in progress.
-4. **Implemented** — validation and definition-of-done requirements are met.
-5. **Deferred** — intentionally paused pending an explicit prerequisite or
-   product decision; it is not an active implementation commitment.
-6. **Superseded** — a referenced successor owns the active contract.
-
-Specification changes remain on `dev`.
-
-## Index
-
-| Specification | Status | Scope |
+| Spec | State | Remaining scope |
 | --- | --- | --- |
-| [SPEC-003](003-ble-operations-extension/README.md) | Implemented | Core BLE operations |
-| [SPEC-004](004-rec-decoder-extension/README.md) | Implementing | Single-file structured REC decoding |
-| [SPEC-005](005-protected-compatibility/README.md) | Deferred | Protected compatibility certification |
-| [SPEC-006](006-protected-rec-decoding/README.md) | Deferred | Protected REC decoding |
-| [SPEC-007](007-rec-batch-decoding/README.md) | Deferred | REC batch decoding |
-| [SPEC-008](008-bpb-decoding/README.md) | Implemented | Official-schema BPB decoding |
-| [SPEC-009](009-bleak-platform-migration/README.md) | Implemented | Bleak-first Linux operations and portable boundaries |
+| [009](009-bleak-platform-migration/README.md) | Implementing | macOS/Windows workflow parity and evidence handoff |
+| [004](004-rec-decoder-extension/README.md) | Implementing | REC architecture certification and explicit payload adapters |
+| [005](005-protected-compatibility/README.md) | Deferred | Approved evidence policy and physical release certification |
+| [006](006-protected-rec-decoding/README.md) | Deferred | Protected decode protocol and SDK/fixture proof |
+| [007](007-rec-batch-decoding/README.md) | Deferred | Batch decoding after adapter certification and priority approval |
+
+## Graduated contracts
+
+SPEC-003 core operations and SPEC-008 BPB decoding are complete. Their contracts
+now live in [architecture](../docs/architecture.md#detailed-contracts),
+[recording](../docs/offline-recording.md), [raw retrieval](../docs/raw-file-retrieval.md),
+[passive files](../docs/passive-files.md), and [BPB decoding](../docs/bpb-decoding.md).
+Implemented portions of SPEC-004 and SPEC-009 live in
+[REC decoding](../docs/rec-decoding.md), [SDK integration](../docs/sdk-integration.md),
+and [public APIs](../docs/python-api.md). Evidence lives in
+[compatibility](../docs/compatibility.md); historical plans and closed FRs stay
+in Git history. Do not recreate completed-spec archives.
+
+## Shared gates
+
+Use [development](../docs/development.md) and [release](../docs/releasing.md)
+gates. Specs add only work-specific acceptance. Public docs own current behavior;
+specs must not silently broaden support. On completion, merge missing contracts
+into their topic docs, delete duplicates, and remove the completed spec.
+
+Keep one status/acceptance owner per workstream. A separate file is justified
+only for a detailed pending protocol. Keep existing spec/FR IDs for open work;
+never renumber or reuse retired IDs (next spec: 010; 000 reserved, 001/002 unused).
+Deferred work requires its stated prerequisite, not speculative implementation.
+Specs stay on `dev` and are removed from release trees.

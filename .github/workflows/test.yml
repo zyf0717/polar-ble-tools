@@ -86,3 +86,15 @@ jobs:
           python -m pytest -q
           tests/unit/test_storage_utils.py
           tests/unit/schemas/test_verifier.py
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run SDK-free unit and contract tests
+        run: |
+          python -m pip install ".[dev]"
+          python -m pytest -q tests/unit tests/contracts

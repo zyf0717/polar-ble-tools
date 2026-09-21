@@ -20,6 +20,12 @@ def project_version() -> str:
         return tomllib.load(metadata)["project"]["version"]
 
 
+def venv_executable(virtual_environment: Path, name: str) -> Path:
+    if os.name == "nt":
+        return virtual_environment / "Scripts" / f"{name}.exe"
+    return virtual_environment / "bin" / name
+
+
 SKIPPED_SOURCE_DIRECTORIES = frozenset(
     {"dist", "build", "__pycache__", ".git", ".venv", ".pytest_cache"}
 )
@@ -287,8 +293,8 @@ def test_clean_wheel_install_imports_and_shows_help_without_schema_activity(
     wheel = next(artifact for artifact in built_artifacts if artifact.suffix == ".whl")
     virtual_environment = tmp_path / "clean-venv"
     venv.EnvBuilder(with_pip=True).create(virtual_environment)
-    python = virtual_environment / "bin" / "python"
-    polar_ble = virtual_environment / "bin" / "polar-ble"
+    python = venv_executable(virtual_environment, "python")
+    polar_ble = venv_executable(virtual_environment, "polar-ble")
     cache_home = tmp_path / "cache"
     data_home = tmp_path / "data"
     environment = {
@@ -344,7 +350,7 @@ def test_clean_wheel_sdk_extra_resolves(built_artifacts: list[Path], tmp_path: P
     wheel = next(artifact for artifact in built_artifacts if artifact.suffix == ".whl")
     virtual_environment = tmp_path / "sdk-venv"
     venv.EnvBuilder(with_pip=True).create(virtual_environment)
-    python = virtual_environment / "bin" / "python"
+    python = venv_executable(virtual_environment, "python")
 
     subprocess.run(
         [str(python), "-m", "pip", "install", f"{wheel}[sdk]"],
