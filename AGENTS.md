@@ -41,6 +41,7 @@ python -m pip install -e ".[dev,sdk]"
 * Make the smallest coherent change and follow existing package boundaries.
 * Add or update focused unit or contract tests for changed behaviour.
 * Update public documentation and `CHANGELOG.md` when behaviour visible to users changes.
+* Use absolute URLs for links in the root `README.md`; relative links break when PyPI renders the packaged README.
 * Hardware and SDK contract tests are opt-in. A skipped test is not evidence that the behaviour passed.
 * Do not run live device mutations unless explicitly authorized against the private device inventory.
 
