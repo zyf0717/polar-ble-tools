@@ -301,7 +301,13 @@ class BleakTransport:
             client_kwargs["winrt"] = dict(self._winrt)
         client = self._client_cls(observation.native, **client_kwargs)
         try:
-            await asyncio.wait_for(client.connect(), timeout=self.timeouts.connect)
+            connect_kwargs = (
+                {"protection_level": 2} if pair and self.platform is DevicePlatform.WINDOWS else {}
+            )
+            await asyncio.wait_for(
+                client.connect(**connect_kwargs),
+                timeout=self.timeouts.connect,
+            )
         except BaseException as exc:
             phase = _connection_failure_phase(exc, pair=pair)
             await _cleanup_client(client, timeout=self.timeouts.disconnect)

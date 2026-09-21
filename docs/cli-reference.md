@@ -68,3 +68,13 @@ mutate or retrieve data also accept `--devices-file`. Discovery emits `count`
 plus public device records. Preparation and probe outputs include
 the normalized identifier, platform, readiness, and `final_connected: false`;
 service UUIDs are sorted.
+
+## Output and exit status
+
+After parsing, machine-facing success emits one deterministic JSON document to
+stdout; operational errors use stderr. Exit status is `0` for completion under
+the result contract, `1` for operational/protocol/transport/storage or partial
+failure, and `2` for usage or pre-session validation failure.
+
+See [passive file rules](passive-files.md) and [BPB decoding](bpb-decoding.md)
+for persistence, selection, and evidence semantics beyond argument syntax.

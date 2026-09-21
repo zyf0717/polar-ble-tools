@@ -2,10 +2,28 @@
 
 All notable changes to this project are documented here.
 
-## Unreleased
+## 0.6.0 — 2026-09-21
+
+### Added
+
+- Added macOS/CoreBluetooth as a supported discovery and managed-session
+  transport, with native CI and controlled Loop Gen 2 readiness evidence; the
+  SDK-free suite now runs on macOS.
+- Added pinned macOS x86_64/arm64 REC decoder toolchains; a native arm64 build,
+  handshake, and structured decode of a retrieved ACC recording pass.
+- Added a pinned Windows x86_64 REC decoder toolchain with safe ZIP extraction,
+  native Gradle launchers, verified handshakes, and structured ACC decode.
 
 ### Fixed
 
+- Made Windows preparation perform encrypted Bleak pairing with
+  `protection_level=2` even when public PMD/PFTP services are already visible,
+  then verify an ordinary reconnect before reporting readiness.
+- Made SDK source hashing use extended Windows paths so the pinned SDK can be
+  installed beneath the default user-data cache without misclassifying deep
+  regular files as unsafe.
+- Increased default BLE discovery and device-resolution windows to 30 seconds
+  uniformly across supported operating systems.
 - Kept Windows manifest locks on persistent sibling files so concurrent
   manifest reads do not conflict with appends.
 - Allowed schema activation on Windows Python 3.11 and 3.12, where

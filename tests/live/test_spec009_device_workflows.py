@@ -26,7 +26,11 @@ from polar_ble_tools.api import (
 )
 from polar_ble_tools.ble.transport import BleTransport
 from polar_ble_tools.device import open_polar_device
-from polar_ble_tools.inventory import InventoryError, load_allowed_identifiers
+from polar_ble_tools.inventory import (
+    InventoryError,
+    load_allowed_identifiers,
+    normalize_identifier,
+)
 from polar_ble_tools.polar.offline import base_record_type_for
 from polar_ble_tools.polar.pmd import (
     PmdResponseCode,
@@ -177,7 +181,7 @@ def _load_config() -> Spec009WorkflowConfig:
         allowed = load_allowed_identifiers(TEST_DEVICES_FILE)
     except InventoryError as exc:
         raise AssertionError("The SPEC-009 live-test inventory is invalid.") from exc
-    normalized = target.upper()
+    normalized = normalize_identifier(target)
     if normalized not in allowed:
         raise AssertionError("The SPEC-009 live-test target is not authorized.")
     raw_root = Path(os.environ.get(LIVE_RAW_ROOT_ENV, DEFAULT_RAW_ROOT))

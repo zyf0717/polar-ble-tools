@@ -32,7 +32,7 @@ def test_sdk_free_workflows_run_only_sdk_free_contracts() -> None:
     assert "python -m pytest -q tests/unit tests/contracts" in workflow
     assert '".[dev,sdk]"' not in workflow
     assert "tests/sdk_contract" not in workflow
-    assert "macos-latest" not in workflow
+    assert "macos-latest" in workflow
     assert "windows-latest" in workflow
     assert "tests/unit/test_storage_utils.py" in workflow
     assert "tests/unit/schemas/test_verifier.py" in workflow

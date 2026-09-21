@@ -41,8 +41,8 @@ class LifecyclePhase(StrEnum):
 
 @dataclass(frozen=True)
 class LifecycleTimeouts:
-    discovery: float = 10.0
-    resolution: float = 10.0
+    discovery: float = 30.0
+    resolution: float = 30.0
     preparation: float = 45.0
     connect: float = 30.0
     service_readiness: float = 10.0

@@ -3,7 +3,7 @@
 This is a deferred orchestration contract. It is not a current CLI or Python
 API.
 
-## Decode-manifest input
+## Decode-manifest input (FR-036)
 
 The manifest is UTF-8, newline-terminated, project-owned JSONL. Each non-empty
 row has:
@@ -32,7 +32,7 @@ Rules:
 A malformed completed row fails before any decode. A final
 non-newline-terminated row is malformed, not an ignorable partial entry.
 
-## Tree discovery and output mapping
+## Tree discovery and output mapping (FR-035, FR-037)
 
 Tree discovery resolves input and output roots once. It walks without following
 directory symlinks, selects readable regular files whose suffix is `.REC`
@@ -50,10 +50,11 @@ destinations, output-root containment, parent-directory safety, and no-clobber
 conflicts. Without overwrite, any existing destination or summary aborts before
 the first sidecar invocation.
 
-With overwrite, only regular decoded JSONL destinations that pass SPEC-004
-validation may be replaced. Unrelated or stale files are never removed.
+With overwrite, only regular decoded JSONL destinations that pass
+[single-file validation](../../docs/rec-decoding.md#output-protocol-v1) may be
+replaced. Unrelated or stale files are never removed.
 
-## Execution and summary
+## Execution and summary (FR-038)
 
 Every selected source receives one result. Successful sources receive a
 validated JSONL output. Unsupported and failed sources receive no placeholder;
@@ -91,9 +92,10 @@ architecture.
 
 Unsupported inputs do not count as failed. CLI exit status is zero when
 `failed == 0` and one when any file failed. Preflight or summary-publication
-failure is an operation-level failure.
+failure is an operation-level failure. Per-file decode errors do not prevent
+later sources from running.
 
-## Protected sources
+## Protected sources (FR-039)
 
 `secret_id` remains inert unless SPEC-006 is implemented and a provider is
 explicitly supplied. The provider receives only a redacted recording identity

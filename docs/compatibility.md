@@ -2,16 +2,49 @@
 
 ## Supported devices
 
-`0.5.0` supports Polar Loop Gen 2 and Polar Verity Sense within the controlled
-Linux/BlueZ capability boundaries below. The current development line adds the
-Windows transport and local-storage path described here for the next release.
+`0.6.0` supports Polar Loop Gen 2 and Polar Verity Sense within the controlled
+Linux/BlueZ capability boundaries below and adds the preliminary macOS and
+Windows evidence described here.
 
 Linux preparation, probe, managed sessions, PMD/PFTP workflows, and
 device-specific FTU have controlled hardware evidence. Windows use requires a
 Bleak pairing with `protection_level=2` and uses uncached WinRT GATT discovery
 automatically. Focused public CI exercises Windows JSONL locking and schema
 activation on Python 3.11, but Windows hardware certification remains deferred.
-macOS workflows and physical certification are not claimed.
+Native macOS CI exercises the SDK-free suite. The preliminary observations
+below establish individual outcomes, not a certified cross-platform release
+matrix. Durable authentication and concurrent-device workflows remain
+unvalidated on macOS.
+
+### Preliminary Windows evidence — 2026-09-21
+
+On one Windows host with Python 3.13 and one Loop Gen 2, controlled validation
+passed structured discovery, encrypted Bleak pairing, pinned schema generation
+and verification, tracked Loop-profile FTU, a four-second ACC start/stop, REC
+retrieval, device/local size and SHA-256 verification, and eligible cleanup
+dry-run with zero deletions. The recording was retained on-device. The pinned
+Windows x86_64 decoder then passed build/version/self-test handshakes and
+decoded the retrieved 80-byte ACC recording into three records with no
+warnings. This does not establish Windows certification, Verity Sense behavior,
+other REC categories, passive-data workflows, multiple-device concurrency,
+radio-loss recovery, or destructive cleanup.
+
+### Preliminary macOS evidence — 2026-09-21
+
+On one arm64 host and one Loop Gen 2, public workflows passed UUID discovery,
+existing-device preparation/readiness/disconnect, pinned schema installation
+and verification, tracked Loop-profile FTU, a four-second ACC start/stop,
+REC retrieval, device/local size and manifest SHA-256 verification, and eligible
+cleanup dry-run with zero deletions. This observation does not cover fresh
+pairing persistence, Verity Sense, passive data, radio loss, multiple devices,
+or destructive cleanup.
+
+The native REC sidecar build for SDK commit
+`ccff6812c40fff1753c72385387d1877ca9b27b4` passed version/self-test handshakes
+and decoded the 82-byte ACC file into three validated records, a matching
+summary, and no warnings. This is one macOS arm64 ACC pipeline result;
+it does not validate macOS x86_64, other categories, encrypted REC, or Windows.
+Raw files remain authoritative. Detailed evidence stays private.
 
 ## Polar Loop Gen 2
 
@@ -34,7 +67,7 @@ Controlled checks covered:
 
 Controlled Linux aarch64/BlueZ validation confirmed discovery, durable pairing
 and bonding, and FTU profile application for Polar Loop Gen 2. This evidence
-does not extend the x86_64-only REC-decoder support claim.
+does not establish Linux aarch64 REC-decoder support.
 
 In a controlled 2026-07-27 observation, the target advertised ACC, HR, PPG, PPI,
 and SKIN_TEMPERATURE as available offline-recording types. Availability is not
@@ -81,7 +114,9 @@ six types; the resulting files were size- and SHA-256-verified locally.
 
 Passive collection over the canonical domains returned no files; Verity Sense
 passive activity, sleep, wellness, or related domain support is not claimed.
-No destructive deletion was performed.
+No destructive deletion was performed. Applying the Loop physical-data FTU
+path to Verity produced two bounded PFTP timeouts with clean disconnects;
+that path is inapplicable, not evidence against device-specific Verity setup.
 
 `VeritySenseFtuProfile` supports device-specific FTU by setting system/local
 time from the timezone-aware host clock after connection and applying wear
@@ -111,8 +146,10 @@ payload.
 ## Unsupported or incomplete behavior
 
 - Structured `.REC` decoding is local-only and limited as above.
-- Batch and protected REC decoding are not `0.5.0` capabilities.
-- The optional REC decoder is currently limited to Linux x86_64.
+- Batch and protected REC decoding are not `0.6.0` capabilities.
+- The optional REC decoder supports pinned Linux and macOS toolchains on
+  x86_64 and arm64, plus Windows x86_64. Structured ACC decoding is validated
+  on macOS arm64 and Windows x86_64.
 - Two-device shared-scan/native-object overlap was validated for three
   simultaneous read-only PMD/PFTP cycles on one Linux/BlueZ adapter.
   Long-duration, multi-adapter, and cross-platform hardware concurrency remain
@@ -124,8 +161,9 @@ payload.
   unsupported.
 
 The BPB registry has local official-binding parse/serialize contracts for every
-registered schema. That validates schema generation and runtime wiring only; it
-does not broaden device compatibility. Device-level decoding claims remain
+registered schema. The completed decoder validation covered 12 registered
+bindings and five scoped format-3 fixtures. That validates schema generation
+and runtime wiring only; it does not broaden device compatibility. Device-level decoding claims remain
 limited to the private fixtures and controlled hardware evidence stated above.
 BPB decoding uses generated Python protobuf bindings and never the REC JVM
 sidecar.

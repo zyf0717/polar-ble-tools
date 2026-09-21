@@ -73,6 +73,17 @@ class FakeTransport:
         await session.disconnect()
 
 
+class FakeWindowsTransport(FakeTransport):
+    platform = DevicePlatform.WINDOWS
+
+
+def test_default_discovery_and_resolution_timeouts_are_uniform() -> None:
+    timeouts = LifecycleTimeouts()
+
+    assert timeouts.discovery == 30.0
+    assert timeouts.resolution == 30.0
+
+
 def test_scan_devices_delegates_to_structured_transport() -> None:
     async def run() -> None:
         transport = FakeTransport()
@@ -116,6 +127,28 @@ def test_prepare_returns_already_ready_without_agent() -> None:
         assert result.outcome is PreparationOutcome.ALREADY_READY
         assert result.reconnect_persistence is ReconnectPersistence.VERIFIED
         assert transport.connect_calls == [("AA:BB:CC:DD:EE:FF", False)]
+
+    asyncio.run(run())
+
+
+def test_windows_prepare_pairs_even_when_services_are_publicly_ready() -> None:
+    async def run() -> None:
+        probe = FakeWindowsTransport()
+        pairing = FakeWindowsTransport()
+        reconnect = FakeWindowsTransport()
+        transports = [probe, pairing, reconnect]
+
+        result = await prepare_device(
+            "AA:BB:CC:DD:EE:FF",
+            transport_factory=lambda: transports.pop(0),
+        )
+
+        assert result.outcome is PreparationOutcome.READY
+        assert result.reconnect_persistence is ReconnectPersistence.VERIFIED
+        assert probe.connect_calls == [("AA:BB:CC:DD:EE:FF", False)]
+        assert pairing.connect_calls == [("AA:BB:CC:DD:EE:FF", True)]
+        assert reconnect.connect_calls == [("AA:BB:CC:DD:EE:FF", False)]
+        assert transports == []
 
     asyncio.run(run())
 

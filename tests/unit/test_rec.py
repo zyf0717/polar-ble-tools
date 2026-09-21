@@ -128,6 +128,8 @@ def _decoder(cache: SdkCache, *, summary_count: int = 1, mode: str = "normal") -
 
 def _use_cache(monkeypatch: pytest.MonkeyPatch, cache: SdkCache) -> None:
     monkeypatch.setattr(SdkCache, "default", classmethod(lambda cls: cache))
+    monkeypatch.setattr("polar_ble_tools.rec.api.platform.system", lambda: "Linux")
+    monkeypatch.setattr("polar_ble_tools.rec.api.platform.machine", lambda: "x86_64")
 
 
 def test_decode_rejects_identical_source_and_output_without_starting_decoder(

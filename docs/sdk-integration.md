@@ -32,7 +32,12 @@ schema revision.
 Generation or verification failure leaves the previously active verified
 revisions unchanged. Schema activation works on every declared Python version,
 including Windows Python 3.11 and 3.12 where `os.fchmod()` is unavailable.
+SDK source hashing uses extended Windows paths so deeply nested upstream files
+remain verifiable beneath the default user-data cache.
 
+`SchemaStatus` reports the independent active/installed schema commits,
+manifest format, source independence, and unavailable reason. Activation verifies
+an exact full commit before atomically publishing its owner-private pointer.
 SDK source and generated schemas have independent status and activation:
 
 ```bash
@@ -43,8 +48,10 @@ polar-ble sdk schemas activate --commit FULL_REVISION
 ```
 
 New format-3 caches bind source, descriptor, generated-file, and toolchain
-provenance in their local manifest. They can be verified and used without
-retaining the SDK checkout. Existing format-2 caches remain usable only while
+provenance in their local manifest, including source repository/ref/commit and
+content digest, descriptor/generated-file digests, required features, resolved
+symbols, dependency closure, and tool versions. They can be verified and used
+without retaining the SDK checkout. Existing format-2 caches remain usable only while
 their matching verified source is installed; regenerate them before
 source-only removal.
 
@@ -90,7 +97,7 @@ cache to be verified format 3. It preserves the independent schema pointer.
 Removing selected schemas, SDK source, or a decoder clears only the
 corresponding activation pointer.
 Already-absent exact targets are successful idempotent outcomes. Every target
-is preflighted before deletion begins, and paths must remain exact regular
+and loaded-schema guard is preflighted before deletion begins, and paths must remain exact regular
 directories under their configured roots. The shared JDK is never removed by
 `sdk remove`; a selected decoder workspace, including its per-commit Gradle
 files and dependency cache, is removed when decoder inclusion is requested.
@@ -127,3 +134,5 @@ manifest binds its SHA-256 to the SDK commit and explicitly marks it as not an
 acceptance record. Neither that file nor the compiled decoder is included in
 PyPI distributions. Do not redistribute the locally compiled decoder under
 this project's Apache-2.0 licence alone. See [REC decoding](rec-decoding.md).
+
+See [BPB decoding](bpb-decoding.md) for the stable schema-backed output contract.

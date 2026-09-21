@@ -16,7 +16,7 @@ def build_discover_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         type=float,
-        default=10.0,
+        default=30.0,
         help="BLE scan timeout in seconds. Default: %(default)s",
     )
     parser.add_argument(

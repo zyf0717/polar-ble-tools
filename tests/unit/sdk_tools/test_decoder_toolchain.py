@@ -30,17 +30,23 @@ def test_architecture_aliases_are_normalized(raw: str, expected: str) -> None:
 
 def test_platform_is_normalized() -> None:
     assert normalized_platform("Linux") == "linux"
+    assert normalized_platform("Windows") == "windows"
 
 
 def test_descriptors_are_immutable_and_architecture_specific() -> None:
     x86 = toolchain_descriptor("Linux", "AMD64")
     arm = toolchain_descriptor("linux", "arm64")
+    mac = toolchain_descriptor("Darwin", "arm64")
+    windows = toolchain_descriptor("Windows", "AMD64")
 
     assert x86.architecture == "x86_64"
     assert arm.architecture == "aarch64"
     assert x86.jdk_archive_name != arm.jdk_archive_name
     assert x86.jdk_sha256 != arm.jdk_sha256
     assert x86.gradle_sha256 == arm.gradle_sha256
+    assert mac.java_relative_path == "Contents/Home/bin/java"
+    assert windows.jdk_archive_name.endswith("_windows_hotspot_21.0.12_8.zip")
+    assert windows.java_relative_path == "bin/java.exe"
     assert len(toolchain_descriptor_digest(x86)) == 64
     assert toolchain_descriptor_digest(x86) != toolchain_descriptor_digest(arm)
     with pytest.raises(FrozenInstanceError):
@@ -50,5 +56,5 @@ def test_descriptors_are_immutable_and_architecture_specific() -> None:
 
 
 def test_unsupported_host_has_actionable_error() -> None:
-    with pytest.raises(RuntimeError, match="Linux x86_64 and Linux aarch64"):
-        toolchain_descriptor("darwin", "arm64")
+    with pytest.raises(RuntimeError, match="Windows on x86_64"):
+        toolchain_descriptor("windows", "arm64")

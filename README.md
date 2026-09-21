@@ -31,20 +31,20 @@ out of scope for this project.
 - list, retrieve, and manage device-resident files through PFTP;
 - retrieve raw `.REC` recordings with SHA-256 manifests and guarded cleanup;
 - retrieve passive `.BPB` files and decode supported data with local schemas;
-- discover devices, prepare fresh Linux devices, and run bounded managed
-  sessions through Bleak;
+- discover devices and run bounded managed sessions through Bleak on Linux,
+  macOS, and Windows;
 - validate and apply first-time-use (FTU) data;
 - generate and verify optional local schemas from a separately obtained SDK;
 - locally decode supported `.REC` files to validated JSONL with an optional SDK sidecar.
 
 ## Installation
 
-Device operations use Bleak on Linux/BlueZ and Windows. Python 3.11 or newer is
-required. Linux CI covers Python 3.11 through 3.14; focused native Windows CI
-covers local storage and schema activation on Python 3.11. Fresh Linux
-preparation lazily uses a narrow D-Bus BlueZ authentication agent; no
-`bluetoothctl` subprocess is required. Windows hardware certification remains
-deferred.
+Device operations use Bleak on Linux/BlueZ, macOS/CoreBluetooth, and Windows.
+Python 3.11 or newer is required. Linux CI covers Python 3.11 through 3.14;
+native macOS CI covers the SDK-free suite; focused native Windows CI covers
+local storage and schema activation. Fresh Linux preparation lazily uses a
+narrow D-Bus BlueZ authentication agent; no `bluetoothctl` subprocess is
+required. Windows hardware certification remains deferred.
 
 ```bash
 python -m pip install polar-ble-tools
@@ -57,6 +57,9 @@ The package automatically bypasses the stale WinRT GATT service cache. JSONL
 writers use persistent hidden sibling lock files so manifests remain readable
 during appends, and schema activation works without `os.fchmod` on Python 3.11
 and 3.12.
+
+On macOS, use the CoreBluetooth UUID returned by `discover`; see
+[device setup](./docs/device-setup.md#macos-authentication).
 
 Install the optional schema compiler only for SDK-assisted FTU encoding and BPB
 decoding:
@@ -180,6 +183,8 @@ for prerequisites and evidence-backed limitations.
 - [Configuration and CLI](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/configuration.md)
 - [CLI reference](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/cli-reference.md)
 - [Python API reference](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/python-api.md)
+- [Passive files and cleanup](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/passive-files.md)
+- [BPB decoding](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/bpb-decoding.md)
 - [Compatibility](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/compatibility.md)
 - [Troubleshooting](https://github.com/zyf0717/polar-ble-tools/blob/main/docs/troubleshooting.md)
 - [Contributor guide](https://github.com/zyf0717/polar-ble-tools/blob/main/CONTRIBUTING.md)
